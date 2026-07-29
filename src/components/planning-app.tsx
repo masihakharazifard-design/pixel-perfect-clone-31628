@@ -403,8 +403,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           else if(h==="calculator")col_calculator=i;
           else if(norm==="datumopdracht"||h==="datum opdracht")col_datum_opdracht=i;
           else if(h==="startdatum")col_startdatum=i;
-          else if(norm==="werknr"||norm==="werknummer")col_werknr=i;
+          else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
         });
+
+        // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
+        if(col_werknr===-1){
+          col_werknr=headerRow.findIndex(h=>{
+            const n=h.replace(/\s+/g,"").replace(/\./g,"");
+            return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
+          });
+        }
+
 
         if(col_projectnr===-1){
           setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
