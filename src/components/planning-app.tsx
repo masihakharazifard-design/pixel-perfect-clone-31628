@@ -9,6 +9,7 @@ import {
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { loadAll, syncTable, syncSettings } from "@/lib/planning-store";
 
 // ===== TYPES =====
 type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"beschikbaarheid"|"medewerkers"|"facturatie"|"instellingen";
@@ -2546,22 +2547,22 @@ export default function PlanningApp(){
 
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("projects",projects).catch(e=>setDbError(String(e?.message||e)));},600);
+    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
     return()=>clearTimeout(t);
   },[projects,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("employees",employees).catch(e=>setDbError(String(e?.message||e)));},600);
+    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
     return()=>clearTimeout(t);
   },[employees,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("availability",avail).catch(e=>setDbError(String(e?.message||e)));},600);
+    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
     return()=>clearTimeout(t);
   },[avail,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncSettings(settings).catch(e=>setDbError(String(e?.message||e)));},600);
+    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
     return()=>clearTimeout(t);
   },[settings,dbReady]);
 
