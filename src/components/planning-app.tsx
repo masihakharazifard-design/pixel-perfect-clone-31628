@@ -462,7 +462,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             projectleider:calculator,
             startdatum:parseXlDate(startdatumRaw as string|number|null),
             datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
-            werknummer:werknrRaw,
+            werknummer:werknrRaw||projectnr,
             rawDept:rawDeptCell,
             afdelingen,
             turnkey,
