@@ -2552,7 +2552,7 @@ export default function PlanningApp(){
       return{
         id:nid(),
         projectnr:r.projectnr,
-        werknummer:r.werknummer||"",
+        werknummer:r.werknummer||r.projectnr,
         projectnaam:r.projectnaam,
         opdrachtgever:r.opdrachtgever||r.contactpersoon||"",
         adres:"",plaats:"",
