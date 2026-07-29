@@ -2508,6 +2508,62 @@ export default function PlanningApp(){
   const [mobileMenuOpen,setMobileMenuOpen]=useState(false);
   const [settings,setSettings]=useState<AppSettings>(INIT_SETTINGS);
   const [showVacImport,setShowVacImport]=useState(false);
+  const [dbReady,setDbReady]=useState(false);
+  const [dbError,setDbError]=useState<string>("");
+
+  // ===== DATABASE: eenmalig laden, daarna elke wijziging opslaan =====
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      try{
+        const res=await loadAll<Project,Employee,AvailEntry,AppSettings>();
+        if(cancelled)return;
+        if(res.empty){
+          // Eerste keer: demo-data als startpunt wegschrijven
+          await Promise.all([
+            syncTable("projects",INIT_PROJ),
+            syncTable("employees",INIT_EMP),
+            syncTable("availability",INIT_AVAIL),
+            syncSettings(INIT_SETTINGS),
+          ]);
+        }else{
+          setProjects(res.projects);
+          setEmployees(res.employees);
+          setAvail(res.availability);
+          if(res.settings){
+            setSettings(res.settings);
+            (Object.keys(res.settings.deptColors||{}) as Afdeling[]).forEach(afd=>{DC[afd]=res.settings!.deptColors[afd];});
+          }
+        }
+      }catch(err){
+        if(!cancelled)setDbError(err instanceof Error?err.message:"Onbekende fout");
+      }finally{
+        if(!cancelled)setDbReady(true);
+      }
+    })();
+    return()=>{cancelled=true;};
+  },[]);
+
+  useEffect(()=>{
+    if(!dbReady)return;
+    const t=setTimeout(()=>{syncTable("projects",projects).catch(e=>setDbError(String(e?.message||e)));},600);
+    return()=>clearTimeout(t);
+  },[projects,dbReady]);
+  useEffect(()=>{
+    if(!dbReady)return;
+    const t=setTimeout(()=>{syncTable("employees",employees).catch(e=>setDbError(String(e?.message||e)));},600);
+    return()=>clearTimeout(t);
+  },[employees,dbReady]);
+  useEffect(()=>{
+    if(!dbReady)return;
+    const t=setTimeout(()=>{syncTable("availability",avail).catch(e=>setDbError(String(e?.message||e)));},600);
+    return()=>clearTimeout(t);
+  },[avail,dbReady]);
+  useEffect(()=>{
+    if(!dbReady)return;
+    const t=setTimeout(()=>{syncSettings(settings).catch(e=>setDbError(String(e?.message||e)));},600);
+    return()=>clearTimeout(t);
+  },[settings,dbReady]);
 
   const addProject=(p:Project)=>{setProjects(prev=>[...prev,p]);setIsNewProject(false);setEditProject(null);};
   const updateProject=(id:string,u:Partial<Project>)=>setProjects(prev=>prev.map(p=>p.id===id?{...p,...u}:p));
