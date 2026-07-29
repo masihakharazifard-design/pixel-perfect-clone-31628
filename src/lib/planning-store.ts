@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 type Row = { id: string; data: unknown };
 type WithId = { id: string };
@@ -48,7 +49,7 @@ export async function syncTable(table: SyncTable, items: WithId[]): Promise<void
     return;
   }
 
-  const rows = items.map((item) => ({ id: item.id, data: item, updated_at: new Date().toISOString() }));
+  const rows = items.map((item) => ({ id: item.id, data: item as unknown as Json, updated_at: new Date().toISOString() }));
   const { error: upsertError } = await supabase.from(table).upsert(rows);
   if (upsertError) throw upsertError;
 
@@ -62,6 +63,6 @@ export async function syncTable(table: SyncTable, items: WithId[]): Promise<void
 export async function syncSettings(settings: unknown): Promise<void> {
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ id: SETTINGS_ID, data: settings, updated_at: new Date().toISOString() });
+    .upsert({ id: SETTINGS_ID, data: settings as Json, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
