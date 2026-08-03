@@ -809,7 +809,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
         <table className="w-full text-left text-[#6B7A99]">
           <tbody className="divide-y divide-[rgba(26,39,68,0.06)]">
-            {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Begin vakantie","✓"],["Einddatum","Einde vakantie",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Type / Reden","Vakantie, Ziek, Vrij…",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
+            {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Eerste dag","✓"],["Einddatum","Laatste dag",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Status / Type","Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
               <tr key={col}><td className="py-1 font-mono pr-2">{col}</td><td className="py-1 text-[#B8C3D9]">{desc}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>
             )}
           </tbody>
