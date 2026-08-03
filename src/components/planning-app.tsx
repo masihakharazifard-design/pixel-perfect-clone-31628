@@ -1501,6 +1501,10 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const activeCount=Object.values(filters).filter(Boolean).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
+  // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
+  const plOptions=[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1]));
+
   const filtered=projects.filter(p=>{
     const pl=employees.find(e=>e.id===p.projectleider);
     const afds=getAllAfds(p);
@@ -1546,7 +1550,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></div>
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Projectleider</label>
           <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
-            <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
+            <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Medewerker</label>
@@ -1595,7 +1599,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
             <ColHeader label="Afdeling" active={!!filters.afdeling}><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></ColHeader>
             <ColHeader label="Projectleider" active={!!filters.projectleider}>
               <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
-                <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
+                <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
               </select>
             </ColHeader>
             <ColHeader label="Werkzaamheden" active={!!filters.werkzaamheden}><ColSearch value={filters.werkzaamheden} onChange={set("werkzaamheden")} placeholder="Zoek werkzaamheden..."/></ColHeader>
@@ -2702,10 +2706,8 @@ export default function PlanningApp(){
 
   const handleImport=(rows:ImportRow[])=>{
     const newProjects:Project[]=rows.map(r=>{
-      // Projectleider (kolom K): match op exacte medewerkersnaam; anders de tekst zelf bewaren
-      const plQuery=r.projectleider.toLowerCase().trim();
-      const plEmp=plQuery?employees.find(e=>e.naam.toLowerCase().trim()===plQuery):null;
-      const pl=plEmp?.id||r.projectleider.trim();
+      // Projectleider (kolom K): exacte celtekst, altijd als platte tekst opslaan
+      const pl=r.projectleider.trim();
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
       // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
