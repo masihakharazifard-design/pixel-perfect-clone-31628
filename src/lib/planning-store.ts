@@ -66,3 +66,30 @@ export async function syncSettings(settings: unknown): Promise<void> {
     .upsert({ id: SETTINGS_ID, data: settings as Json, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// ===== Projectgegevens (documenten, facturatietermijnen, notities) =====
+export interface ProjectMeta {
+  docs: string[];
+  termijnen: Record<string, boolean>;
+  notities: string;
+}
+
+export const EMPTY_META: ProjectMeta = { docs: [], termijnen: {}, notities: "" };
+
+export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | null> {
+  const { data, error } = await supabase
+    .from("project_meta")
+    .select("data")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.data as ProjectMeta) ?? null;
+}
+
+export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
+  const { error } = await supabase
+    .from("project_meta")
+    .upsert({ id: projectId, data: meta as unknown as Json, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
