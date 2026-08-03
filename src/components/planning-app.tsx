@@ -155,7 +155,9 @@ function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_H
 function nid(){return Math.random().toString(36).slice(2,9);}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
 function abbrevName(naam:string):string{const parts=naam.split(" ");return parts.length<=1?naam:parts[0][0]+". "+parts.slice(1).join(" ");}
-function projLabel(p:Project,employees:Employee[]):string{const pl=employees.find(e=>e.id===p.projectleider);const pn=pl?abbrevName(pl.naam):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
+// Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
+function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
+function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
 function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
 function fmtHM(h:number,m:number){return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
@@ -283,8 +285,9 @@ interface ImportRow {
   opdrachtgever:string;   // Naam opdrachtgever
   contactpersoon:string;  // Contactpersoon
   projectleider:string;   // Calculator
-  startdatum:string;      // Startdatum
-  datumOpdracht:string;   // Datum opdracht
+  startdatum:string;      // Startdatum + Starttijd (ISO datetime)
+  einddatum:string;       // Einddatum + Eindtijd (ISO datetime)
+  datumOpdracht:string;   // Datum opdracht (alleen informatief)
   werknummer:string;      // Werknr. (may be empty)
   rawDept:string;         // Second Omschrijving — raw department string
   afdelingen:Afdeling[];  // Resolved departments
@@ -342,6 +345,35 @@ function parseXlDate(raw:string|number|null|undefined):string{
   return "";
 }
 
+// Parse a time cell: "08:30", "8.30", "8", or an Excel time fraction (0–1) → {h,m} or null
+function parseXlTime(raw:unknown):{h:number;m:number}|null{
+  if(raw==null||raw==="")return null;
+  if(typeof raw==="number"){
+    const frac=raw-Math.floor(raw);
+    if(raw>0&&raw<1||frac>0){
+      const mins=Math.round(frac*24*60);
+      return{h:Math.floor(mins/60)%24,m:mins%60};
+    }
+    if(raw>=0&&raw<=23)return{h:Math.round(raw),m:0};
+    return null;
+  }
+  const s=String(raw).trim();
+  const m=/^(\d{1,2})[:.\uff1a]?(\d{2})?$/.exec(s);
+  if(!m)return null;
+  const h=parseInt(m[1]);const mi=m[2]?parseInt(m[2]):0;
+  if(isNaN(h)||h>23||mi>59)return null;
+  return{h,m:mi};
+}
+
+// Combine an ISO date with a time (defaults applied) → ISO datetime string
+function combineDT(iso:string,time:{h:number;m:number}|null,defH:number,defM=0):string{
+  if(!iso)return "";
+  const d=new Date(iso);
+  if(isNaN(d.getTime()))return "";
+  d.setHours(time?time.h:defH,time?time.m:defM,0,0);
+  return d.toISOString();
+}
+
 // Cell value → trimmed string, empty if null/undefined
 function cellStr(v:unknown):string{
   if(v==null)return "";
@@ -391,7 +423,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         let omschrijvingCount=0;
         let col_projectnr=-1,col_omschr1=-1,col_omschr2=-1,col_opdrachtgever=-1;
         let col_contactpersoon=-1,col_calculator=-1,col_datum_opdracht=-1;
-        let col_startdatum=-1,col_werknr=-1;
+        let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
 
         headerRow.forEach((h,i)=>{
           const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
@@ -402,12 +434,18 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             else if(omschrijvingCount===2)col_omschr2=i;
           }
           else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
-          else if(h==="contactpersoon")col_contactpersoon=i;
-          else if(h==="calculator")col_calculator=i;
-          else if(norm==="datumopdracht"||h==="datum opdracht")col_datum_opdracht=i;
-          else if(h==="startdatum")col_startdatum=i;
+          else if(norm==="contactpersoon")col_contactpersoon=i;
+          else if(norm==="calculator"&&col_calculator===-1)col_calculator=i;
+          else if(norm==="datumopdracht")col_datum_opdracht=i;
+          else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
+          else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
+          else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
+          else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
           else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
         });
+
+        // Fallback: "Calculator" als deel van een langere kolomnaam
+        if(col_calculator===-1)col_calculator=headerRow.findIndex(h=>/calculator/.test(h));
 
         // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
         if(col_werknr===-1){
@@ -446,6 +484,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           const contactpersoon=col_contactpersoon>=0?cellStr(row[col_contactpersoon]):"";
           const calculator=col_calculator>=0?cellStr(row[col_calculator]):"";
           const startdatumRaw=col_startdatum>=0?row[col_startdatum]:null;
+          const einddatumRaw=col_einddatum>=0?row[col_einddatum]:null;
+          const starttijd=col_starttijd>=0?parseXlTime(row[col_starttijd]):null;
+          const eindtijd=col_eindtijd>=0?parseXlTime(row[col_eindtijd]):null;
           const datumOpdrachtRaw=col_datum_opdracht>=0?row[col_datum_opdracht]:null;
           const werknrRaw=col_werknr>=0?cellStr(row[col_werknr]):"";
 
@@ -456,6 +497,11 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
           const{afdelingen,turnkey}=resolveDept(rawDeptCell);
 
+          // Start = Startdatum + Starttijd (default 08:00); Eind = Einddatum (of Startdatum) + Eindtijd (default 17:00)
+          const startISO=combineDT(parseXlDate(startdatumRaw as string|number|null),starttijd,8,0);
+          const eindBase=parseXlDate(einddatumRaw as string|number|null)||parseXlDate(startdatumRaw as string|number|null);
+          const eindISO=combineDT(eindBase,eindtijd,17,0);
+
           allRows.push({
             projectnr,
             projectnaam:projectnaam||projectnr,
@@ -463,7 +509,8 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             opdrachtgever,
             contactpersoon,
             projectleider:calculator,
-            startdatum:parseXlDate(startdatumRaw as string|number|null),
+            startdatum:startISO,
+            einddatum:eindISO,
             datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
             werknummer:werknrRaw||projectnr,
             rawDept:rawDeptCell,
@@ -521,7 +568,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
                 ["Contactpersoon","Contactpersoon",""],
                 ["Calculator","Projectleider",""],
                 ["Datum opdracht","Datum opdracht",""],
-                ["Startdatum","Startdatum",""],
+                ["Startdatum / Start datum","Startdatum (standaard 08:00)",""],
+                ["Einddatum / Afloopdatum","Einddatum (standaard 17:00)",""],
+                ["Starttijd / Eindtijd","Tijd bij start-/einddatum",""],
                 ["Werknr.","Werknummer",""],
                 ["Omschrijving (2e kolom, na S code)","Afdeling / type",""],
               ].map(([col,veld,req])=><tr key={col}><td className="py-1 font-mono">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>)}
@@ -983,7 +1032,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
           {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(26,39,68,0.15)] text-[#6B7A99] hover:border-[#6B7A99]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
         </div>
       </div>
-      <Select label="Projectleider" value={f.projectleider} onChange={v=>set("projectleider",v)} required options={employees.filter(e=>e.functie==="Projectleider").map(e=>({value:e.id,label:e.naam}))}/>
+      <Select label="Projectleider" value={f.projectleider} onChange={v=>set("projectleider",v)} required options={[...employees.filter(e=>e.functie==="Projectleider").map(e=>({value:e.id,label:e.naam})),...(f.projectleider&&!employees.some(e=>e.id===f.projectleider)?[{value:f.projectleider,label:f.projectleider}]:[])]}/>
       <Select label="Status" value={f.status} onChange={v=>set("status",v as ProjectStatus)} options={STATS.map(s=>({value:s,label:s}))}/>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -1078,7 +1127,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
     return()=>clearTimeout(t);
   },[docs,notities,metaLoaded,project.id]);
 
-  const pl=employees.find(e=>e.id===project.projectleider);
+  const plNaam=plName(project,employees);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
   const totaal=project.uurprijs*project.uren;
   const dur=Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000);
@@ -1113,9 +1162,9 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
             </div>
           )}
         </div>
-        {pl&&<div className="flex items-center gap-3 p-3 bg-[#E0F7F6] rounded-xl">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:primaryDc.bg}}>{pl.naam.slice(0,1)}</div>
-          <div><p className="font-semibold text-[#1A2744] text-sm">{pl.naam}</p><p className="text-xs text-[#6B7A99]">Projectleider</p></div>
+        {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#E0F7F6] rounded-xl">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:primaryDc.bg}}>{plNaam.slice(0,1)}</div>
+          <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Projectleider</p></div>
         </div>}
       </div>}
       {tab==="werkzaamheden"&&<div>
@@ -1505,7 +1554,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
-      {filtered.map(p=>{const pl=employees.find(e=>e.id===p.projectleider);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+      {filtered.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
@@ -1514,7 +1563,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div className="px-4 py-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
           <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><MapPin className="w-3.5 h-3.5 flex-shrink-0"/>{p.plaats}</div>
-          {pl&&<div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><UserCircle className="w-3.5 h-3.5 flex-shrink-0"/>{pl.naam}</div>}
+          {pl&&<div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><UserCircle className="w-3.5 h-3.5 flex-shrink-0"/>{pl}</div>}
           <div className="flex items-center gap-1.5 text-xs text-[#6B7A99]"><Calendar className="w-3 h-3 flex-shrink-0"/>{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)}</div>
           <div className="pt-1"><DeptBadges afds={afds}/></div>
         </div>
@@ -1567,7 +1616,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {filtered.map(p=>{
-            const pl=employees.find(e=>e.id===p.projectleider);
+            const pl=plName(p,employees);
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
               <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">{p.werknummer}</td>
@@ -1580,7 +1629,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
               <td className="px-3 py-3 text-[#6B7A99]">{p.opdrachtgever}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.plaats}</td>
               <td className="px-3 py-3"><DeptBadges afds={afds}/></td>
-              <td className="px-3 py-3 text-[#1A2744]">{pl?.naam||"-"}</td>
+              <td className="px-3 py-3 text-[#1A2744]">{pl||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] max-w-32 truncate" title={p.werkzaamheden}>{p.werkzaamheden||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.startdatum)}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.afloopdatum)}</td>
@@ -1645,7 +1694,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
       return <div key={wi} className="relative border-b border-[rgba(26,39,68,0.06)]" style={{height:rowH}}>
         <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
           {showWeekNumbers&&<div className="border-r border-[rgba(26,39,68,0.06)] flex items-start justify-center pt-1">
-            <span className="text-[9px] text-[#B8C3D9] font-medium">{wn}</span>
+            <span className="text-[9px] text-[#B8C3D9] font-medium">W{wn}</span>
           </div>}
           {week.map((day,di)=>{
             const ds=toDateStr(day);
@@ -1907,7 +1956,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
             return <div key={wi} className="relative border-b border-[rgba(26,39,68,0.05)]" style={{height:rowH}}>
               <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
                 {showWeekNumbers&&<div className="border-r border-[rgba(26,39,68,0.05)] flex items-start justify-center pt-0.5">
-                  <span className="text-[8px] text-[#B8C3D9] font-medium">{wn}</span>
+                  <span className="text-[8px] text-[#B8C3D9] font-medium">W{wn}</span>
                 </div>}
                 {week.map((day,di)=>{
                   const ds=toDateStr(day);
@@ -2644,21 +2693,21 @@ export default function PlanningApp(){
   };
 
   const handleImport=(rows:ImportRow[])=>{
-    const fallbackDate=()=>new Date().toISOString();
+    const fallbackDate=(h:number)=>{const d=new Date();d.setHours(h,0,0,0);return d.toISOString();};
     const newProjects:Project[]=rows.map(r=>{
-      // Resolve projectleider: match Calculator string against employee names
+      // Projectleider: match Calculator op medewerkersnaam; anders de Calculator-tekst zelf bewaren
       const plQuery=r.projectleider.toLowerCase().trim();
       const plEmp=plQuery
         ?employees.find(e=>e.naam.toLowerCase()===plQuery)
           ||employees.find(e=>e.naam.toLowerCase().includes(plQuery))
           ||employees.find(e=>plQuery.includes(e.naam.split(" ").slice(-1)[0].toLowerCase()))
         :null;
-      const pl=plEmp?.id||"";
+      const pl=plEmp?.id||r.projectleider.trim();
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
-      // startdatum: use parsed value or today; afloopdatum: use datumOpdracht or startdatum or today
-      const sd=r.startdatum||r.datumOpdracht||fallbackDate();
-      const ed=r.datumOpdracht||r.startdatum||fallbackDate();
+      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden), nooit uit Datum opdracht
+      const sd=r.startdatum||fallbackDate(8);
+      const ed=r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})();
       return{
         id:nid(),
         projectnr:r.projectnr,
