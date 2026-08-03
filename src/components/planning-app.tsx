@@ -2707,7 +2707,7 @@ export default function PlanningApp(){
   const handleImport=(rows:ImportRow[])=>{
     const newProjects:Project[]=rows.map(r=>{
       // Projectleider (kolom K): exacte celtekst, altijd als platte tekst opslaan
-      const pl=r.projectleider.trim();
+      const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
       // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
