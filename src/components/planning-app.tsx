@@ -2163,10 +2163,12 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
 
 // ===== BESCHIKBAARHEID =====
 interface AvailForm { id?:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note:string; }
-function BeschikbaarheidView({employees,availability,setAvailability}:{
+function BeschikbaarheidView({employees,availability,setAvailability,onVacImport}:{
   employees:Employee[];availability:AvailEntry[];
   setAvailability:(fn:(prev:AvailEntry[])=>AvailEntry[])=>void;
+  onVacImport:()=>void;
 }){
+
   const dc=useDC();
   const [weekStart,setWeekStart]=useState(()=>{const d=new Date();d.setDate(d.getDate()-(d.getDay()||7)+1);d.setHours(0,0,0,0);return d;});
   const [afdFilter,setAfdFilter]=useState<string>("");
