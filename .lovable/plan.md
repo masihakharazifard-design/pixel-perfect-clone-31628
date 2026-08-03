@@ -16,7 +16,7 @@ Projectleider uit kolom K:
 2. geen match → de exacte tekst uit kolom K opslaan en tonen;
 3. de waarde wordt nooit weggegooid.
 
-Deze mapping geldt uitsluitend voor de projectimport; de beschikbaarheidsimport blijft ongewijzigd.
+Deze mapping geldt uitsluitend voor de projectimport; de beschikbaarheidsimport blijft ongewijzigd. Projectnr. blijft de unieke sleutel: een rij wordt alleen overgeslagen bij exact hetzelfde bestaande Projectnr. Overige mapping blijft: eerste Omschrijving → Projectnaam, Contactpersoon → Opdrachtgever, Datum opdracht, Startdatum, Einddatum/Afloopdatum, Starttijd, Eindtijd, Werknr. → Werknummer.
 
 ## 2. Lege startdatum bij import
 
