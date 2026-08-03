@@ -83,7 +83,7 @@ export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | 
     .eq("id", projectId)
     .maybeSingle();
   if (error) throw error;
-  return (data?.data as ProjectMeta) ?? null;
+  return (data?.data as unknown as ProjectMeta) ?? null;
 }
 
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
