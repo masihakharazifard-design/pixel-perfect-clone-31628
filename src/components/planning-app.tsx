@@ -382,6 +382,10 @@ function cellStr(v:unknown):string{
   return String(v).trim();
 }
 
+// Vaste kolomposities in het projectimportbestand (alleen projectimport)
+const COL_WERKZAAMHEDEN=9;  // Excel kolom J
+const COL_PROJECTLEIDER=10; // Excel kolom K
+
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
   onImport:(rows:ImportRow[])=>void;onClose:()=>void;
