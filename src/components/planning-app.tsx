@@ -827,7 +827,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const unmatchedRows=preview.rows.filter(r=>!r.invalidReason&&(!r.matchedEmployee||r.ambiguous));
   const invalidRows=preview.rows.filter(r=>!!r.invalidReason);
 
-  return <Modal title="Vakantie importeren — preview" onClose={onClose} width="max-w-2xl">
+  return <Modal title="Beschikbaarheid importeren — preview" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
