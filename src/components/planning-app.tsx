@@ -157,6 +157,7 @@ function nid(){return Math.random().toString(36).slice(2,9);}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
 function abbrevName(naam:string):string{const parts=naam.split(" ");return parts.length<=1?naam:parts[0][0]+". "+parts.slice(1).join(" ");}
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
+function normalizeProjectnr(v:unknown):string{return String(v??"").trim();}
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
@@ -465,10 +466,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         }
 
         // ── Parse data rows ──────────────────────────────────────────────────
-        const existingNrs=new Set([
-          ...projects.map(p=>p.projectnr||"").filter(Boolean),
-          ...projects.map(p=>p.werknummer).filter(Boolean),
-        ]);
+        const existingProjectNumbers=new Set(
+          projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
+        );
 
         const allRows:ImportRow[]=[];
         const dataRows=raw.slice(headerRowIdx+1);
@@ -529,8 +529,8 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
         const ongeldig=allRows.filter(r=>r.invalidReason);
         const valid=allRows.filter(r=>!r.invalidReason&&r.projectnr);
-        const nieuw=valid.filter(r=>!existingNrs.has(r.projectnr));
-        const bestaand=valid.filter(r=>existingNrs.has(r.projectnr));
+        const nieuw=valid.filter(r=>!existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
+        const bestaand=valid.filter(r=>existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
 
         setPreview({nieuw,bestaand,ongeldig,total:allRows.length});
         setStep("preview");
@@ -543,7 +543,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
     reader.readAsArrayBuffer(file);
   };
 
-  const handleImport=()=>{if(preview?.nieuw)onImport(preview.nieuw);};
+  const handleImport=()=>{if(!preview)return;onImport([...preview.nieuw,...preview.bestaand]);};
 
   const DEPT_LABELS:Record<string,string>={
     Stoffering:"Stof",Schilderwerk:"Schilder",Zonwering:"Zon",
@@ -600,7 +600,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
           <div className="bg-amber-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-amber-700">{preview.bestaand.length}</p>
-            <p className="text-[10px] text-amber-600 font-medium">Al bestaand</p>
+            <p className="text-[10px] text-amber-600 font-medium">Wordt bijgewerkt</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-red-700">{preview.ongeldig.length}</p>
@@ -624,7 +624,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
         </div>}
         {preview.bestaand.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Overgeslagen — al bestaand ({preview.bestaand.length})</p>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaand.length})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaand.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
@@ -643,9 +643,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
           <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={preview.nieuw.length===0}>
+          <Btn onClick={handleImport} disabled={preview.nieuw.length+preview.bestaand.length===0}>
             <Download className="w-4 h-4"/>
-            {preview.nieuw.length} project{preview.nieuw.length!==1?"en":""} importeren
+            {preview.nieuw.length+preview.bestaand.length} project{preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren
           </Btn>
         </div>
       </>}
@@ -2704,8 +2704,8 @@ export default function PlanningApp(){
     setEditProject(null);setIsNewProject(false);
   };
 
-  const handleImport=(rows:ImportRow[])=>{
-    const newProjects:Project[]=rows.map(r=>{
+  const handleImport=async(rows:ImportRow[])=>{
+    const createProjectFromImportRow=(r:ImportRow):Project=>{
       // Projectleider (kolom K): exacte celtekst, altijd als platte tekst opslaan
       const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
@@ -2731,8 +2731,28 @@ export default function PlanningApp(){
         notities:r.contactpersoon&&r.opdrachtgever?`Contactpersoon: ${r.contactpersoon}`:"",
         uurprijs:65,uren:8,
       };
+    };
+
+    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken
+    const next=[...projects];
+    rows.forEach(r=>{
+      const nr=normalizeProjectnr(r.projectnr);
+      const idx=nr?next.findIndex(p=>normalizeProjectnr(p.projectnr)===nr):-1;
+      if(idx>=0){
+        next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
+      }else{
+        next.push(createProjectFromImportRow(r));
+      }
     });
-    setProjects(prev=>[...prev,...newProjects]);
+
+    setProjects(next);
+    try{
+      await syncTable("projects",next);
+      const refreshed=await loadAll<Project,Employee,AvailEntry,AppSettings>();
+      setProjects(refreshed.projects);
+    }catch(e:unknown){
+      setDbError(e instanceof Error?e.message:String(e));
+    }
   };
 
   const addEmployee=(e:Employee)=>{setEmployees(prev=>[...prev,e]);setIsNewEmployee(false);setEditEmployee(null);};
