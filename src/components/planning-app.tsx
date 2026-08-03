@@ -1175,7 +1175,21 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
 function FacturatieTermijnen({projectId}:{projectId:string}){
   const TERMIJNEN=["Eerste termijn","Tweede termijn","Derde termijn","Vierde termijn"];
   const [status,setStatus]=useState<Record<string,boolean>>({});
-  const toggle=(key:string)=>setStatus(prev=>({...prev,[key]:!prev[key]}));
+  useEffect(()=>{
+    let cancelled=false;
+    loadProjectMeta(projectId).then(m=>{if(!cancelled&&m)setStatus(m.termijnen||{});}).catch(()=>{});
+    return()=>{cancelled=true;};
+  },[projectId]);
+  const toggle=(key:string)=>{
+    setStatus(prev=>{
+      const next={...prev,[key]:!prev[key]};
+      void loadProjectMeta(projectId)
+        .then(m=>saveProjectMeta(projectId,{...EMPTY_META,...(m||{}),termijnen:next}))
+        .catch(()=>{});
+      return next;
+    });
+  };
+
   return <div className="space-y-3">
     {TERMIJNEN.map((t,i)=>{const key=`${projectId}-${i}`;const betaald=!!status[key];return(
       <div key={i} className="flex items-center gap-4 p-4 border border-[rgba(26,39,68,0.08)] rounded-xl bg-white">
