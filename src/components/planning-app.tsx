@@ -1269,9 +1269,9 @@ function SidebarUser(){
         <p className="text-[#6B8099] text-xs truncate">{roleLabel}</p>
       </div>
     </div>
-    <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#8899BB] hover:text-white hover:bg-white/10 transition-colors">
+    {user && <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#8899BB] hover:text-white hover:bg-white/10 transition-colors">
       <LogOut className="w-3.5 h-3.5"/>Uitloggen
-    </button>
+    </button>}
   </div>;
 }
 
