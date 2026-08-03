@@ -2699,21 +2699,16 @@ export default function PlanningApp(){
   };
 
   const handleImport=(rows:ImportRow[])=>{
-    const fallbackDate=(h:number)=>{const d=new Date();d.setHours(h,0,0,0);return d.toISOString();};
     const newProjects:Project[]=rows.map(r=>{
-      // Projectleider: match Calculator op medewerkersnaam; anders de Calculator-tekst zelf bewaren
+      // Projectleider (kolom K): match op exacte medewerkersnaam; anders de tekst zelf bewaren
       const plQuery=r.projectleider.toLowerCase().trim();
-      const plEmp=plQuery
-        ?employees.find(e=>e.naam.toLowerCase()===plQuery)
-          ||employees.find(e=>e.naam.toLowerCase().includes(plQuery))
-          ||employees.find(e=>plQuery.includes(e.naam.split(" ").slice(-1)[0].toLowerCase()))
-        :null;
+      const plEmp=plQuery?employees.find(e=>e.naam.toLowerCase().trim()===plQuery):null;
       const pl=plEmp?.id||r.projectleider.trim();
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
-      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden), nooit uit Datum opdracht
-      const sd=r.startdatum||fallbackDate(8);
-      const ed=r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})();
+      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
+      const sd=r.startdatum||"";
+      const ed=sd?(r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})()):"";
       return{
         id:nid(),
         projectnr:r.projectnr,
@@ -2723,7 +2718,7 @@ export default function PlanningApp(){
         adres:"",plaats:"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:r.rawDept||"",
+        werkzaamheden:r.werkzaamheden||"",
 
         startdatum:sd,
         afloopdatum:ed,
