@@ -145,10 +145,11 @@ const INIT_AVAIL:AvailEntry[] = [
 ];
 
 // ===== UTILS =====
-function fmtDate(d:string|Date){const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"});}
-function fmtTime(d:string|Date){const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
+function validDate(d:string|Date|null|undefined):boolean{if(!d)return false;const dt=typeof d==="string"?new Date(d):d;return !isNaN(dt.getTime());}
+function fmtDate(d:string|Date){if(!validDate(d))return "—";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"});}
+function fmtTime(d:string|Date){if(!validDate(d))return "";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
 function toDateStr(d:Date){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
-function toDTLocal(iso:string){const d=new Date(iso);const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+function toDTLocal(iso:string){const d=new Date(iso);if(isNaN(d.getTime()))return "";const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
@@ -284,12 +285,13 @@ interface ImportRow {
   projectnaam:string;     // First Omschrijving column
   opdrachtgever:string;   // Naam opdrachtgever
   contactpersoon:string;  // Contactpersoon
-  projectleider:string;   // Calculator
+  projectleider:string;   // Kolom K (index 10)
   startdatum:string;      // Startdatum + Starttijd (ISO datetime)
   einddatum:string;       // Einddatum + Eindtijd (ISO datetime)
   datumOpdracht:string;   // Datum opdracht (alleen informatief)
   werknummer:string;      // Werknr. (may be empty)
-  rawDept:string;         // Second Omschrijving — raw department string
+  werkzaamheden:string;   // Kolom J (index 9) — exacte tekst
+  rawDept:string;         // Kolom J — bron voor afdelingsherkenning
   afdelingen:Afdeling[];  // Resolved departments
   turnkey:boolean;
   rowIndex:number;        // 1-based Excel row number for error messages
@@ -380,6 +382,10 @@ function cellStr(v:unknown):string{
   return String(v).trim();
 }
 
+// Vaste kolomposities in het projectimportbestand (alleen projectimport)
+const COL_WERKZAAMHEDEN=9;  // Excel kolom J
+const COL_PROJECTLEIDER=10; // Excel kolom K
+
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
   onImport:(rows:ImportRow[])=>void;onClose:()=>void;
@@ -419,10 +425,10 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
 
         // ── Column index resolution (positional, handles duplicate headers) ──
-        // Track first vs second occurrence of "omschrijving"
+        // Track first occurrence of "omschrijving" (Projectnaam)
         let omschrijvingCount=0;
-        let col_projectnr=-1,col_omschr1=-1,col_omschr2=-1,col_opdrachtgever=-1;
-        let col_contactpersoon=-1,col_calculator=-1,col_datum_opdracht=-1;
+        let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
+        let col_contactpersoon=-1,col_datum_opdracht=-1;
         let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
 
         headerRow.forEach((h,i)=>{
@@ -431,11 +437,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           else if(h==="omschrijving"){
             omschrijvingCount++;
             if(omschrijvingCount===1)col_omschr1=i;
-            else if(omschrijvingCount===2)col_omschr2=i;
           }
           else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
           else if(norm==="contactpersoon")col_contactpersoon=i;
-          else if(norm==="calculator"&&col_calculator===-1)col_calculator=i;
           else if(norm==="datumopdracht")col_datum_opdracht=i;
           else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
           else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
@@ -444,8 +448,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
         });
 
-        // Fallback: "Calculator" als deel van een langere kolomnaam
-        if(col_calculator===-1)col_calculator=headerRow.findIndex(h=>/calculator/.test(h));
+
 
         // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
         if(col_werknr===-1){
@@ -479,10 +482,12 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
           const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
           const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
-          const rawDeptCell=col_omschr2>=0?cellStr(row[col_omschr2]):"";
+          // Kolom J (index 9) = Werkzaamheden én bron voor afdelingsherkenning
+          const rawDeptCell=cellStr(row[COL_WERKZAAMHEDEN]);
           const opdrachtgever=col_opdrachtgever>=0?cellStr(row[col_opdrachtgever]):"";
           const contactpersoon=col_contactpersoon>=0?cellStr(row[col_contactpersoon]):"";
-          const calculator=col_calculator>=0?cellStr(row[col_calculator]):"";
+          // Kolom K (index 10) = Projectleider
+          const calculator=cellStr(row[COL_PROJECTLEIDER]);
           const startdatumRaw=col_startdatum>=0?row[col_startdatum]:null;
           const einddatumRaw=col_einddatum>=0?row[col_einddatum]:null;
           const starttijd=col_starttijd>=0?parseXlTime(row[col_starttijd]):null;
@@ -513,6 +518,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             einddatum:eindISO,
             datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
             werknummer:werknrRaw||projectnr,
+            werkzaamheden:rawDeptCell,
             rawDept:rawDeptCell,
             afdelingen,
             turnkey,
@@ -1130,7 +1136,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
   const plNaam=plName(project,employees);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
   const totaal=project.uurprijs*project.uren;
-  const dur=Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000);
+  const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",werkzaamheden:"Werkzaamheden",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
   const afds=getAllAfds(project);
@@ -2030,12 +2036,14 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     else d.setDate(d.getDate()+dir);
     setDate(d);
   };
+  // Centrale agendafilter: geldige Startdatum vereist, status "Offerte" nooit tonen
   const filteredProjects=projects.filter(p=>{
+    if(!validDate(p.startdatum))return false;
+    if((p.status||"").trim().toLowerCase()==="offerte")return false;
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
-    
     return true;
-  });
+  }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
   const handleDropProject=(id:string,newStart:Date)=>{
     const p=projects.find(x=>x.id===id);if(!p)return;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
@@ -2693,21 +2701,16 @@ export default function PlanningApp(){
   };
 
   const handleImport=(rows:ImportRow[])=>{
-    const fallbackDate=(h:number)=>{const d=new Date();d.setHours(h,0,0,0);return d.toISOString();};
     const newProjects:Project[]=rows.map(r=>{
-      // Projectleider: match Calculator op medewerkersnaam; anders de Calculator-tekst zelf bewaren
+      // Projectleider (kolom K): match op exacte medewerkersnaam; anders de tekst zelf bewaren
       const plQuery=r.projectleider.toLowerCase().trim();
-      const plEmp=plQuery
-        ?employees.find(e=>e.naam.toLowerCase()===plQuery)
-          ||employees.find(e=>e.naam.toLowerCase().includes(plQuery))
-          ||employees.find(e=>plQuery.includes(e.naam.split(" ").slice(-1)[0].toLowerCase()))
-        :null;
+      const plEmp=plQuery?employees.find(e=>e.naam.toLowerCase().trim()===plQuery):null;
       const pl=plEmp?.id||r.projectleider.trim();
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
-      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden), nooit uit Datum opdracht
-      const sd=r.startdatum||fallbackDate(8);
-      const ed=r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})();
+      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
+      const sd=r.startdatum||"";
+      const ed=sd?(r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})()):"";
       return{
         id:nid(),
         projectnr:r.projectnr,
@@ -2717,7 +2720,7 @@ export default function PlanningApp(){
         adres:"",plaats:"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:r.rawDept||"",
+        werkzaamheden:r.werkzaamheden||"",
 
         startdatum:sd,
         afloopdatum:ed,
