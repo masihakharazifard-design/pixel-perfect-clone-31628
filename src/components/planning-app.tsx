@@ -2546,22 +2546,22 @@ export default function PlanningApp(){
 
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[projects,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[employees,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[avail,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[settings,dbReady]);
 
