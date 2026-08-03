@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-import { AuthGate } from "@/components/auth-gate";
+
 
 const PlanningApp = lazy(() => import("@/components/planning-app"));
 
