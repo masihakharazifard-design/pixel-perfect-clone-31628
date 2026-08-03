@@ -793,9 +793,10 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     onImport(all);
   };
 
-  if(!preview||step==="upload")return <Modal title="Vakantie importeren" onClose={onClose} width="max-w-xl">
+  if(!preview||step==="upload")return <Modal title="Beschikbaarheid importeren" onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-4">
-      <p className="text-sm text-[#6B7A99]">Upload een Excel-bestand met vakantieperioden. Bestaande planning wordt <strong>niet</strong> overschreven.</p>
+      <p className="text-sm text-[#6B7A99]">Upload een Excel-bestand met beschikbaarheid (vakantie, ziek, vrij, beschikbaar…). Bestaande planning wordt <strong>niet</strong> overschreven.</p>
+
       <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
         <Calendar className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
         <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
