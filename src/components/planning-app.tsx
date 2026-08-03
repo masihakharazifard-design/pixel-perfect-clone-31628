@@ -6,10 +6,12 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
+import { useAuth } from "@/components/auth-gate";
+
 
 // ===== TYPES =====
 type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"beschikbaarheid"|"medewerkers"|"facturatie"|"instellingen";
