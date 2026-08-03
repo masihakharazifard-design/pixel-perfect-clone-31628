@@ -447,17 +447,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           const datumOpdrachtRaw=col_datum_opdracht>=0?row[col_datum_opdracht]:null;
           const werknrRaw=col_werknr>=0?cellStr(row[col_werknr]):"";
 
-          // Validation: only projectnr + projectnaam are required
+          // Validation: alleen Projectnr. is verplicht
           let invalidReason="";
           if(!projectnr&&!projectnaam)return; // skip truly blank rows silently
           if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
-          else if(!projectnaam)invalidReason=`Rij ${absRow}: Omschrijving (Projectnaam) ontbreekt`;
 
           const{afdelingen,turnkey}=resolveDept(rawDeptCell);
 
           allRows.push({
             projectnr,
-            projectnaam,
+            projectnaam:projectnaam||projectnr,
+
             opdrachtgever,
             contactpersoon,
             projectleider:calculator,
