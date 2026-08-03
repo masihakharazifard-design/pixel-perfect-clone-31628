@@ -1501,6 +1501,10 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const activeCount=Object.values(filters).filter(Boolean).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
+  // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
+  const plOptions=[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1]));
+
   const filtered=projects.filter(p=>{
     const pl=employees.find(e=>e.id===p.projectleider);
     const afds=getAllAfds(p);
