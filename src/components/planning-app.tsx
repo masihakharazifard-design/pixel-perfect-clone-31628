@@ -2191,9 +2191,11 @@ function BeschikbaarheidView({employees,availability,setAvailability,onVacImport
   const [mobileDay,setMobileDay]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
   const mobileDayStr=toDateStr(mobileDay);
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3 flex-wrap">
       <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Beschikbaarheid</h1><p className="text-[#6B7A99] text-xs md:text-sm">Tijdblokken per medewerker per dag</p></div>
+      <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
     </div>
+
     <div className="flex items-center gap-3 flex-wrap">
       <div className="flex items-center gap-1">
         <button onClick={()=>{const d=new Date(weekStart);d.setDate(d.getDate()-7);setWeekStart(d);}} className="p-1.5 rounded-lg hover:bg-[#E8EDF5] text-[#6B7A99]"><ChevronLeft className="w-4 h-4"/></button>
