@@ -9,7 +9,7 @@ import {
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { loadAll, syncTable, syncSettings } from "@/lib/planning-store";
+import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
 
 // ===== TYPES =====
 type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"beschikbaarheid"|"medewerkers"|"facturatie"|"instellingen";
