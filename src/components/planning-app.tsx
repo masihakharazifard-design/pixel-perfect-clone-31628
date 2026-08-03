@@ -1964,19 +1964,10 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
         <Btn size="sm" onClick={()=>onCreateProject({})}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Nieuw project</span></Btn>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {(["Noord","Midden","Zuid"] as string[]).map(r=><button key={r} onClick={()=>setSchoolRegions(prev=>prev.includes(r)?prev.filter(x=>x!==r):[...prev,r])} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${schoolRegions.includes(r)?"bg-purple-100 text-purple-700":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{r}</button>)}
-        </div>
-        <div className="w-px h-4 bg-[rgba(26,39,68,0.1)]"/>
-        <div className="flex gap-1 items-center">
-          <span className="text-xs text-[#6B7A99]">Vestiging:</span>
-          <button onClick={()=>setRegionFilter("")} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${!regionFilter?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>Alle</button>
-          {allRegions.map(r=><button key={r} onClick={()=>setRegionFilter(r===regionFilter?"":r)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${regionFilter===r?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{r}</button>)}
-        </div>
-        <div className="w-px h-4 bg-[rgba(26,39,68,0.1)]"/>
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
         <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${showWeekNumbers?"bg-[#E0F7F6] text-[#0ABFB8]":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>Wk#</button>
       </div>
+
     </div>
     <div className="flex-1 overflow-hidden bg-white">
       {view==="month"&&<div className="h-full overflow-y-auto">
