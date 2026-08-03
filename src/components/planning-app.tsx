@@ -2036,12 +2036,14 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     else d.setDate(d.getDate()+dir);
     setDate(d);
   };
+  // Centrale agendafilter: geldige Startdatum vereist, status "Offerte" nooit tonen
   const filteredProjects=projects.filter(p=>{
+    if(!validDate(p.startdatum))return false;
+    if((p.status||"").trim().toLowerCase()==="offerte")return false;
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
-    
     return true;
-  });
+  }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
   const handleDropProject=(id:string,newStart:Date)=>{
     const p=projects.find(x=>x.id===id);if(!p)return;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
