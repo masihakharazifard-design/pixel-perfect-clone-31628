@@ -632,12 +632,16 @@ function parseTimeCell(raw:unknown):string{
 }
 function mapVacStatus(raw:string):AvailStatus{
   const s=raw.toLowerCase().trim();
-  if(!s||s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
+  if(!s)return "Beschikbaar";
+  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
+  if(s.includes("ingepland")||s.includes("planned")||s.includes("gepland"))return "Ingepland";
+  if(s.includes("beschikbaar")||s.includes("available"))return "Beschikbaar";
+  if(s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
   if(s.includes("ziek")||s.includes("sick")||s.includes("ill")||s.includes("arbeidsongeschikt"))return "Ziek";
   if(s.includes("vrij")||s.includes("free")||s.includes("rtvz"))return "Vrij";
-  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
   return "Vakantie";
 }
+
 
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
