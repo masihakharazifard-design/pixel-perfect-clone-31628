@@ -572,7 +572,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
                 ["Omschrijving (1e kolom)","Projectnaam","✓"],
                 ["Naam opdrachtgever","Opdrachtgever",""],
                 ["Contactpersoon","Contactpersoon",""],
-                ["Calculator","Projectleider",""],
+                ["Kolom K (index 10)","Calculator",""],
                 ["Datum opdracht","Datum opdracht",""],
                 ["Startdatum / Start datum","Startdatum (standaard 08:00)",""],
                 ["Einddatum / Afloopdatum","Einddatum (standaard 17:00)",""],
@@ -997,7 +997,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
   const toggleMed=(id:string)=>setF(prev=>({...prev,medewerkers:prev.medewerkers.includes(id)?prev.medewerkers.filter(x=>x!==id):[...prev.medewerkers,id]}));
   const handleAssignAfdChange=(afd:Afdeling)=>{setAssignAfd(afd);setAssignComps([]);};
-  const valid=f.projectnaam&&f.opdrachtgever&&f.afdelingen?.length&&f.projectleider;
+  const valid=f.projectnaam&&f.opdrachtgever&&f.afdelingen?.length;
   const afdComps=[...new Set(employees.filter(e=>e.afdeling===assignAfd).flatMap(e=>e.competenties))].sort();
   const projStart=new Date(f.startdatum);const projEnd=new Date(f.afloopdatum);
   const isEmpAvail=(emp:Employee):{ok:boolean;reason?:string}=>{
@@ -1038,7 +1038,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
           {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(26,39,68,0.15)] text-[#6B7A99] hover:border-[#6B7A99]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
         </div>
       </div>
-      <Select label="Projectleider" value={f.projectleider} onChange={v=>set("projectleider",v)} required options={[...employees.filter(e=>e.functie==="Projectleider").map(e=>({value:e.id,label:e.naam})),...(f.projectleider&&!employees.some(e=>e.id===f.projectleider)?[{value:f.projectleider,label:f.projectleider}]:[])]}/>
+      <Input label="Calculator" value={plName(f as Project,employees)} onChange={v=>set("projectleider",v)} placeholder="Naam calculator"/>
       <Select label="Status" value={f.status} onChange={v=>set("status",v as ProjectStatus)} options={STATS.map(s=>({value:s,label:s}))}/>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -1170,7 +1170,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
         </div>
         {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#E0F7F6] rounded-xl">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:primaryDc.bg}}>{plNaam.slice(0,1)}</div>
-          <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Projectleider</p></div>
+          <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Calculator</p></div>
         </div>}
       </div>}
       {tab==="werkzaamheden"&&<div>
@@ -1548,7 +1548,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       <div className="grid grid-cols-2 gap-2">
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Afdeling</label><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></div>
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Projectleider</label>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Calculator</label>
           <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
             <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
           </select>
@@ -1597,7 +1597,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
             <ColHeader label="Opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
             <ColHeader label="Plaats" active={!!filters.plaats}><ColSelect value={filters.plaats} onChange={set("plaats")} options={uniquePlaatsen}/></ColHeader>
             <ColHeader label="Afdeling" active={!!filters.afdeling}><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></ColHeader>
-            <ColHeader label="Projectleider" active={!!filters.projectleider}>
+            <ColHeader label="Calculator" active={!!filters.projectleider}>
               <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
                 <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
               </select>
