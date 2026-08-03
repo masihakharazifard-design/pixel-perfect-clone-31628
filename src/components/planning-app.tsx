@@ -2605,7 +2605,8 @@ export default function PlanningApp(){
         adres:"",plaats:"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:"",
+        werkzaamheden:r.rawDept||"",
+
         startdatum:sd,
         afloopdatum:ed,
         medewerkers:[],
