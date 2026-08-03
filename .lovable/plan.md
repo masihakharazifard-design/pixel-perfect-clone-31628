@@ -24,8 +24,9 @@ Een testbestand met minimaal één bestaand Projectnr. en een andere naam in kol
 
 Alles in `src/components/planning-app.tsx`:
 
-- `ExcelImportModal` (regel ~468): `existingNrs` (nu Projectnr. + Werknummer) wordt vervangen door een set met alleen getrimde `projectnr`-waarden; `nieuw`/`bestaand` worden op basis daarvan gesplitst.
-- `handleImport` in de modal (regel ~546): geeft `[...preview.nieuw, ...preview.bestaand]` door aan `onImport`.
-- Parent `handleImport` (regel ~2705): upsert per rij — `findIndex` op getrimd `projectnr`; gevonden → `{...bestaand, projectleider: row.projectleider, werkzaamheden: row.werkzaamheden}`; niet gevonden → nieuw project via de bestaande mapping.
-- Na `setProjects` wordt de lijst gesynchroniseerd via de bestaande `syncTable("projects", ...)`-flow en daarna herladen met `loadAll`.
+- Nieuwe helper `normalizeProjectnr(v) => String(v ?? "").trim()`, gebruikt op elke plek waar projectnummers worden vergeleken.
+- `ExcelImportModal` (regel ~468): `existingNrs` (nu Projectnr. + Werknummer) wordt vervangen door `existingProjectNumbers` — uitsluitend genormaliseerde `projectnr`-waarden; `nieuw` en `bestaand` (regels ~532-533) vergelijken via dezelfde helper.
+- `handleImport` in de modal (regel ~546): geeft `[...preview.nieuw, ...preview.bestaand]` door aan `onImport`; de knop is `disabled` wanneer `nieuw.length + bestaand.length === 0` en de kop "Overgeslagen — al bestaand" wordt "Wordt bijgewerkt".
+- Parent `handleImport` (regel ~2705): geen `rows.map` + append meer, maar een upsert-lus over de bestaande lijst — `findIndex` op genormaliseerd `projectnr`; gevonden → alleen `projectleider` en `werkzaamheden` overschrijven met de exacte celtekst uit kolom K en J; niet gevonden → nieuw project via de bestaande mapping.
+- Database: de nieuwe volledige lijst gaat via `syncTable("projects", next)` naar de database. `loadAll` draait pas nadat de sync klaar is (of wordt overgelaten aan de bestaande sync-`useEffect`), zodat een te vroege herlaadactie de oude databasewaarden niet terugzet.
 - Opslagveld blijft `projects.data.projectleider`; het label in de UI blijft "Calculator".
