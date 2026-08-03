@@ -32,9 +32,7 @@ function Index() {
   return (
     <ClientOnly fallback={<div className="min-h-screen bg-background" />}>
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
-        <AuthGate>
-          <PlanningApp />
-        </AuthGate>
+        <PlanningApp />
       </Suspense>
     </ClientOnly>
   );
