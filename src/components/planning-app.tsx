@@ -1905,15 +1905,14 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
   const dc=useDC();
   const [view,setView]=useState<CalView>("month");
   const [date,setDate]=useState(new Date());
-  const [schoolRegions,setSchoolRegions]=useState<string[]>(["Noord","Midden","Zuid"]);
+  const schoolRegions=["Noord","Midden","Zuid"];
   const [afdFilter,setAfdFilter]=useState<string>("");
-  const [regionFilter,setRegionFilter]=useState<string>("");
   const [showWeekNumbers,setShowWeekNumbers]=useState(true);
   const year=date.getFullYear(),month=date.getMonth();
   const quarter=Math.floor(month/3);
   const weekDays=getWeekDays(date);
 
-  const allRegions=[...new Set(projects.map(p=>p.region).filter(Boolean))] as string[];
+
 
   const navigate=(dir:number)=>{
     const d=new Date(date);
