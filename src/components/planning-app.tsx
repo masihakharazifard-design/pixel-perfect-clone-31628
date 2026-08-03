@@ -517,6 +517,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             einddatum:eindISO,
             datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
             werknummer:werknrRaw||projectnr,
+            werkzaamheden:rawDeptCell,
             rawDept:rawDeptCell,
             afdelingen,
             turnkey,
