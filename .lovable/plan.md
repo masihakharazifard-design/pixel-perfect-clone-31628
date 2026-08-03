@@ -1,28 +1,65 @@
-## Goal
+# Maasmond planning — uitbreiding
 
-Bring the uploaded "Interactive Project Planning App" (Dutch planning tool: dashboard, projecten, agenda, personeelsplanning, beschikbaarheid, medewerkers, facturatie, instellingen) into this project so it runs at `/`, looking and behaving exactly like the Figma Make export. Data stays in-memory demo data (resets on refresh).
+Bestaand ontwerp en alle pagina's blijven ongewijzigd; alleen onderstaande punten worden aangepast.
 
-## What I'll do
+## 1. Excel-import projecten
 
-1. **Extract the archive** and copy in the app source (no `.git`, no binaries):
-   - `src/app/App.tsx` (the full single-file app) → `src/components/planning-app.tsx`
-   - all shadcn UI components from `src/app/components/ui/` → merge into the project's `src/components/ui/`
-   - `src/app/components/figma/ImageWithFallback.tsx` → `src/components/ImageWithFallback.tsx`
-   - fix import paths (the export uses versioned imports like `@radix-ui/react-slot@1.1.2` and `./ui/utils`; these get rewritten to normal package names and `@/lib/utils`)
+De importer leest al op kolompositie. Wordt vastgelegd/afgerond:
 
-2. **Install the dependencies** the app actually uses: lucide-react, xlsx, radix-ui packages, class-variance-authority, clsx, tailwind-merge, sonner, recharts, date-fns, react-day-picker, embla-carousel-react, vaul, cmdk, motion, next-themes, react-resizable-panels, input-otp, canvas-confetti, react-hook-form. (Not react-router — this project uses TanStack Router; the app does its own internal tab navigation anyway, so no router change is needed.)
+- Projectnr. → Projectnummer (unieke sleutel, alleen nieuwe projecten toevoegen, geen duplicaten)
+- 1e "Omschrijving" → Projectnaam, 2e "Omschrijving" → Werkzaamheden (nu gaat de 2e kolom alleen naar afdelingsherkenning; het wordt óók opgeslagen als Werkzaamheden)
+- Naam opdrachtgever → Opdrachtgever, Contactpersoon → Contactpersoon
+- Calculator → Projectleider
+- Datum opdracht, Startdatum, Werknr. → gelijknamige velden
+- Turnkey → project krijgt Stoffering + Schilderwerk + Zonwering
+- Lege optionele velden leiden nooit tot overslaan; alleen een ontbrekend Projectnr. maakt een rij ongeldig (Projectnaam wordt niet langer verplicht)
 
-3. **Apply the design system**: port the export's `theme.css` tokens (navy `#1A2744`, teal accent `#0ABFB8`, coral `#FF6B5B`, light blue-grey background) into `src/styles.css`, and load the Inter + Plus Jakarta Sans fonts via a `<link>` in `src/routes/__root.tsx` (Tailwind v4 here can't `@import` a remote URL).
+## 2. Excel-import beschikbaarheid
 
-4. **Mount it at `/`**: replace the placeholder `src/routes/index.tsx` with a route that renders the app. The app uses browser-only state and drag/drop, so it renders client-side to avoid hydration mismatches.
+Nieuwe knop "Excel importeren" op de pagina Beschikbaarheid, met dezelfde preview-stijl als de projectimport.
 
-5. **Set page metadata** on the index route (title/description/og/twitter) for the planning app instead of the default Lovable placeholder.
+- Kolommen: medewerker, startdatum, einddatum, starttijd, eindtijd, status, notitie
+- Statussen: Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij
+- Medewerker wordt gematcht op naam; onbekende naam → rij als ongeldig getoond met reden
+- Meerdaagse regels worden omgezet naar losse dagen, zodat ze direct doorwerken in Personeelsplanning, Medewerkers vandaag, Medewerkerdetails en de controle bij het inplannen
 
-6. **Verify**: typecheck, then load the preview in a headless browser, click through the main sections (dashboard, projecten, agenda, personeelsplanning, medewerkers, facturatie) and screenshot to confirm it renders without console errors.
+## 3. Database als enige bron van waarheid
 
-## Technical notes
+De bestaande tabellen (projecten, medewerkers, beschikbaarheid, instellingen) blijven; er komen tabellen bij voor projecttoewijzingen/agenda-aanpassingen, documenten en facturatie.
 
-- The app is one ~183KB component file with all state in React `useState` and hardcoded demo records — kept as-is per your choice, so no backend, no persistence, no auth.
-- `xlsx` (Excel export) is browser-side only; it will be loaded in the client bundle.
-- Any Figma-hosted placeholder images referenced in the export keep their remote URLs.
-- Known trade-off: because everything lives in one file, later feature edits will be slower than in a split codebase. Easy to refactor later if you want.
+- Schrijven gebeurt eerst naar de database, daarna wordt de interface bijgewerkt (in plaats van de huidige vertraagde achtergrondsync)
+- Bij een mislukte opslag verschijnt een melding en wordt de wijziging teruggedraaid
+- Geen demo-/mockdata meer als startpunt; alle schermen lezen dezelfde databron
+- Na refresh blijft alles bestaan
+
+## 4. Inloggen met Microsoft-werkaccount (SAML SSO / Entra ID)
+
+- Inlogscherm met knop "Inloggen met Microsoft"; de app is pas bruikbaar na inloggen
+- Sessie blijft na refresh, uitloggen via het gebruikersmenu
+- Rollen: Beheerder, Planner, Projectleider, Financieel, Medewerker. Iedere nieuwe gebruiker start als Medewerker; rollen staan in een aparte rollentabel en zijn later aan te passen
+- Toegangsregels op de data worden omgezet van "open voor iedereen" naar "alleen ingelogde gebruikers"
+
+Actie voor jou: bij het instellen vraagt Lovable om de Entra ID metadata-URL en jullie e-maildomein(en); die zijn te vinden in het Microsoft Entra-beheercentrum bij de enterprise-applicatie die je voor deze app aanmaakt.
+
+## 5. Vestigingsknoppen
+
+De paarse regio-/vestigingsknoppen boven de agenda worden verwijderd, inclusief het bijbehorende filter. Het veld "Regio / Vestiging" in het projectformulier blijft bestaan en er wordt geen projectdata verwijderd.
+
+## 6. Logo
+
+Zodra je het Maasmond-logo uploadt, wordt het geplaatst in de sidebar, op het inlogscherm en in de header, op correcte verhoudingen, met witruimte en responsive. Zonder bestand blijft het huidige logo staan tot je het aanlevert.
+
+## 7. Interactiviteit
+
+Alle genoemde knoppen worden nagelopen en waar nodig werkend gemaakt: Excel importeren (projecten en beschikbaarheid), project aanmaken/bewerken/verwijderen, medewerker toevoegen/bewerken/verwijderen, beschikbaarheid aanpassen, agenda slepen, instellingen opslaan, in- en uitloggen. Geen lege of alleen-visuele knoppen.
+
+## 8. Test
+
+Na implementatie wordt in een echte browser getest: Excelproject importeren met controle op Calculator → Projectleider en 2e Omschrijving → Werkzaamheden, refresh en controle op behoud, beschikbaarheid importeren + refresh, inlogflow, logo en het verdwijnen van de vestigingsknoppen.
+
+## Technische details
+
+- `src/components/planning-app.tsx`: importparser uitbreiden (`werkzaamheden` uit `col_omschr2`), nieuwe `AvailabilityImportModal`, verwijderen van `regionFilter`/`schoolRegions`-knoppenrij.
+- `src/lib/planning-store.ts`: van debounced mirror-sync naar write-through helpers per entiteit (upsert/delete direct bij mutatie).
+- Migratie: tabellen voor toewijzingen/agenda, documenten en facturatie, plus `user_roles` met enum en `has_role`-functie; RLS-policies naar `authenticated`, met de vereiste GRANTs.
+- Auth: SAML SSO via de Lovable-configuratietool, protected routes onder `_authenticated`, publieke `/auth`-route met de Microsoft-knop.
