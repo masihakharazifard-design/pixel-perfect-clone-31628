@@ -2673,7 +2673,7 @@ export default function PlanningApp(){
           {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport}/>}
           {nav==="agenda"&&<AgendaView projects={projects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={projects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
-          {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail}/>}
+          {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="facturatie"&&<FacturatieView projects={projects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
