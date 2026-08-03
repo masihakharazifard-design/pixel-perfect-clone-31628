@@ -285,12 +285,13 @@ interface ImportRow {
   projectnaam:string;     // First Omschrijving column
   opdrachtgever:string;   // Naam opdrachtgever
   contactpersoon:string;  // Contactpersoon
-  projectleider:string;   // Calculator
+  projectleider:string;   // Kolom K (index 10)
   startdatum:string;      // Startdatum + Starttijd (ISO datetime)
   einddatum:string;       // Einddatum + Eindtijd (ISO datetime)
   datumOpdracht:string;   // Datum opdracht (alleen informatief)
   werknummer:string;      // Werknr. (may be empty)
-  rawDept:string;         // Second Omschrijving — raw department string
+  werkzaamheden:string;   // Kolom J (index 9) — exacte tekst
+  rawDept:string;         // Kolom J — bron voor afdelingsherkenning
   afdelingen:Afdeling[];  // Resolved departments
   turnkey:boolean;
   rowIndex:number;        // 1-based Excel row number for error messages
