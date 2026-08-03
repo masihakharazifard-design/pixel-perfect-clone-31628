@@ -1250,13 +1250,29 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       </button>)}
     </div>
     <div className="p-4 border-t border-white/10">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold">JV</div>
-        <div><p className="text-white text-xs font-semibold">Jan de Vries</p><p className="text-[#6B8099] text-xs">Projectleider</p></div>
-      </div>
+      <SidebarUser/>
     </div>
   </>;
 }
+function SidebarUser(){
+  const {user,roleLabel,signOut}=useAuth();
+  const email=user?.email||"";
+  const naam=(user?.user_metadata?.["full_name"] as string|undefined)||(user?.user_metadata?.["name"] as string|undefined)||email.split("@")[0]||"Gebruiker";
+  const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()).join("")||"?";
+  return <div className="space-y-2">
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="min-w-0">
+        <p className="text-white text-xs font-semibold truncate">{naam}</p>
+        <p className="text-[#6B8099] text-xs truncate">{roleLabel}</p>
+      </div>
+    </div>
+    <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#8899BB] hover:text-white hover:bg-white/10 transition-colors">
+      <LogOut className="w-3.5 h-3.5"/>Uitloggen
+    </button>
+  </div>;
+}
+
 function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Nav)=>void;mobileOpen:boolean;onMobileClose:()=>void}){
   const handleNav=(n:Nav)=>{onNav(n);onMobileClose();};
   return <>
