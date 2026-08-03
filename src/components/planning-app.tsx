@@ -1052,8 +1052,30 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
   const [tab,setTab]=useState<ProjTab>("overzicht");
   const [notities,setNotities]=useState(project.notities);
   const [docs,setDocs]=useState<string[]>([]);
+  const [metaLoaded,setMetaLoaded]=useState(false);
   const [confirmDel,setConfirmDel]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
+  // Documenten + notities uit de database laden en bij wijziging opslaan
+  useEffect(()=>{
+    let cancelled=false;
+    setMetaLoaded(false);
+    loadProjectMeta(project.id).then(m=>{
+      if(cancelled)return;
+      if(m){setDocs(m.docs||[]);if(m.notities)setNotities(m.notities);}
+      setMetaLoaded(true);
+    }).catch(()=>setMetaLoaded(true));
+    return()=>{cancelled=true;};
+  },[project.id]);
+  useEffect(()=>{
+    if(!metaLoaded)return;
+    const t=setTimeout(()=>{
+      void loadProjectMeta(project.id).then(prev=>
+        saveProjectMeta(project.id,{...EMPTY_META,...(prev||{}),docs,notities}),
+      ).catch(()=>{});
+    },300);
+    return()=>clearTimeout(t);
+  },[docs,notities,metaLoaded,project.id]);
+
   const pl=employees.find(e=>e.id===project.projectleider);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
   const totaal=project.uurprijs*project.uren;
