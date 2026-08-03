@@ -6,10 +6,12 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { loadAll, syncTable, syncSettings } from "@/lib/planning-store";
+import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
+import { useAuth } from "@/components/auth-gate";
+
 
 // ===== TYPES =====
 type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"beschikbaarheid"|"medewerkers"|"facturatie"|"instellingen";
@@ -447,17 +449,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           const datumOpdrachtRaw=col_datum_opdracht>=0?row[col_datum_opdracht]:null;
           const werknrRaw=col_werknr>=0?cellStr(row[col_werknr]):"";
 
-          // Validation: only projectnr + projectnaam are required
+          // Validation: alleen Projectnr. is verplicht
           let invalidReason="";
           if(!projectnr&&!projectnaam)return; // skip truly blank rows silently
           if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
-          else if(!projectnaam)invalidReason=`Rij ${absRow}: Omschrijving (Projectnaam) ontbreekt`;
 
           const{afdelingen,turnkey}=resolveDept(rawDeptCell);
 
           allRows.push({
             projectnr,
-            projectnaam,
+            projectnaam:projectnaam||projectnr,
+
             opdrachtgever,
             contactpersoon,
             projectleider:calculator,
@@ -632,12 +634,16 @@ function parseTimeCell(raw:unknown):string{
 }
 function mapVacStatus(raw:string):AvailStatus{
   const s=raw.toLowerCase().trim();
-  if(!s||s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
+  if(!s)return "Beschikbaar";
+  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
+  if(s.includes("ingepland")||s.includes("planned")||s.includes("gepland"))return "Ingepland";
+  if(s.includes("beschikbaar")||s.includes("available"))return "Beschikbaar";
+  if(s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
   if(s.includes("ziek")||s.includes("sick")||s.includes("ill")||s.includes("arbeidsongeschikt"))return "Ziek";
   if(s.includes("vrij")||s.includes("free")||s.includes("rtvz"))return "Vrij";
-  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
   return "Vakantie";
 }
+
 
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
@@ -789,9 +795,10 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     onImport(all);
   };
 
-  if(!preview||step==="upload")return <Modal title="Vakantie importeren" onClose={onClose} width="max-w-xl">
+  if(!preview||step==="upload")return <Modal title="Beschikbaarheid importeren" onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-4">
-      <p className="text-sm text-[#6B7A99]">Upload een Excel-bestand met vakantieperioden. Bestaande planning wordt <strong>niet</strong> overschreven.</p>
+      <p className="text-sm text-[#6B7A99]">Upload een Excel-bestand met beschikbaarheid (vakantie, ziek, vrij, beschikbaar…). Bestaande planning wordt <strong>niet</strong> overschreven.</p>
+
       <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
         <Calendar className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
         <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
@@ -804,7 +811,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
         <table className="w-full text-left text-[#6B7A99]">
           <tbody className="divide-y divide-[rgba(26,39,68,0.06)]">
-            {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Begin vakantie","✓"],["Einddatum","Einde vakantie",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Type / Reden","Vakantie, Ziek, Vrij…",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
+            {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Eerste dag","✓"],["Einddatum","Laatste dag",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Status / Type","Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
               <tr key={col}><td className="py-1 font-mono pr-2">{col}</td><td className="py-1 text-[#B8C3D9]">{desc}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>
             )}
           </tbody>
@@ -822,7 +829,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const unmatchedRows=preview.rows.filter(r=>!r.invalidReason&&(!r.matchedEmployee||r.ambiguous));
   const invalidRows=preview.rows.filter(r=>!!r.invalidReason);
 
-  return <Modal title="Vakantie importeren — preview" onClose={onClose} width="max-w-2xl">
+  return <Modal title="Beschikbaarheid importeren — preview" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1047,8 +1054,30 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
   const [tab,setTab]=useState<ProjTab>("overzicht");
   const [notities,setNotities]=useState(project.notities);
   const [docs,setDocs]=useState<string[]>([]);
+  const [metaLoaded,setMetaLoaded]=useState(false);
   const [confirmDel,setConfirmDel]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
+  // Documenten + notities uit de database laden en bij wijziging opslaan
+  useEffect(()=>{
+    let cancelled=false;
+    setMetaLoaded(false);
+    loadProjectMeta(project.id).then(m=>{
+      if(cancelled)return;
+      if(m){setDocs(m.docs||[]);if(m.notities)setNotities(m.notities);}
+      setMetaLoaded(true);
+    }).catch(()=>setMetaLoaded(true));
+    return()=>{cancelled=true;};
+  },[project.id]);
+  useEffect(()=>{
+    if(!metaLoaded)return;
+    const t=setTimeout(()=>{
+      void loadProjectMeta(project.id).then(prev=>
+        saveProjectMeta(project.id,{...EMPTY_META,...(prev||{}),docs,notities}),
+      ).catch(()=>{});
+    },300);
+    return()=>clearTimeout(t);
+  },[docs,notities,metaLoaded,project.id]);
+
   const pl=employees.find(e=>e.id===project.projectleider);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
   const totaal=project.uurprijs*project.uren;
@@ -1148,7 +1177,21 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
 function FacturatieTermijnen({projectId}:{projectId:string}){
   const TERMIJNEN=["Eerste termijn","Tweede termijn","Derde termijn","Vierde termijn"];
   const [status,setStatus]=useState<Record<string,boolean>>({});
-  const toggle=(key:string)=>setStatus(prev=>({...prev,[key]:!prev[key]}));
+  useEffect(()=>{
+    let cancelled=false;
+    loadProjectMeta(projectId).then(m=>{if(!cancelled&&m)setStatus(m.termijnen||{});}).catch(()=>{});
+    return()=>{cancelled=true;};
+  },[projectId]);
+  const toggle=(key:string)=>{
+    setStatus(prev=>{
+      const next={...prev,[key]:!prev[key]};
+      void loadProjectMeta(projectId)
+        .then(m=>saveProjectMeta(projectId,{...EMPTY_META,...(m||{}),termijnen:next}))
+        .catch(()=>{});
+      return next;
+    });
+  };
+
   return <div className="space-y-3">
     {TERMIJNEN.map((t,i)=>{const key=`${projectId}-${i}`;const betaald=!!status[key];return(
       <div key={i} className="flex items-center gap-4 p-4 border border-[rgba(26,39,68,0.08)] rounded-xl bg-white">
@@ -1209,13 +1252,29 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       </button>)}
     </div>
     <div className="p-4 border-t border-white/10">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold">JV</div>
-        <div><p className="text-white text-xs font-semibold">Jan de Vries</p><p className="text-[#6B8099] text-xs">Projectleider</p></div>
-      </div>
+      <SidebarUser/>
     </div>
   </>;
 }
+function SidebarUser(){
+  const {user,roleLabel,signOut}=useAuth();
+  const email=user?.email||"";
+  const naam=(user?.user_metadata?.["full_name"] as string|undefined)||(user?.user_metadata?.["name"] as string|undefined)||email.split("@")[0]||"Gebruiker";
+  const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
+  return <div className="space-y-2">
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="min-w-0">
+        <p className="text-white text-xs font-semibold truncate">{naam}</p>
+        <p className="text-[#6B8099] text-xs truncate">{roleLabel}</p>
+      </div>
+    </div>
+    <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#8899BB] hover:text-white hover:bg-white/10 transition-colors">
+      <LogOut className="w-3.5 h-3.5"/>Uitloggen
+    </button>
+  </div>;
+}
+
 function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Nav)=>void;mobileOpen:boolean;onMobileClose:()=>void}){
   const handleNav=(n:Nav)=>{onNav(n);onMobileClose();};
   return <>
@@ -1905,15 +1964,14 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
   const dc=useDC();
   const [view,setView]=useState<CalView>("month");
   const [date,setDate]=useState(new Date());
-  const [schoolRegions,setSchoolRegions]=useState<string[]>(["Noord","Midden","Zuid"]);
+  const schoolRegions=["Noord","Midden","Zuid"];
   const [afdFilter,setAfdFilter]=useState<string>("");
-  const [regionFilter,setRegionFilter]=useState<string>("");
   const [showWeekNumbers,setShowWeekNumbers]=useState(true);
   const year=date.getFullYear(),month=date.getMonth();
   const quarter=Math.floor(month/3);
   const weekDays=getWeekDays(date);
 
-  const allRegions=[...new Set(projects.map(p=>p.region).filter(Boolean))] as string[];
+
 
   const navigate=(dir:number)=>{
     const d=new Date(date);
@@ -1926,7 +1984,7 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
   const filteredProjects=projects.filter(p=>{
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
-    if(regionFilter&&p.region!==regionFilter)return false;
+    
     return true;
   });
   const handleDropProject=(id:string,newStart:Date)=>{
@@ -1964,19 +2022,10 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
         <Btn size="sm" onClick={()=>onCreateProject({})}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Nieuw project</span></Btn>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {(["Noord","Midden","Zuid"] as string[]).map(r=><button key={r} onClick={()=>setSchoolRegions(prev=>prev.includes(r)?prev.filter(x=>x!==r):[...prev,r])} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${schoolRegions.includes(r)?"bg-purple-100 text-purple-700":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{r}</button>)}
-        </div>
-        <div className="w-px h-4 bg-[rgba(26,39,68,0.1)]"/>
-        <div className="flex gap-1 items-center">
-          <span className="text-xs text-[#6B7A99]">Vestiging:</span>
-          <button onClick={()=>setRegionFilter("")} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${!regionFilter?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>Alle</button>
-          {allRegions.map(r=><button key={r} onClick={()=>setRegionFilter(r===regionFilter?"":r)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${regionFilter===r?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{r}</button>)}
-        </div>
-        <div className="w-px h-4 bg-[rgba(26,39,68,0.1)]"/>
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
         <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${showWeekNumbers?"bg-[#E0F7F6] text-[#0ABFB8]":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>Wk#</button>
       </div>
+
     </div>
     <div className="flex-1 overflow-hidden bg-white">
       {view==="month"&&<div className="h-full overflow-y-auto">
@@ -2168,10 +2217,12 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
 
 // ===== BESCHIKBAARHEID =====
 interface AvailForm { id?:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note:string; }
-function BeschikbaarheidView({employees,availability,setAvailability}:{
+function BeschikbaarheidView({employees,availability,setAvailability,onVacImport}:{
   employees:Employee[];availability:AvailEntry[];
   setAvailability:(fn:(prev:AvailEntry[])=>AvailEntry[])=>void;
+  onVacImport:()=>void;
 }){
+
   const dc=useDC();
   const [weekStart,setWeekStart]=useState(()=>{const d=new Date();d.setDate(d.getDate()-(d.getDay()||7)+1);d.setHours(0,0,0,0);return d;});
   const [afdFilter,setAfdFilter]=useState<string>("");
@@ -2194,9 +2245,11 @@ function BeschikbaarheidView({employees,availability,setAvailability}:{
   const [mobileDay,setMobileDay]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
   const mobileDayStr=toDateStr(mobileDay);
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3 flex-wrap">
       <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Beschikbaarheid</h1><p className="text-[#6B7A99] text-xs md:text-sm">Tijdblokken per medewerker per dag</p></div>
+      <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
     </div>
+
     <div className="flex items-center gap-3 flex-wrap">
       <div className="flex items-center gap-1">
         <button onClick={()=>{const d=new Date(weekStart);d.setDate(d.getDate()-7);setWeekStart(d);}} className="p-1.5 rounded-lg hover:bg-[#E8EDF5] text-[#6B7A99]"><ChevronLeft className="w-4 h-4"/></button>
@@ -2547,22 +2600,22 @@ export default function PlanningApp(){
 
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[projects,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[employees,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[avail,dbReady]);
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},600);
+    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
     return()=>clearTimeout(t);
   },[settings,dbReady]);
 
@@ -2615,7 +2668,8 @@ export default function PlanningApp(){
         adres:"",plaats:"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:"",
+        werkzaamheden:r.rawDept||"",
+
         startdatum:sd,
         afloopdatum:ed,
         medewerkers:[],
@@ -2675,7 +2729,7 @@ export default function PlanningApp(){
           {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport}/>}
           {nav==="agenda"&&<AgendaView projects={projects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={projects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
-          {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail}/>}
+          {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="facturatie"&&<FacturatieView projects={projects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
