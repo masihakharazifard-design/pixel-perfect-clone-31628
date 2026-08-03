@@ -1260,7 +1260,7 @@ function SidebarUser(){
   const {user,roleLabel,signOut}=useAuth();
   const email=user?.email||"";
   const naam=(user?.user_metadata?.["full_name"] as string|undefined)||(user?.user_metadata?.["name"] as string|undefined)||email.split("@")[0]||"Gebruiker";
-  const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()).join("")||"?";
+  const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
   return <div className="space-y-2">
     <div className="flex items-center gap-2.5 min-w-0">
       <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
