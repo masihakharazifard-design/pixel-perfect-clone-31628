@@ -1925,7 +1925,7 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
   const filteredProjects=projects.filter(p=>{
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
-    if(regionFilter&&p.region!==regionFilter)return false;
+    
     return true;
   });
   const handleDropProject=(id:string,newStart:Date)=>{
