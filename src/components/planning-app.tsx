@@ -425,10 +425,10 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
 
         // ── Column index resolution (positional, handles duplicate headers) ──
-        // Track first vs second occurrence of "omschrijving"
+        // Track first occurrence of "omschrijving" (Projectnaam)
         let omschrijvingCount=0;
-        let col_projectnr=-1,col_omschr1=-1,col_omschr2=-1,col_opdrachtgever=-1;
-        let col_contactpersoon=-1,col_calculator=-1,col_datum_opdracht=-1;
+        let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
+        let col_contactpersoon=-1,col_datum_opdracht=-1;
         let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
 
         headerRow.forEach((h,i)=>{
@@ -437,11 +437,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           else if(h==="omschrijving"){
             omschrijvingCount++;
             if(omschrijvingCount===1)col_omschr1=i;
-            else if(omschrijvingCount===2)col_omschr2=i;
           }
           else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
           else if(norm==="contactpersoon")col_contactpersoon=i;
-          else if(norm==="calculator"&&col_calculator===-1)col_calculator=i;
           else if(norm==="datumopdracht")col_datum_opdracht=i;
           else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
           else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
@@ -450,8 +448,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
         });
 
-        // Fallback: "Calculator" als deel van een langere kolomnaam
-        if(col_calculator===-1)col_calculator=headerRow.findIndex(h=>/calculator/.test(h));
+
 
         // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
         if(col_werknr===-1){
