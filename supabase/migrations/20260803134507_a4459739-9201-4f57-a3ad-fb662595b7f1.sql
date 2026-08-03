@@ -1,0 +1,1 @@
+delete from public.projects where data->>'projectnr' in ('T-901','T-902','T-903');
