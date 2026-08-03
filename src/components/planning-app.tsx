@@ -481,10 +481,12 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
           const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
           const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
-          const rawDeptCell=col_omschr2>=0?cellStr(row[col_omschr2]):"";
+          // Kolom J (index 9) = Werkzaamheden én bron voor afdelingsherkenning
+          const rawDeptCell=cellStr(row[COL_WERKZAAMHEDEN]);
           const opdrachtgever=col_opdrachtgever>=0?cellStr(row[col_opdrachtgever]):"";
           const contactpersoon=col_contactpersoon>=0?cellStr(row[col_contactpersoon]):"";
-          const calculator=col_calculator>=0?cellStr(row[col_calculator]):"";
+          // Kolom K (index 10) = Projectleider
+          const calculator=cellStr(row[COL_PROJECTLEIDER]);
           const startdatumRaw=col_startdatum>=0?row[col_startdatum]:null;
           const einddatumRaw=col_einddatum>=0?row[col_einddatum]:null;
           const starttijd=col_starttijd>=0?parseXlTime(row[col_starttijd]):null;
