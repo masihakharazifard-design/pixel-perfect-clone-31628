@@ -168,10 +168,14 @@ export function LoginScreen() {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [demoEmail, setDemoEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [roles, setRoles] = useState<AppRole[]>([]);
 
   useEffect(() => {
+    setDemoEmail(readDemoUser());
+    const onDemo = () => setDemoEmail(readDemoUser());
+    window.addEventListener(DEMO_EVENT, onDemo);
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setReady(true);
@@ -180,7 +184,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setSession(data.session);
       setReady(true);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      window.removeEventListener(DEMO_EVENT, onDemo);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -199,20 +206,24 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [session?.user.id]);
 
   if (!ready) return <div className="min-h-screen bg-[#F0F3F8]" />;
-  if (!session) return <LoginScreen />;
-
+  if (!session && !demoEmail) return <LoginScreen />;
 
   const primary = (["beheerder", "planner", "projectleider", "financieel", "medewerker"] as AppRole[]).find((r) =>
     roles.includes(r),
   );
 
+  const demoUser = demoEmail
+    ? ({ id: "demo", email: demoEmail, user_metadata: { full_name: demoEmail } } as unknown as User)
+    : null;
+
   return (
     <Ctx.Provider
       value={{
-        user: session.user,
-        roles,
-        roleLabel: primary ? ROLE_LABELS[primary] : "Medewerker",
+        user: session?.user ?? demoUser,
+        roles: session ? roles : ["beheerder"],
+        roleLabel: session ? (primary ? ROLE_LABELS[primary] : "Medewerker") : "Beheerder",
         signOut: async () => {
+          setDemoUser(null);
           await supabase.auth.signOut();
         },
       }}
@@ -220,4 +231,5 @@ export function AuthGate({ children }: { children: ReactNode }) {
       {children}
     </Ctx.Provider>
   );
+
 }
