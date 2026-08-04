@@ -11,7 +11,7 @@ import {
 import * as XLSX from "xlsx";
 import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
 import { useAuth } from "@/components/auth-gate";
-import maasmondLogo from "@/assets/maasmond-logo.png.asset.json";
+import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 
 
 // ===== TYPES =====
@@ -1300,7 +1300,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
         <div className="bg-white rounded-lg px-2 py-1.5 flex items-center justify-center">
           <img src={maasmondLogo.url} alt="Maasmond logo" className="h-5 w-auto"/>
         </div>
-        <span className="text-white font-bold text-base tracking-tight">Maasmond plant</span>
+        <span className="text-white font-bold text-base tracking-tight">Maasmond planning</span>
       </div>
       <p className="text-[#6B8099] text-xs mt-0.5">Projectplanning</p>
     </div>
