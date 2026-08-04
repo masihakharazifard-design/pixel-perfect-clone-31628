@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://onrfmcsyoeztckcyxbwi.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "maasmond-planning",
+      "version": "0.1.0",
+      "title": "Maasmond planning"
+    },
+    "tools": [
+      {
+        "name": "list_projects",
+        "title": "Projecten opzoeken",
+        "description": "Geef de projecten uit Maasmond planning terug, optioneel gefilterd op vrije tekst (projectnr, klant, omschrijving, calculator) en status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "zoekterm": {
+              "type": "string",
+              "description": "Vrije tekst om op te filteren."
+            },
+            "status": {
+              "type": "string",
+              "description": "Filter op status, bijvoorbeeld Gepland of Offerte."
+            },
+            "limiet": {
+              "type": "integer",
+              "description": "Maximaal aantal projecten (standaard 25)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_project",
+        "title": "Projectdetails opvragen",
+        "description": "Geef alle opgeslagen gegevens van één project terug op basis van projectnummer of interne id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "projectnr": {
+              "type": "string",
+              "description": "Het projectnummer, werknummer of de interne id van het project."
+            }
+          },
+          "required": [
+            "projectnr"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_employees",
+        "title": "Medewerkers opvragen",
+        "description": "Geef de medewerkers uit Maasmond planning terug, optioneel gefilterd op naam, functie of discipline.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "zoekterm": {
+              "type": "string",
+              "description": "Vrije tekst om medewerkers op te filteren."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_availability",
+        "title": "Beschikbaarheid opvragen",
+        "description": "Geef de opgeslagen beschikbaarheid (verlof, ziekte, afwezigheid) van medewerkers terug, optioneel gefilterd op medewerker of datumtekst.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "zoekterm": {
+              "type": "string",
+              "description": "Vrije tekst, bijvoorbeeld een naam of een datum als 2026-08."
+            },
+            "limiet": {
+              "type": "integer",
+              "description": "Maximaal aantal regels (standaard 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
