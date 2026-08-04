@@ -71,6 +71,11 @@ export function LoginScreen() {
 
   const passwordLogin = async () => {
     setError("");
+    // Demo: iedereen met een @maasmond.nl adres mag direct naar binnen.
+    if (email.trim().toLowerCase().endsWith(DEMO_DOMAIN)) {
+      setDemoUser(email.trim().toLowerCase());
+      return;
+    }
     setBusy(true);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
@@ -84,12 +89,15 @@ export function LoginScreen() {
     >
       <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-[#0ABFB8] flex items-center justify-center mb-3">
-            <Layers className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-lg font-bold text-[#1A2744]">Projectplanning</h1>
+          <img
+            src={maasmondLogo.url}
+            alt="Maasmond logo"
+            className="w-14 h-14 rounded-xl object-contain mb-3"
+          />
+          <h1 className="text-lg font-bold text-[#1A2744]">Maasmond planning</h1>
           <p className="text-sm text-[#6B7A99] mt-1">Log in met uw zakelijke account</p>
         </div>
+
 
         <label className="block text-xs font-semibold text-[#6B7A99] mb-1.5">Zakelijk e-mailadres</label>
         <input
