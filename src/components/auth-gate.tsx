@@ -1,7 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { Layers, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
+import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+
+// Demo-login: elk e-mailadres op @maasmond.nl mag naar binnen zonder wachtwoord.
+const DEMO_KEY = "maasmond-demo-user";
+const DEMO_EVENT = "maasmond-demo-auth";
+const DEMO_DOMAIN = "@maasmond.nl";
+
+function readDemoUser(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(DEMO_KEY);
+}
+function setDemoUser(email: string | null) {
+  if (email) window.localStorage.setItem(DEMO_KEY, email);
+  else window.localStorage.removeItem(DEMO_KEY);
+  window.dispatchEvent(new Event(DEMO_EVENT));
+}
 
 export type AppRole = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -55,6 +71,11 @@ export function LoginScreen() {
 
   const passwordLogin = async () => {
     setError("");
+    // Demo: iedereen met een @maasmond.nl adres mag direct naar binnen.
+    if (email.trim().toLowerCase().endsWith(DEMO_DOMAIN)) {
+      setDemoUser(email.trim().toLowerCase());
+      return;
+    }
     setBusy(true);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
@@ -68,21 +89,38 @@ export function LoginScreen() {
     >
       <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-[#0ABFB8] flex items-center justify-center mb-3">
-            <Layers className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-lg font-bold text-[#1A2744]">Projectplanning</h1>
+          <img
+            src={maasmondLogo.url}
+            alt="Maasmond logo"
+            className="w-14 h-14 rounded-xl object-contain mb-3"
+          />
+          <h1 className="text-lg font-bold text-[#1A2744]">Maasmond planning</h1>
           <p className="text-sm text-[#6B7A99] mt-1">Log in met uw zakelijke account</p>
         </div>
+
 
         <label className="block text-xs font-semibold text-[#6B7A99] mb-1.5">Zakelijk e-mailadres</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="naam@bedrijf.nl"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void passwordLogin();
+          }}
+          placeholder="naam@maasmond.nl"
           className="w-full px-3 py-2.5 rounded-xl border border-[rgba(26,39,68,0.15)] text-sm text-[#1A2744] outline-none focus:border-[#0ABFB8] mb-3"
         />
+
+        {!showPassword && (
+          <button
+            onClick={() => void passwordLogin()}
+            disabled={busy}
+            className="w-full py-2.5 rounded-xl bg-[#1A2744] text-white text-sm font-semibold hover:bg-[#24365c] disabled:opacity-50 mb-3"
+          >
+            Inloggen
+          </button>
+        )}
+
 
         {showPassword && (
           <>
@@ -130,10 +168,14 @@ export function LoginScreen() {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [demoEmail, setDemoEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [roles, setRoles] = useState<AppRole[]>([]);
 
   useEffect(() => {
+    setDemoEmail(readDemoUser());
+    const onDemo = () => setDemoEmail(readDemoUser());
+    window.addEventListener(DEMO_EVENT, onDemo);
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setReady(true);
@@ -142,7 +184,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setSession(data.session);
       setReady(true);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      window.removeEventListener(DEMO_EVENT, onDemo);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -161,20 +206,24 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [session?.user.id]);
 
   if (!ready) return <div className="min-h-screen bg-[#F0F3F8]" />;
-  if (!session) return <LoginScreen />;
-
+  if (!session && !demoEmail) return <LoginScreen />;
 
   const primary = (["beheerder", "planner", "projectleider", "financieel", "medewerker"] as AppRole[]).find((r) =>
     roles.includes(r),
   );
 
+  const demoUser = demoEmail
+    ? ({ id: "demo", email: demoEmail, user_metadata: { full_name: demoEmail } } as unknown as User)
+    : null;
+
   return (
     <Ctx.Provider
       value={{
-        user: session.user,
-        roles,
-        roleLabel: primary ? ROLE_LABELS[primary] : "Medewerker",
+        user: session?.user ?? demoUser,
+        roles: session ? roles : ["beheerder"],
+        roleLabel: session ? (primary ? ROLE_LABELS[primary] : "Medewerker") : "Beheerder",
         signOut: async () => {
+          setDemoUser(null);
           await supabase.auth.signOut();
         },
       }}
@@ -182,4 +231,5 @@ export function AuthGate({ children }: { children: ReactNode }) {
       {children}
     </Ctx.Provider>
   );
+
 }
