@@ -1296,8 +1296,10 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
   return <>
     <div className="px-5 py-5">
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-[#0ABFB8] flex items-center justify-center"><Layers className="w-4 h-4 text-white"/></div>
-        <span className="text-white font-bold text-base tracking-tight">PlanPro</span>
+        <div className="bg-white rounded-lg px-2 py-1.5 flex items-center justify-center">
+          <img src={maasmondLogo.url} alt="Maasmond logo" className="h-5 w-auto"/>
+        </div>
+        <span className="text-white font-bold text-base tracking-tight">Maasmond plant</span>
       </div>
       <p className="text-[#6B8099] text-xs mt-0.5">Projectplanning</p>
     </div>
