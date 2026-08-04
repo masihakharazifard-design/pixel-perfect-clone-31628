@@ -104,9 +104,23 @@ export function LoginScreen() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="naam@bedrijf.nl"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void passwordLogin();
+          }}
+          placeholder="naam@maasmond.nl"
           className="w-full px-3 py-2.5 rounded-xl border border-[rgba(26,39,68,0.15)] text-sm text-[#1A2744] outline-none focus:border-[#0ABFB8] mb-3"
         />
+
+        {!showPassword && (
+          <button
+            onClick={() => void passwordLogin()}
+            disabled={busy}
+            className="w-full py-2.5 rounded-xl bg-[#1A2744] text-white text-sm font-semibold hover:bg-[#24365c] disabled:opacity-50 mb-3"
+          >
+            Inloggen
+          </button>
+        )}
+
 
         {showPassword && (
           <>
