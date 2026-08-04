@@ -11,6 +11,7 @@ import {
 import * as XLSX from "xlsx";
 import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
 import { useAuth } from "@/components/auth-gate";
+import maasmondLogo from "@/assets/maasmond-logo.png.asset.json";
 
 
 // ===== TYPES =====
