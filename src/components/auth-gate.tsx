@@ -32,7 +32,7 @@ async function ensureDefaultRole(userId: string): Promise<AppRole[]> {
   return ["medewerker"];
 }
 
-function LoginScreen() {
+export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,23 +41,16 @@ function LoginScreen() {
 
   const microsoftLogin = async () => {
     setError("");
-    const domain = email.split("@")[1]?.trim().toLowerCase();
-    if (!domain) {
-      setError("Vul eerst uw zakelijke e-mailadres in.");
-      return;
-    }
     setBusy(true);
-    const { data, error: err } = await supabase.auth.signInWithSSO({ domain });
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        scopes: "openid email profile",
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
     setBusy(false);
-    if (err) {
-      setError(
-        err.message.toLowerCase().includes("provider")
-          ? `Voor het domein ${domain} is nog geen Microsoft-koppeling ingesteld.`
-          : err.message,
-      );
-      return;
-    }
-    if (data?.url) window.location.href = data.url;
+    if (err) setError(err.message);
   };
 
   const passwordLogin = async () => {
@@ -169,6 +162,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!ready) return <div className="min-h-screen bg-[#F0F3F8]" />;
   if (!session) return <LoginScreen />;
+
 
   const primary = (["beheerder", "planner", "projectleider", "financieel", "medewerker"] as AppRole[]).find((r) =>
     roles.includes(r),
