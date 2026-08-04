@@ -1,7 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { Layers, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
+import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+
+// Demo-login: elk e-mailadres op @maasmond.nl mag naar binnen zonder wachtwoord.
+const DEMO_KEY = "maasmond-demo-user";
+const DEMO_EVENT = "maasmond-demo-auth";
+const DEMO_DOMAIN = "@maasmond.nl";
+
+function readDemoUser(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(DEMO_KEY);
+}
+function setDemoUser(email: string | null) {
+  if (email) window.localStorage.setItem(DEMO_KEY, email);
+  else window.localStorage.removeItem(DEMO_KEY);
+  window.dispatchEvent(new Event(DEMO_EVENT));
+}
 
 export type AppRole = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
 const ROLE_LABELS: Record<AppRole, string> = {
