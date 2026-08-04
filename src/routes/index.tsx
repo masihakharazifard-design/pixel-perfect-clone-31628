@@ -9,7 +9,7 @@ const PlanningApp = lazy(() => import("@/components/planning-app"));
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Projectplanning — Stoffering, Schilderwerk & Zonwering" },
+      { title: "Maasmond plant — Projectplanning" },
       {
         name: "description",
         content:
