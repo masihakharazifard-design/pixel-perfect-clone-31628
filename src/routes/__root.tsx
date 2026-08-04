@@ -5,6 +5,7 @@ import {
   ClientOnly,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -121,14 +122,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // The OAuth consent route owns its own sign-in flow and must not be wrapped
+  // by the app's AuthGate.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isOAuthConsent = pathname.startsWith("/.lovable/oauth/consent");
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <ClientOnly fallback={<div className="min-h-screen bg-[#F0F3F8]" />}>
-        <AuthGate>
+        {isOAuthConsent ? (
           <Outlet />
-        </AuthGate>
+        ) : (
+          <AuthGate>
+            <Outlet />
+          </AuthGate>
+        )}
       </ClientOnly>
     </QueryClientProvider>
   );
