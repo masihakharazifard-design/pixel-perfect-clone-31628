@@ -2699,17 +2699,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort(byVolgorde);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    return rowsFor(empId,ds).map(a=>({row:a,proj:projects.find(p=>p.id===a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
+    return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
   };
   const getEmpProjsWeek=(empId:string,wk:Date)=>{
     const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
     const seen=new Set<string>();const out:Project[]=[];
     planRows(availability).filter(a=>a.employeeId===empId&&days.includes(a.date)).forEach(a=>{
-      const p=projects.find(x=>x.id===a.projectId);
+      const p=visProj(a.projectId);
       if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
     });
     return out;
   };
+
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   const rowColor=(a:AvailEntry)=>{
