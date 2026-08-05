@@ -6,19 +6,21 @@ Alleen de bestaande Personeelsplanning wordt uitgebreid met een resize-handle. G
 
 Elk planningblok (project, Vakantie, Ziek, Bezet) krijgt een greep om het langer of korter te maken:
 
-- **Dagweergave**: greep aan de onderkant van het blok; slepen past de **eindtijd** aan (in stappen van 15 minuten).
-- **Week-, maand- en kwartaalweergave**: greep aan de rechterkant van het blok; slepen past de **einddatum** aan (per dag).
+- **Dagweergave**: greep aan de onderkant van het blok; slepen past de **eindtijd** aan (in stappen van 15 minuten). Minimale duur is begintijd + 15 minuten; verlengen loopt standaard tot het einde van de normale werkdag. Doorlopen buiten werktijd kan alleen na een bewuste bevestiging.
+- **Weekweergave**: greep aan de rechterkant van het blok; slepen past de **einddatum** aan (per dag).
+- **Maand- en kwartaalweergave**: resizen start uitsluitend via de zichtbare greep — het blok zelf begint nooit vanzelf een resize. Zijn de cellen te klein (kwartaalweergave, mobiel), dan opent de greep meteen het venster "Periode aanpassen" in plaats van vrij slepen.
 - Begindatum en begintijd blijven altijd gelijk.
 - Tijdens het slepen is een tijdelijke preview zichtbaar (nieuwe lengte plus tijd- of datumlabel); het echte record wijzigt pas bij loslaten.
 - De greep verschijnt bij hover op desktop en is op mobiel permanent zichtbaar en groter (ruime aanraakzone).
 
 ## Projectblokken
 
-Bij loslaten wordt dezelfde planningregel bijgewerkt (nooit een nieuwe regel):
+- **Binnen dezelfde dag** wordt uitsluitend het bestaande planningrecord bijgewerkt; er komt nooit een extra regel bij.
+- **Over meerdere kalenderdagen** krijgt iedere extra dag één gekoppelde planningregel met hetzelfde project, hetzelfde team, dezelfde reeks-sleutel en dezelfde begin- en eindtijden. Dit zijn geen dubbele records: per medewerker, project, datum en tijdvak bestaat maximaal één regel.
+- **Inkorten** verwijdert alleen de gekoppelde dagregels die buiten de nieuwe einddatum vallen.
+- Personeelsplanning, Agenda en Projectdetails volgen direct.
+- De projectperiode wordt herberekend volgens de bestaande regel (alleen regels met status Ingepland van hetzelfde project tellen mee).
 
-- nieuwe eindtijd (dagweergave) of nieuwe einddatum (overige weergaven; doorlopende dagen worden als losse dagregels van hetzelfde project met dezelfde tijden beheerd, zonder dubbele dagen);
-- Personeelsplanning, Agenda en Projectdetails volgen direct;
-- de projectperiode wordt herberekend volgens de bestaande regel (alleen regels met status Ingepland van hetzelfde project tellen mee).
 
 Werkt de medewerker die dag met anderen aan hetzelfde project (team), dan verschijnt eerst de keuze:
 
