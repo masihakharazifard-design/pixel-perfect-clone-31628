@@ -2742,11 +2742,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  // Kleur van een planningregel: nooit afhankelijk van datum, rij-index of record-id.
+  // Volgorde: opgeslagen teamkleur (teamId) → opgeslagen projectkleur → stabiele kleur op projectId.
   const rowColor=(a:AvailEntry)=>{
-    const ids=teamForDay(availability,a.projectId||"",a.date);
-    if(ids.length>1)return teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
-    return projectColors[a.projectId||""]||teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
+    if(a.teamId&&teamColors[a.teamId])return teamColors[a.teamId];
+    if(a.projectId&&projectColors[a.projectId])return projectColors[a.projectId];
+    if(a.teamId)return teamColor(a.teamId,teamColors);
+    return teamColor(a.projectId||"",teamColors);
   };
+
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
   const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:"08:00",endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
@@ -2987,12 +2991,28 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
-  // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
-  // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
-  const openProjects=visProjects.filter(p=>{
-    const s=String(p.status||"").trim().toLowerCase();
-    return s!=="afgerond"&&s!=="gefactureerd";
-  }).map(p=>{
+  // ===== Doorlopende meerdaagse balken =====
+  // Alleen regels met hetzelfde reeksId (of aantoonbaar dezelfde doortrekactie) worden
+  // visueel aan elkaar geplakt. Zonder reeksId blijft elke regel een los blok.
+  const visDates=new Set(dates.map(toDateStr));
+  const shiftDay=(ds:string,n:number)=>{const d=new Date(ds+"T12:00");d.setDate(d.getDate()+n);return toDateStr(d);};
+  const linkedOn=(row:AvailEntry,ds:string)=>{
+    if(!row.reeksId||!row.projectId)return false;
+    return availability.some(a=>a.date===ds&&a.employeeId===row.employeeId&&a.projectId===row.projectId
+      &&a.reeksId===row.reeksId&&(a.teamId||"")===(row.teamId||"")
+      &&a.startTime===row.startTime&&a.endTime===row.endTime);
+  };
+  // Elk blok weet of het links/rechts doorloopt naar een aansluitende dag in beeld
+  const segInfo=(row:AvailEntry)=>{
+    if(!row.reeksId)return{prev:false,next:false};
+    const pd=shiftDay(row.date,-1),nd=shiftDay(row.date,1);
+    return{prev:visDates.has(pd)&&linkedOn(row,pd),next:visDates.has(nd)&&linkedOn(row,nd)};
+  };
+
+  // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
+  // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
+  const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
+
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
@@ -3127,20 +3147,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,a,"date");}} onOpen={()=>setPeriodModal(a)}/>}
                 </div>)}
-                {ps.map(({row,proj},bi)=><div key={row.id} className="group relative">
+                {ps.map(({row,proj},bi)=>{const seg=segInfo(row);return<div key={row.id} className="group relative"
+                  style={seg.prev||seg.next?{marginLeft:seg.prev?-3:0,marginRight:seg.next?-3:0}:undefined}>
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
-                    {row.isFirstOfDay&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
-                    <span className="truncate">{proj.projectnaam.slice(0,4)+".."}</span>
+                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                    {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
+                    <span className="truncate">{seg.prev?"\u00A0":proj.projectnaam.slice(0,4)+".."}</span>
                   </button>
+
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
                     <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
                     <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,1);}} disabled={bi===ps.length-1} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omlaag">▼</button>
                   </span>}
                   {seriesEnd(row)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===row.id} label={resizePv?.id===row.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,row,"date");}} onOpen={()=>setPeriodModal(row)}/>}
-                </div>)}
+                </div>;})}
+
                 {abs.length===0&&ps.length===0&&<span className="text-[10px] text-[#E2E7F0]">+</span>}
               </div>
 
@@ -3682,12 +3705,15 @@ export default function PlanningApp(){
     return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
   }),[projects,avail]);
 
+  // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
+  // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
   const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
     const rows=projectPlans(nextAvail,projectId);
     const per=planPeriod(rows);
     if(!per)return projects; // laatste planning verwijderd: datums bewust behouden
-    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end,medewerkers:assignedEmpIds(nextAvail,projectId)}:p);
+    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end}:p);
   };
+
 
   const savePlanning=async(entry:AvailEntry)=>{
     const exists=avail.some(a=>a.id===entry.id);
