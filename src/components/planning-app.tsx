@@ -266,6 +266,23 @@ function teamColor(key:string,overrides:Record<string,string>={}):string{
 function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
   return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
 }
+// Alle planningregels van hetzelfde team op één dag (zelfde project + dag)
+function teamRowsForDay(av:AvailEntry[],projectId:string,date:string):AvailEntry[]{
+  return planRows(av).filter(a=>a.projectId===projectId&&a.date===date);
+}
+// ===== HANDMATIGE VOLGORDE PER MEDEWERKER PER DAG =====
+const byVolgorde=(a:AvailEntry,b:AvailEntry)=>{
+  const va=typeof a.volgorde==="number"?a.volgorde:9999;
+  const vb=typeof b.volgorde==="number"?b.volgorde:9999;
+  if(va!==vb)return va-vb;
+  return a.startTime.localeCompare(b.startTime);
+};
+// Volledige dagafwezigheid: kleurt de celrand
+function dayBlockState(av:AvailEntry[],empId:string,date:string):AvailStatus|null{
+  const rows=av.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===date&&ABSENCE_STATS.includes(a.status));
+  const full=rows.find(a=>a.startTime<="08:00"&&a.endTime>="17:00");
+  return full?full.status:(rows[0]?.status??null);
+}
 // ===== KLEURBEHEER =====
 // Alle kleuren komen uit app_settings; zonder override geldt de standaardkleur.
 function statusColorOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[s]||AS[s].dot;}
