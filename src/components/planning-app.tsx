@@ -2957,7 +2957,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     await onDeletePlanning(b.id);
     if(!rest.length)return;
     const keep=rest.find(r=>r.isFirstOfDay);
-    const target=keep?keep.id:((b.isFirstOfDay||rest.length===1)?rest[0].id:null);
+    const target=keep?keep.id:(b.isFirstOfDay?(rest[0]?.id||null):null);
     await onSaveManyPlanning(applyFirstOfDay(rest,target));
   };
 
