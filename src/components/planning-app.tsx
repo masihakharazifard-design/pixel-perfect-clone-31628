@@ -151,6 +151,24 @@ function fmtDate(d:string|Date){if(!validDate(d))return "—";const dt=typeof d=
 function fmtTime(d:string|Date){if(!validDate(d))return "";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
 function toDateStr(d:Date){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function toDTLocal(iso:string){const d=new Date(iso);if(isNaN(d.getTime()))return "";const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+// Datum-/tijddelen van een opgeslagen ISO-datum, in lokale (Europe/Amsterdam) tijd.
+function datePart(iso:string){const s=toDTLocal(iso);return s?s.slice(0,10):"";}
+function timePart(iso:string){const s=toDTLocal(iso);return s?s.slice(11,16):"";}
+// Combineert een datum (yyyy-mm-dd, of Nederlands dd-mm-jjjj) met een tijd (HH:MM)
+// tot een ISO-datum zonder dagverschuiving. Lege datum => "".
+function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):string{
+  const raw=(dateStr||"").trim();if(!raw)return "";
+  let y=0,m=0,d=0;
+  const nl=raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  const iso=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(nl){d=+nl[1];m=+nl[2];y=+nl[3];}
+  else if(iso){y=+iso[1];m=+iso[2];d=+iso[3];}
+  else return "";
+  const t=(timeStr||"").match(/^(\d{1,2}):(\d{2})$/);
+  const hh=t?+t[1]:defH, mm=t?+t[2]:defM;
+  const dt=new Date(y,m-1,d,hh,mm,0,0);
+  return isNaN(dt.getTime())?"":dt.toISOString();
+}
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
