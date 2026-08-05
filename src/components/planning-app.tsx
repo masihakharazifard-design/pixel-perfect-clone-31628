@@ -2752,6 +2752,19 @@ export default function PlanningApp(){
 
   const addProject=(p:Project)=>{setProjects(prev=>[...prev,p]);setIsNewProject(false);setEditProject(null);};
   const updateProject=(id:string,u:Partial<Project>)=>setProjects(prev=>prev.map(p=>p.id===id?{...p,...u}:p));
+  // Status direct wijzigen vanuit de projectlijst: zelfde projectrecord, zelfde tabel
+  const changeProjectStatus=async(p:Project,status:ProjectStatus)=>{
+    const prevStatus=p.status;
+    const next=projects.map(x=>x.id===p.id?{...x,status}:x);
+    setProjects(next);
+    try{
+      await syncTable("projects",next);
+      toast.success("Projectstatus is bijgewerkt.");
+    }catch{
+      setProjects(cur=>cur.map(x=>x.id===p.id?{...x,status:prevStatus}:x));
+      toast.error("De projectstatus kon niet worden bijgewerkt.");
+    }
+  };
   const deleteProject=(id:string)=>{setProjects(prev=>prev.filter(p=>p.id!==id));setAvail(prev=>prev.filter(a=>a.projectId!==id));if(detailProject?.id===id)setDetailProject(null);};
   const saveProject=(p:Project)=>{
     if(projects.find(x=>x.id===p.id))updateProject(p.id,p);else addProject(p);
