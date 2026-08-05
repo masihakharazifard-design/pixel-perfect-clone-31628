@@ -41,6 +41,8 @@ interface AppSettings {
   bedrijfsnaam:string; adres:string; postcode:string; plaats:string;
   telefoon:string; email:string; primaryColor:string; accentColor:string;
   deptColors:Record<Afdeling,{bg:string;light:string;border:string}>;
+  planFilters?:PlanFilter[];
+  teamColors?:Record<string,string>;
 }
 
 // ===== DEPT COLOR CONTEXT =====
