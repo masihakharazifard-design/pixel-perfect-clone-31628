@@ -2165,9 +2165,10 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
           onClick={()=>onClickTime(h)}/>)}
         {dayProjs.map(p=>{
           const s=new Date(p.startdatum),e=new Date(p.afloopdatum);
-          const top=Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT);
+          const colH=HOURS.length*HOUR_HEIGHT;
+          const top=Math.min(colH-HOUR_HEIGHT/2,Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT));
           const durH=e.getHours()-s.getHours()+(e.getMinutes()-s.getMinutes())/60;
-          const ht=Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT);
+          const ht=Math.min(colH-top,Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT));
           const st=agendaProjStyle(p,dc);
           return <div key={p.id} draggable onDragStart={()=>{dragRef.current=p.id;}} onClick={ev=>{ev.stopPropagation();onClickProject(p);}}
             className="absolute left-2 right-2 rounded-xl overflow-hidden cursor-grab text-white shadow-sm hover:shadow-md z-10 transition-shadow"
