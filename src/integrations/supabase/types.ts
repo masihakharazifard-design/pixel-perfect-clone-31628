@@ -68,6 +68,33 @@ export type Database = {
         }
         Relationships: []
       }
+      personal_notes: {
+        Row: {
+          created_at: string
+          datum: string
+          id: string
+          owner_id: string
+          tekst: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          datum: string
+          id?: string
+          owner_id: string
+          tekst?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          datum?: string
+          id?: string
+          owner_id?: string
+          tekst?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       project_meta: {
         Row: {
           data: Json
