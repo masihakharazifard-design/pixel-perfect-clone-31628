@@ -2996,11 +2996,14 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
   // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
-  const openProjects=periodProjects.filter(p=>p.status!=="Afgerond"&&p.status!=="Gefactureerd").map(p=>{
+  const openProjects=visProjects.filter(p=>{
+    const s=String(p.status||"").trim().toLowerCase();
+    return s!=="afgerond"&&s!=="gefactureerd";
+  }).map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  }).sort((a,b)=>(b.rest-a.rest)||a.p.startdatum.localeCompare(b.p.startdatum));
+  }).sort((a,b)=>(b.rest-a.rest)||((a.p.startdatum||"9999").localeCompare(b.p.startdatum||"9999")));
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
