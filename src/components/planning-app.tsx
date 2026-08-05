@@ -2414,7 +2414,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="day"&&<DayView date={date} projects={agendaProjects} employees={employees}
         onClickProject={openReal} onClickTime={h=>handleClickDateTime(date,h)}
-        onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
+        onDropProject={handleDropProjectDayTime} onResizeProject={handleResize}/>}
       {view==="kwartaal"&&<div className="h-full overflow-y-auto">
         <KwartaalView year={year} quarter={quarter} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
           onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
