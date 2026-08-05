@@ -2991,12 +2991,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
-  // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
-  // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
-  const openProjects=visProjects.filter(p=>{
-    const s=String(p.status||"").trim().toLowerCase();
-    return s!=="afgerond"&&s!=="gefactureerd";
-  }).map(p=>{
+  // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
+  // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
+  const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
+
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
