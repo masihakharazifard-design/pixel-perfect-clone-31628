@@ -2746,8 +2746,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
   };
   const commitPlanning=async(entries:AvailEntry[],removeIds?:string[],checkFirst=false)=>{
+    // Laatste controle: nooit opslaan voor een project buiten de actieve filter
+    if(!rowsAllowed(entries)){toast.error(FILTER_MSG);return false;}
     const rem=removeIds||[];
     const list=normalizeFirstOfDay(availability,entries,rem);
+
     const ok=rem.length?await onResizePlanning(list,rem):await onSaveManyPlanning(list);
     if(!ok){toast.error("Opslaan mislukt — de planning blijft ongewijzigd.");return ok;}
     if(checkFirst){
