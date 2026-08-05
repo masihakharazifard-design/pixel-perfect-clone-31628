@@ -2932,6 +2932,46 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       Kies de einddag voor de afwezigheid
       <button className="underline" onClick={()=>setRangeStart(null)}>Annuleren</button>
     </div>}
+
+    {/* Snelmenu op een cel */}
+    {cellMenu&&<>
+      <div className="fixed inset-0 z-40" onClick={()=>setCellMenu(null)} onContextMenu={ev=>{ev.preventDefault();setCellMenu(null);}}/>
+      <div className="fixed z-50 bg-white rounded-xl border border-[rgba(26,39,68,0.12)] shadow-lg py-1 text-xs min-w-44"
+        style={{left:Math.min(cellMenu.x,window.innerWidth-200),top:Math.min(cellMenu.y,window.innerHeight-260)}}>
+        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}</p>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date);}}>Project inplannen…</button>
+        {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
+          <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s} (hele dag)
+        </button>)}
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
+      </div>
+    </>}
+
+    {/* Keuze bij het slepen van een teamblok */}
+    {teamChoice&&<Modal title="Planning verplaatsen" onClose={()=>setTeamChoice(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Wat wil je verplaatsen?</p>
+        <div className="flex flex-col gap-2">
+          <Btn onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze planning verplaatsen</Btn>
+          <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
+          <Btn variant="ghost" onClick={()=>setTeamChoice(null)}>Annuleren</Btn>
+        </div>
+      </div>
+    </Modal>}
+
+    {/* Waarschuwing bij dubbele projectplanning */}
+    {overlapAsk&&<Modal title="Let op — dubbele planning" onClose={()=>setOverlapAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Deze medewerker staat in dit tijdvak al op een ander project:</p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
+          {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{conflictLine(c)}</p>)}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={()=>setOverlapAsk(null)}>Annuleren</Btn>
+          <Btn onClick={async()=>{const o=overlapAsk;setOverlapAsk(null);await commitPlanning(o.entries);}}>Planning toch opslaan</Btn>
+        </div>
+      </div>
+    </Modal>}
   </div>;
 }
 
