@@ -3162,7 +3162,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                   </span>}
                   {seriesEnd(row)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===row.id} label={resizePv?.id===row.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,row,"date");}} onOpen={()=>setPeriodModal(row)}/>}
-                </div>)}
+                </div>;})}
+
                 {abs.length===0&&ps.length===0&&<span className="text-[10px] text-[#E2E7F0]">+</span>}
               </div>
 
