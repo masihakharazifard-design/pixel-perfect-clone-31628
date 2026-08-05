@@ -1639,7 +1639,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
-          <StatusBadge status={p.status}/>
+          <StatusCell project={p} onStatusChange={onStatusChange}/>
         </div>
         <div className="px-4 py-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
