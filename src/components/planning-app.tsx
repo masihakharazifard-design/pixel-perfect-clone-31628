@@ -2559,7 +2559,16 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
   const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
   const [showPlanned,setShowPlanned]=useState(false);
-  const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number}|null>(null);
+  const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number;startTime?:string;endTime?:string;block?:AvailEntry}|null>(null);
+  const menuRef=useRef<HTMLDivElement|null>(null);
+  const [menuH,setMenuH]=useState(260);
+  useEffect(()=>{if(!cellMenu)return;const el=menuRef.current;if(el)setMenuH(el.offsetHeight);
+    const onKey=(ev:KeyboardEvent)=>{if(ev.key==="Escape")setCellMenu(null);};
+    window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);},[cellMenu]);
+  const openCellMenu=(ev:React.MouseEvent,empId:string,date:string,block?:AvailEntry)=>{
+    ev.preventDefault();ev.stopPropagation();
+    setCellMenu({empId,date,x:ev.clientX,y:ev.clientY,startTime:block?.startTime,endTime:block?.endTime,block});
+  };
   const [teamChoice,setTeamChoice]=useState<{block:AvailEntry;empId:string;date:string;teamRows:AvailEntry[]}|null>(null);
   const [overlapAsk,setOverlapAsk]=useState<{entries:AvailEntry[];warnings:PlanConflict[]}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
