@@ -2820,10 +2820,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         status:block.status,note:block.note||"",wholeDay:block.startTime==="00:00"&&endTime==="23:59"});
       return;
     }
+    if(!canAct(block.projectId,block.employeeId))return;
     const teamRows=teamRowsForDay(availability,block.projectId,block.date);
     if(teamRows.length>1){setResizeTeam({patch,teamRows,block});return;}
     await commitResize([block],patch);
   };
+
 
   const resizeRef=useRef<{block:AvailEntry;mode:"time"|"date";x:number;y:number;preview:string;raw:string}|null>(null);
   const [resizePv,setResizePv]=useState<{id:string;label:string}|null>(null);
