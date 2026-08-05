@@ -69,4 +69,6 @@ Zodra een begintijd of eindtijd verandert (bewerken, slepen of doortrekken), con
 - Kopieeracties strippen `isFirstOfDay` op de nieuwe regel; daarna draait `normalizeFirstOfDay` op de doeldag.
 - Bij Excel-import wordt bij het samenvoegen van bestaande availability-regels `isFirstOfDay` uit de bestaande regel behouden.
 - Na een geslaagde opslag wordt de bestaande herlaad-/sync-flow gebruikt, zodat alle weergaven op dezelfde serverstatus draaien.
+- `checkFirstStartConflict(empId, date)`: draait na elke tijdswijziging (`AbsenceModal`-opslag, drag-and-drop en `applyResize`) en vergelijkt de starttijd van het gemarkeerde blok met de vroegste starttijd van die dag. Bij een eerder startend project wordt een bevestigingsmodal (Ja/Nee) getoond; "Ja" roept `markFirstOfDay(vroegsteRij, true)` aan, "Nee" doet niets. Zonder markering op die dag gebeurt er niets extra's, buiten de bestaande `normalizeFirstOfDay`.
+
 
