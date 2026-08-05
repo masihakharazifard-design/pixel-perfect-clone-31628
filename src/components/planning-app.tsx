@@ -2325,11 +2325,11 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     const rows=projectPlans(availability,p.id);
     if(!rows.length){agendaProjects.push(p);return;}
     const groups=new Map<string,AvailEntry[]>();
-    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}`;groups.set(k,[...(groups.get(k)||[]),r]);});
+    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}|${r.reeksId||""}|${r.teamId||""}`;groups.set(k,[...(groups.get(k)||[]),r]);});
     [...groups.entries()].forEach(([k,rs])=>{
-      const [date,st,et]=k.split("|");
+      const [date,st,et,rk,tm]=k.split("|");
       const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
-      agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
+      agendaProjects.push({...p,id:`${p.id}::${date}::${st}::${et}::${rk}::${tm}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
         eersteVanDag:rs.some(r=>r.isFirstOfDay),
         // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
@@ -2350,6 +2350,31 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
+  };
+  // Dagweergave: sleep een blok dat uit planningregels komt -> verplaats die planningregels zelf.
+  const handleDropProjectDayTime=(id:string,newStart:Date)=>{
+    const parts=id.split("::");
+    if(parts.length>=4){
+      const [pid,oldDate,oldSt,oldEt,oldRk="",oldTm=""]=parts;
+      const rows=availability.filter(r=>
+        String(r.projectId||"")===String(pid)
+        &&String(r.date).slice(0,10)===oldDate
+        &&r.startTime===oldSt
+        &&r.endTime===oldEt
+        &&String(r.reeksId||"")===String(oldRk||"")
+        &&String(r.teamId||"")===String(oldTm||""));
+      if(rows.length){
+        const newDate=toDateStr(newStart);
+        const newStartMin=newStart.getHours()*60+newStart.getMinutes();
+        const updated=rows.map(r=>{
+          const dur=Math.max(15,toMin(r.endTime)-toMin(r.startTime));
+          return {...r,date:newDate,startTime:fromMin(newStartMin),endTime:fromMin(Math.min(24*60,newStartMin+dur))};
+        });
+        void onSaveManyPlanning(updated);
+        return;
+      }
+    }
+    handleDropProjectTime(id,newStart);
   };
   const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
