@@ -3280,10 +3280,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {/* Keuze bij het slepen van een teamblok */}
     {teamChoice&&<Modal title="Planning verplaatsen" onClose={()=>setTeamChoice(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Wat wil je verplaatsen?</p>
+        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Standaard verplaatst het hele team mee.</p>
         <div className="flex flex-col gap-2">
-          <Btn onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze planning verplaatsen</Btn>
-          <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
+          <Btn autoFocus onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
+          <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze medewerker verplaatsen</Btn>
           <Btn variant="ghost" onClick={()=>setTeamChoice(null)}>Annuleren</Btn>
         </div>
       </div>
