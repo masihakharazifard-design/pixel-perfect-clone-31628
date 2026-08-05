@@ -2083,10 +2083,9 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     else d.setDate(d.getDate()+dir);
     setDate(d);
   };
-  // Centrale agendafilter: geldige Startdatum vereist, status "Offerte" nooit tonen
+  // Centrale agendafilter: alleen geldige Startdatum vereist (Offerte blijft zichtbaar)
   const filteredProjects=projects.filter(p=>{
     if(!validDate(p.startdatum))return false;
-    if((p.status||"").trim().toLowerCase()==="offerte")return false;
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
     return true;
