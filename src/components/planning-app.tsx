@@ -2673,7 +2673,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
+  const afdKey=activeAfds.join("|");
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  // Eén projectbron voor de hele pagina: alles volgt activeAfds
+  const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
+  const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
+  const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
+  const FILTER_MSG="Dit project valt niet meer binnen de actieve afdelingsfilter.";
+  // Guard: geen projectactie op een project of medewerker die buiten de filter valt
+  const canAct=(projectId?:string|null,empId?:string|null)=>{
+    if(!projectId)return true; // afwezigheid is niet projectgebonden
+    if(!visProj(projectId)){toast.error(FILTER_MSG);return false;}
+    if(empId&&!visEmpIds.has(empId)){toast.error(FILTER_MSG);return false;}
+    return true;
+  };
+  const rowsAllowed=(rows:{projectId?:string;employeeId:string}[])=>rows.every(r=>canActSilent(r.projectId,r.employeeId));
+  const canActSilent=(projectId?:string|null,empId?:string|null)=>!projectId||(!!visProj(projectId)&&(!empId||visEmpIds.has(empId)));
+
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
   const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
   const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
