@@ -35,9 +35,10 @@ Vast blok onderaan Personeelsplanning, los van de zichtbare dag/week/maand/kwart
 
 - Toont alles wat nog gepland moet worden, ook zonder startdatum, zonder medewerker, met status Offerte of buiten de huidige periode.
 - Toont niet: Afgerond, Geannuleerd en volledig ingeplande projecten.
-- Een volledig ingepland project krijgt automatisch de badge "Volledig ingepland" en verdwijnt standaard uit de lijst.
+- Extra kolom **Nog in te plannen** = benodigde medewerkers − ingeplande medewerkers (bijv. 5 − 3 = 2), automatisch berekend uit de planningregels.
+- Is "Nog in te plannen" 0, dan krijgt het project automatisch de status/badge "Volledig ingepland" en verdwijnt het standaard uit de lijst.
 - Boven de lijst komt een schakelaar: ☐ Toon ook volledig ingeplande projecten. Aangezet blijven die projecten zichtbaar, met hun badge, zodat ze later terug te vinden zijn.
-- Per regel: werknummer, projectnaam, werkzaamheden, calculator, afdeling, status, startdatum, benodigde medewerkers, ingeplande medewerkers en planningsstatus (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland).
+- Per regel: werknummer, projectnaam, werkzaamheden, calculator, afdeling, status, startdatum, benodigde medewerkers, ingeplande medewerkers, nog in te plannen en planningsstatus (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland).
 - Zoeken op werknummer, projectnaam, werkzaamheden en calculator. Sorteren op werknummer, afdeling, status en startdatum.
 - Een regel is klikbaar (opent projectdetails), heeft een knop "Inplannen" en kan naar een medewerkerscel in de planning gesleept worden. Direct na plannen verandert de planningsstatus en de badge.
 
@@ -54,8 +55,9 @@ Klikken op een cel opent een menu met: Project inplannen, Bezet, Vakantie, Ziek,
 ## 7. Teams
 
 - Medewerkers op hetzelfde project, dezelfde dag en hetzelfde tijdvak vormen één team met gedeeld team-ID en teamkleur.
-- Bij het slepen van een teamblok verschijnt een keuze: Hele team verplaatsen (standaard), Alleen deze medewerker verplaatsen, Alleen deze medewerker loskoppelen.
-- Hele team verplaatsen neemt alle medewerkers mee met dezelfde tijden, hetzelfde project, dezelfde teamkleur en hetzelfde team-ID.
+- Bij het slepen van een blok verschijnt een keuze: **Alleen deze planning verplaatsen** (standaard) of **Hele team verplaatsen**; bij een teamblok is daarnaast "Alleen deze medewerker loskoppelen" beschikbaar.
+- Heeft een project meerdere planningblokken op dezelfde dag, dan wordt standaard alleen het gesleepte blok verplaatst; de overige blokken van hetzelfde project blijven ongewijzigd.
+- Hele team verplaatsen neemt alleen de gekoppelde medewerkers van dát planningblok mee, met behoud van project, team-ID, teamkleur en begin- en eindtijd.
 - De conflictcontrole uit punt 2 draait voor alle betrokken medewerkers tegelijk; blokkeert er één, dan gaat de hele verplaatsing niet door.
 
 ## 8. Beschikbaarheid
