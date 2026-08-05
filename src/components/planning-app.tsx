@@ -2939,7 +2939,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const ds=toDateStr(date);
     const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
       .map(av=>({av,proj:undefined as Project|undefined})).sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
-    const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!av0(x));
+    const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!!x.proj);
     return [...abs,...plans];
   };
 
