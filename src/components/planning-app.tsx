@@ -2614,31 +2614,71 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     }
     openPlan(empId,ds);
   };
+
+  // ===== Opslaan met conflictcontrole (blokkerend vs. waarschuwing) =====
+  const evaluate=(entries:AvailEntry[]):PlanConflict[]=>{
+    const ids=entries.map(e=>e.id);
+    const base=availability.filter(a=>!ids.includes(a.id));
+    return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
+  };
+  const commitPlanning=async(entries:AvailEntry[])=>{
+    const ok=await onSaveManyPlanning(entries);
+    if(!ok)toast.error("Opslaan mislukt — de planning blijft ongewijzigd.");
+    return ok;
+  };
+  const tryCommit=async(entries:AvailEntry[])=>{
+    const c=evaluate(entries);
+    const b=blockingOnly(c);
+    if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return;}
+    const w=warningsOnly(c);
+    if(w.length){setOverlapAsk({entries,warnings:w});return;}
+    await commitPlanning(entries);
+  };
+
+  // Volgorde binnen één dag handmatig aanpassen
+  const reorderDayPlans=async(row:AvailEntry,dir:number)=>{
+    const list=rowsFor(row.employeeId,row.date);
+    const i=list.findIndex(x=>x.id===row.id);
+    const j=i+dir;
+    if(i<0||j<0||j>=list.length)return;
+    const next=[...list];[next[i],next[j]]=[next[j],next[i]];
+    await commitPlanning(next.map((r,idx)=>({...r,volgorde:idx})));
+  };
+
+  const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
+    await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds})));
+  };
+
   const dropOnCell=async(empId:string,ds:string)=>{
     const block=dragBlock;const pid=dragProject;
     setDragProject(null);setDragBlock(null);
     if(block){
       if(block.employeeId===empId&&block.date===ds)return;
-      const conflicts=findConflicts(availability,employees,projects,empId,ds,block.startTime,block.endTime,block.id);
-      if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
-      const ok=await onSavePlanning({...block,employeeId:empId,date:ds});
-      if(!ok)toast.error("Verplaatsen mislukt — het blok blijft op de oorspronkelijke plek.");
+      const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
+      if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
+      await tryCommit([{...block,employeeId:empId,date:ds}]);
       return;
     }
     if(!pid)return;
     const p=projects.find(x=>x.id===pid);if(!p)return;
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
-    const conflicts=findConflicts(availability,employees,projects,empId,ds,st,et<=st?"17:00":et);
-    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
-    await onSavePlanning({id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id});
+    await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}]);
+  };
+
+  // Snelmenu op een cel: direct een afwezigheidsstatus zetten of inplannen
+  const quickStatus=async(empId:string,ds:string,status:AvailStatus)=>{
+    setCellMenu(null);
+    await onSaveAbsence({employeeId:empId,startDate:ds,endDate:ds,startTime:"00:00",endTime:"23:59",status,note:"",wholeDay:true});
   };
 
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    return availability.filter(a=>a.employeeId===empId&&a.date===ds)
-      .map(av=>({av,proj:av.projectId?projects.find(p=>p.id===av.projectId):undefined}))
-      .sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
+    const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
+      .map(av=>({av,proj:undefined as Project|undefined})).sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
+    const plans=rowsFor(empId,ds).map(av=>({av,proj:projects.find(p=>p.id===av.projectId)}));
+    return [...abs,...plans];
   };
+
 
   const year=refDate.getFullYear(),month=refDate.getMonth();
   const quarter=Math.floor(month/3);
