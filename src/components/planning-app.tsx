@@ -30,7 +30,7 @@ interface Project {
   projectleider:string;
   werkzaamheden:string; startdatum:string; afloopdatum:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
-  uurprijs:number; uren:number; region?:string;
+  uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
