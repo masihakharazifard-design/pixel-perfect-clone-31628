@@ -2552,8 +2552,8 @@ function PeriodResizeModal({block,start,end,onClose,onSave}:{block:AvailEntry;st
     <div className="p-4 md:p-6 space-y-4">
       <p className="text-sm text-[#6B7A99]">Startdatum <b>{fmtDate(start)}</b> · begintijd <b>{block.startTime}</b></p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Einddatum"><Input type="date" value={endDate} min={start} onChange={e=>setEndDate(e.target.value)}/></Field>
-        <Field label="Eindtijd"><Input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}/></Field>
+        <Input label="Einddatum" type="date" value={endDate} onChange={v=>setEndDate(v)}/>
+        <Input label="Eindtijd" type="time" value={endTime} onChange={v=>setEndTime(v)}/>
       </div>
       <div className="flex justify-end gap-2">
         <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
