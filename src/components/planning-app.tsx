@@ -30,7 +30,7 @@ interface Project {
   projectleider:string;
   werkzaamheden:string; startdatum:string; afloopdatum:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
-  uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number;
+  uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
@@ -192,6 +192,7 @@ function isOfferte(p:Project){return (p.status||"").trim().toLowerCase()==="offe
 function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:string}>):React.CSSProperties{
   const afds=getAllAfds(p);
   // Offertes blijven zichtbaar in de agenda, maar met een grijze, gestippelde stijl
+  if(p.teamKleur&&!isOfferte(p))return{backgroundColor:p.teamKleur};
   if(isOfferte(p))return{backgroundColor:"#9AA5B8",backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)",border:"1px dashed #6B7A99",opacity:0.9};
   if(afds.length===1)return{backgroundColor:dc[afds[0]].bg};
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
@@ -2168,8 +2169,9 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProject}:{
-  projects:Project[];employees:Employee[];updateProject:(id:string,u:Partial<Project>)=>void;
+function AgendaView({projects,employees,availability,teamColors={},updateProject,onOpenProject,onCreateProject}:{
+  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;
+  updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
 }){
   const dc=useDC();
@@ -2199,6 +2201,21 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
+  // Projecten met planningregels worden per tijdvak getoond: zelfde tijd = één blok, andere tijd = apart blok
+  const agendaProjects:Project[]=[];
+  filteredProjects.forEach(p=>{
+    const rows=projectPlans(availability,p.id);
+    if(!rows.length){agendaProjects.push(p);return;}
+    const groups=new Map<string,AvailEntry[]>();
+    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}`;groups.set(k,[...(groups.get(k)||[]),r]);});
+    [...groups.entries()].forEach(([k,rs])=>{
+      const [date,st,et]=k.split("|");
+      const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
+      agendaProjects.push({...p,id:p.id,medewerkers:ids,
+        startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
+        teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
+    });
+  });
   const handleDropProject=(id:string,newStart:Date)=>{
     const p=projects.find(x=>x.id===id);if(!p)return;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
@@ -2241,17 +2258,17 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     </div>
     <div className="flex-1 overflow-hidden bg-white">
       {view==="month"&&<div className="h-full overflow-y-auto">
-        <MonthView year={year} month={month} projects={filteredProjects} employees={employees} schoolRegions={schoolRegions}
+        <MonthView year={year} month={month} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
           onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
-      {view==="week"&&<WeekView weekDays={weekDays} projects={filteredProjects} employees={employees}
+      {view==="week"&&<WeekView weekDays={weekDays} projects={agendaProjects} employees={employees}
         onClickProject={onOpenProject} onClickDateTime={handleClickDateTime}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
-      {view==="day"&&<DayView date={date} projects={filteredProjects} employees={employees}
+      {view==="day"&&<DayView date={date} projects={agendaProjects} employees={employees}
         onClickProject={onOpenProject} onClickTime={h=>handleClickDateTime(date,h)}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="kwartaal"&&<div className="h-full overflow-y-auto">
-        <KwartaalView year={year} quarter={quarter} projects={filteredProjects} employees={employees} schoolRegions={schoolRegions}
+        <KwartaalView year={year} quarter={quarter} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
           onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
     </div>
@@ -3199,7 +3216,7 @@ export default function PlanningApp(){
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
