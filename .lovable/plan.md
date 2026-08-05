@@ -10,7 +10,8 @@ Het bestaande snelmenu (`cellMenu`) wordt hergebruikt; er komt geen nieuw menu b
 2. **Bestaand planning- of afwezigheidsblok** — rechtsklik opent hetzelfde snelmenu, maar met de blokacties die er al zijn: bewerken (project- of afwezigheidsvenster) en verwijderen. De start- en eindtijd van het blok worden als context meegegeven, zodat "Project inplannen…" dat tijdvak overneemt.
 3. Ook de kaartkop van de medewerker vangt rechtsklik af, zodat rechtsklikken ergens in de rij altijd werkt.
 
-In alle gevallen wordt het browsermenu onderdrukt en stopt het event bij het diepst aangeklikte element, zodat het menu de juiste context krijgt.
+Het blok heeft altijd voorrang: bij rechtsklik op een planning- of afwezigheidsblok stopt het event daar (`stopPropagation()`), zodat de onderliggende medewerkerskaart zijn menu niet alsnog opent. Er verschijnt dus precies één menu, dat van het aangeklikte blok. In alle gevallen wordt het browsermenu onderdrukt.
+
 
 ## Menu-gedrag
 - Verschijnt op de muispositie en blijft binnen het venster (bestaande begrenzing blijft, aangevuld met een correctie voor de menuhoogte).
