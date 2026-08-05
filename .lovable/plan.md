@@ -58,6 +58,15 @@ In een echte browser: medewerker koppelen via Personeelsplanning, zoeken op werk
 
 ## Technische details
 
-- `src/components/planning-app.tsx`: nieuwe `PlanEmployeeModal` (zoek + autofill + tijden), klikbare cellen en drag & drop in `PersoneelsplanningView`, nieuw blok "Projecten in deze periode", conflictcontrole-helper, filterbeheer-modal, teamkleur-helper (stabiele hash op gesorteerde medewerker-id's + project + datum, met handmatige overrides), verwijderen van uurprijs/uren uit `ProjectDetail` en `ProjectForm`, nieuw veld `benodigdeMedewerkers`.
-- Planning schrijft naar de bestaande `availability`-rijen (`status:"Ingepland"`, `projectId`) plus afgeleide `projects.data.medewerkers`; write-through via `syncTable` uit `src/lib/planning-store.ts`, met rollback bij fouten.
-- Filterdefinities en teamkleur-overrides worden opgeslagen in `app_settings` (bestaande jsonb-tabel) via `syncSettings`. Geen migratie nodig.
+- `src/components/planning-app.tsx`: nieuwe `PlanEmployeeModal` met live zoeken op werknummer, projectnaam en werkzaamheden, automatisch ingevulde projectgegevens en instelbare begin- en eindtijd.
+- Bestaande dag-/tijdcellen in `PersoneelsplanningView` worden klikbaar en krijgen drag & drop; in hetzelfde scherm komen het blok "Projecten in deze periode", conflictcontrole, filterbeheer en teamkleuren.
+- Uurprijs en geschatte uren worden verborgen in `ProjectDetail` en `ProjectForm`; de databasegegevens blijven staan.
+- `benodigdeMedewerkers` wordt opgeslagen als `projects.data.benodigdeMedewerkers`, standaard 1. Geen nieuwe tabel of kolom.
+- Uitsluitend de bestaande `availability`-rijen zijn de bron voor personeelsplanning: medewerkerId, datum, begintijd, eindtijd, status `"Ingepland"` en projectId.
+- De medewerkerslijst wordt niet daarnaast in `projects.data.medewerkers` bewaard, maar dynamisch afgeleid uit de actieve planningregels met hetzelfde projectId.
+- Agenda, Beschikbaarheid, Projectdetails, Dashboard en Medewerkerdetails lezen dezelfde planningregels.
+- Bij de eerste ingeplande medewerker wordt de projectperiode gelijkgetrokken met die planning; bij meerdere regels loopt de periode van de vroegste begintijd tot de laatste eindtijd. Wijzigen of verwijderen herberekent de periode op basis van de resterende regels.
+- Een project wordt niet gedupliceerd per medewerker: de Agenda groepeert planningregels per project en toont de bijbehorende medewerkers en tijden.
+- Teamkleuren gebruiken een stabiele sleutel van projectId + datum + gesorteerde medewerker-ID's; handmatige kleurkeuzes en filterdefinities worden opgeslagen in de bestaande `app_settings`.
+- Iedere wijziging wordt eerst met `syncTable` of `syncSettings` opgeslagen; pas na succes worden de gegevens herladen en de schermen ververst, bij een fout wordt de wijziging teruggedraaid.
+- Geen nieuwe database-tabellen en geen tweede agenda.
