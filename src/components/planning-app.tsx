@@ -1068,6 +1068,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     afloopdatum:initial.afloopdatum||combineLocalDT(toDateStr(new Date()),"17:00",17,0),
     medewerkers:initial.medewerkers||[],status:initial.status||"Offerte",
     notities:initial.notities||"",uurprijs:initial.uurprijs||65,uren:initial.uren||8,
+    benodigdeMedewerkers:initial.benodigdeMedewerkers??1,
     region:initial.region||"",
   });
   const [assignAfd,setAssignAfd]=useState<Afdeling>(f.afdeling);
