@@ -55,8 +55,9 @@ Klikken op een cel opent een menu met: Project inplannen, Bezet, Vakantie, Ziek,
 ## 7. Teams
 
 - Medewerkers op hetzelfde project, dezelfde dag en hetzelfde tijdvak vormen één team met gedeeld team-ID en teamkleur.
-- Bij het slepen van een teamblok verschijnt een keuze: Hele team verplaatsen (standaard), Alleen deze medewerker verplaatsen, Alleen deze medewerker loskoppelen.
-- Hele team verplaatsen neemt alle medewerkers mee met dezelfde tijden, hetzelfde project, dezelfde teamkleur en hetzelfde team-ID.
+- Bij het slepen van een blok verschijnt een keuze: **Alleen deze planning verplaatsen** (standaard) of **Hele team verplaatsen**; bij een teamblok is daarnaast "Alleen deze medewerker loskoppelen" beschikbaar.
+- Heeft een project meerdere planningblokken op dezelfde dag, dan wordt standaard alleen het gesleepte blok verplaatst; de overige blokken van hetzelfde project blijven ongewijzigd.
+- Hele team verplaatsen neemt alleen de gekoppelde medewerkers van dát planningblok mee, met behoud van project, team-ID, teamkleur en begin- en eindtijd.
 - De conflictcontrole uit punt 2 draait voor alle betrokken medewerkers tegelijk; blokkeert er één, dan gaat de hele verplaatsing niet door.
 
 ## 8. Beschikbaarheid
