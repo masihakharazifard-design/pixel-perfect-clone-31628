@@ -151,6 +151,24 @@ function fmtDate(d:string|Date){if(!validDate(d))return "—";const dt=typeof d=
 function fmtTime(d:string|Date){if(!validDate(d))return "";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
 function toDateStr(d:Date){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function toDTLocal(iso:string){const d=new Date(iso);if(isNaN(d.getTime()))return "";const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+// Datum-/tijddelen van een opgeslagen ISO-datum, in lokale (Europe/Amsterdam) tijd.
+function datePart(iso:string){const s=toDTLocal(iso);return s?s.slice(0,10):"";}
+function timePart(iso:string){const s=toDTLocal(iso);return s?s.slice(11,16):"";}
+// Combineert een datum (yyyy-mm-dd, of Nederlands dd-mm-jjjj) met een tijd (HH:MM)
+// tot een ISO-datum zonder dagverschuiving. Lege datum => "".
+function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):string{
+  const raw=(dateStr||"").trim();if(!raw)return "";
+  let y=0,m=0,d=0;
+  const nl=raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  const iso=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(nl){d=+nl[1];m=+nl[2];y=+nl[3];}
+  else if(iso){y=+iso[1];m=+iso[2];d=+iso[3];}
+  else return "";
+  const t=(timeStr||"").match(/^(\d{1,2}):(\d{2})$/);
+  const hh=t?+t[1]:defH, mm=t?+t[2]:defM;
+  const dt=new Date(y,m-1,d,hh,mm,0,0);
+  return isNaN(dt.getTime())?"":dt.toISOString();
+}
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
@@ -977,14 +995,30 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     plaats:initial.plaats||"",afdeling:initial.afdeling||"Stoffering",
     afdelingen:initial.afdelingen||[initial.afdeling||"Stoffering"],
     projectleider:initial.projectleider||"",werkzaamheden:initial.werkzaamheden||"",
-    startdatum:initial.startdatum||new Date().toISOString(),
-    afloopdatum:initial.afloopdatum||new Date().toISOString(),
+    startdatum:initial.startdatum||combineLocalDT(toDateStr(new Date()),"08:00",8,0),
+    afloopdatum:initial.afloopdatum||combineLocalDT(toDateStr(new Date()),"17:00",17,0),
     medewerkers:initial.medewerkers||[],status:initial.status||"Offerte",
     notities:initial.notities||"",uurprijs:initial.uurprijs||65,uren:initial.uren||8,
     region:initial.region||"",
   });
   const [assignAfd,setAssignAfd]=useState<Afdeling>(f.afdeling);
   const [assignComps,setAssignComps]=useState<string[]>([]);
+  // Losse datum-/tijdvelden; ze schrijven altijd naar dezelfde projectvelden
+  // (startdatum / afloopdatum) die de agenda gebruikt.
+  const [sDate,setSDate]=useState(()=>datePart(f.startdatum));
+  const [sTime,setSTime]=useState(()=>timePart(f.startdatum)||"08:00");
+  const [eDate,setEDate]=useState(()=>datePart(f.afloopdatum));
+  const [eTime,setETime]=useState(()=>timePart(f.afloopdatum)||"17:00");
+  const applyDates=(sd:string,st:string,ed:string,et:string)=>{
+    const startISO=combineLocalDT(sd,st,8,0);
+    const endISO=combineLocalDT(ed||sd,et,17,0);
+    setF(prev=>({...prev,startdatum:startISO,afloopdatum:endISO}));
+  };
+  const setStart=(d:string,t:string)=>{
+    setSDate(d);setSTime(t);
+    applyDates(d,t,eDate,eTime);
+  };
+  const setEnd=(d:string,t:string)=>{setEDate(d);setETime(t);applyDates(sDate,sTime,d,t);};
   const set=(k:keyof Project,v:unknown)=>setF(prev=>({...prev,[k]:v}));
 
   const toggleAfdeling=(afd:Afdeling)=>{
@@ -1044,8 +1078,14 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <Input label="Regio / Vestiging" value={f.region||""} onChange={v=>set("region",v)} placeholder="bijv. West, Noord, Zuid"/>
-      <Input label="Startdatum & tijd" value={toDTLocal(f.startdatum)} onChange={v=>set("startdatum",new Date(v).toISOString())} type="datetime-local" required/>
-      <Input label="Afloopdatum & tijd" value={toDTLocal(f.afloopdatum)} onChange={v=>set("afloopdatum",new Date(v).toISOString())} type="datetime-local" required/>
+      <div className="grid grid-cols-2 gap-2">
+        <Input label="Startdatum" value={sDate} onChange={v=>setStart(v,sTime)} type="date" required/>
+        <Input label="Starttijd" value={sTime} onChange={v=>setStart(sDate,v)} type="time"/>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input label="Einddatum" value={eDate} onChange={v=>setEnd(v,eTime)} type="date"/>
+        <Input label="Eindtijd" value={eTime} onChange={v=>setEnd(eDate,v)} type="time"/>
+      </div>
     </div>
     <Textarea label="Werkzaamheden" value={f.werkzaamheden} onChange={v=>set("werkzaamheden",v)} rows={3} placeholder="Omschrijving van de werkzaamheden..."/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
