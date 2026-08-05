@@ -1312,12 +1312,26 @@ function ProjectDetail({project,employees,availability=[],teamColors={},onEdit,o
         </div>
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${PLAN_STATUS_STYLE[planStatusOf(project,availability)]}`}>{planStatusOf(project,availability)}</span>
+          <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
+        </div>
         {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
-        {meds.map(e=><div key={e.id} className="flex items-center gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-          <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
-          <DeptBadge afd={e.afdeling}/>
-        </div>)}
+        {meds.map(e=>{
+          const rows=projectPlans(availability,project.id).filter(a=>a.employeeId===e.id).sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
+          const kleur=rows.length?teamColor(teamKey(project.id,rows[0].date,teamForDay(availability,project.id,rows[0].date)),teamColors):dc[e.afdeling].bg;
+          return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p>
+              <p className="text-xs text-[#6B7A99]">{e.functie}</p>
+              {rows.length>0&&<div className="mt-1 space-y-0.5">
+                {rows.map(r=><p key={r.id} className="text-xs text-[#6B7A99] font-mono">{fmtDate(r.date)} · {r.startTime}–{r.endTime}</p>)}
+              </div>}
+            </div>
+            <DeptBadge afd={e.afdeling}/>
+          </div>;
+        })}
       </div>}
       {tab==="documenten"&&<div>
         <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center mb-4 hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
