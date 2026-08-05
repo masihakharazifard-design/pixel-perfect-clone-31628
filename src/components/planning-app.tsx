@@ -1062,8 +1062,14 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <Input label="Regio / Vestiging" value={f.region||""} onChange={v=>set("region",v)} placeholder="bijv. West, Noord, Zuid"/>
-      <Input label="Startdatum & tijd" value={toDTLocal(f.startdatum)} onChange={v=>set("startdatum",new Date(v).toISOString())} type="datetime-local" required/>
-      <Input label="Afloopdatum & tijd" value={toDTLocal(f.afloopdatum)} onChange={v=>set("afloopdatum",new Date(v).toISOString())} type="datetime-local" required/>
+      <div className="grid grid-cols-2 gap-2">
+        <Input label="Startdatum" value={sDate} onChange={v=>setStart(v,sTime)} type="date" required/>
+        <Input label="Starttijd" value={sTime} onChange={v=>setStart(sDate,v)} type="time"/>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input label="Einddatum" value={eDate} onChange={v=>setEnd(v,eTime)} type="date"/>
+        <Input label="Eindtijd" value={eTime} onChange={v=>setEnd(eDate,v)} type="time"/>
+      </div>
     </div>
     <Textarea label="Werkzaamheden" value={f.werkzaamheden} onChange={v=>set("werkzaamheden",v)} rows={3} placeholder="Omschrijving van de werkzaamheden..."/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
