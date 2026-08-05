@@ -36,6 +36,18 @@ In `src/components/planning-app.tsx`, uitsluitend binnen `PersoneelsplanningView
 
 Vakantie, Ziek en Bezet zijn niet projectgebonden en blijven altijd zichtbaar bij de op dat moment zichtbare medewerkers; de projectfilter verbergt ze nooit.
 
+## Bescherming tegen acties op verborgen projecten
+
+Menu's, modals of eerder gekozen state mogen een project dat buiten de filter valt niet alsnog openen, verplaatsen, resizen of inplannen.
+
+- Vóór iedere projectactie wordt opnieuw gecontroleerd: bestaat het project nog, zit het in `visProjects`, en is de betrokken medewerker zichtbaar binnen de actieve filter.
+- Klopt dit niet meer, dan wordt de actie geannuleerd met de melding "Dit project valt niet meer binnen de actieve afdelingsfilter."
+- Bij een filterwijziging wordt tijdelijke state die naar een verborgen project verwijst gewist: geselecteerd project, geopend contextmenu, `dragProject`, resize-state, teamkeuze en de projectzoekselectie.
+- Afwezigheidsacties (Vakantie, Ziek, Bezet) vallen buiten deze controle en blijven gewoon werken.
+
+Technisch: één gedeelde guard (bijv. `assertVisible(projectId, empId)`) binnen `PersoneelsplanningView` die door alle projectacties wordt aangeroepen, plus een effect op `activeAfds` dat de genoemde tijdelijke state opschoont.
+
+
 
 ## Test
 
