@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -3082,13 +3082,45 @@ export default function PlanningApp(){
 
   const savePlanning=async(entry:AvailEntry)=>{
     const exists=avail.some(a=>a.id===entry.id);
+    const prevAvail=avail,prevProjects=projects;
     const nextAvail=exists?avail.map(a=>a.id===entry.id?entry:a):[...avail,entry];
-    const nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    const oldPid=exists?avail.find(a=>a.id===entry.id)?.projectId:undefined;
+    let nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    if(oldPid&&oldPid!==entry.projectId){
+      const tmp=applyDerivedDates(nextAvail,oldPid);
+      nextProjects=nextProjects.map(p=>p.id===oldPid?tmp.find(x=>x.id===oldPid)!:p);
+    }
     setAvail(nextAvail);setProjects(nextProjects);
     try{
       await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
       toast.success("Planning opgeslagen.");
-    }catch{toast.error("Planning kon niet worden opgeslagen.");}
+      return true;
+    }catch{
+      setAvail(prevAvail);setProjects(prevProjects);
+      toast.error("Planning kon niet worden opgeslagen.");
+      return false;
+    }
+  };
+
+  // Afwezigheid als één periode: elke dag krijgt een regel met hetzelfde periodeId
+  const saveAbsence=async(d:AbsenceDraft)=>{
+    const dates=getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00"));
+    const pid=d.periodeId||"per-"+nid();
+    const kept=avail.filter(a=>a.periodeId!==pid);
+    // geen dubbele regels: bestaande regel voor dezelfde medewerker/dag/status vervangen
+    const base=kept.filter(a=>!(a.employeeId===d.employeeId&&!a.projectId&&dates.includes(a.date)&&a.status===d.status));
+    const rows:AvailEntry[]=dates.map(date=>({id:"av-"+nid(),employeeId:d.employeeId,date,startTime:d.startTime,endTime:d.endTime,status:d.status,note:d.note||undefined,periodeId:pid}));
+    const nextAvail=[...base,...rows];
+    setAvail(nextAvail);
+    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid opgeslagen.");}
+    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden opgeslagen.");}
+  };
+
+  const deleteAbsence=async(periodeId:string)=>{
+    const nextAvail=avail.filter(a=>a.periodeId!==periodeId);
+    setAvail(nextAvail);
+    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid verwijderd.");}
+    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden verwijderd.");}
   };
 
   const deletePlanning=async(id:string)=>{
@@ -3204,7 +3236,7 @@ export default function PlanningApp(){
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
-          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
