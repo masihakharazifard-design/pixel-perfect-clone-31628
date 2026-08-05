@@ -2539,10 +2539,11 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
 
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
-function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
+function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
-  onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onDeletePlanning:(id:string)=>Promise<void>;
+  onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onSaveManyPlanning:(e:AvailEntry[])=>Promise<boolean>;
+  onDeletePlanning:(id:string)=>Promise<void>;
   onSaveAbsence:(d:AbsenceDraft)=>Promise<void>;onDeleteAbsence:(periodeId:string)=>Promise<void>;
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
