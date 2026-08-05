@@ -2760,6 +2760,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return ok;
   };
   const tryCommit=async(entries:AvailEntry[],removeIds:string[]=[],checkFirst=false)=>{
+    if(!rowsAllowed(entries)){toast.error(FILTER_MSG);return;}
     const c=evaluate(entries,removeIds);
     const b=blockingOnly(c);
     if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return;}
