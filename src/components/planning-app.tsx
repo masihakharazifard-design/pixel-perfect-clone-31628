@@ -9,6 +9,7 @@ import {
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
 import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
@@ -1534,10 +1535,35 @@ function ColSelect({value,onChange,options}:{value:string;onChange:(v:string)=>v
   </select>;
 }
 
-function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport}:{
+// Statuscel: direct wijzigen vanuit de projectrij (desktop + mobiel)
+function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>}){
+  const [saving,setSaving]=useState(false);
+  return <div className="relative inline-flex items-center gap-1" onClick={e=>e.stopPropagation()}>
+    <StatusBadge status={project.status}/>
+    <ChevronDown className="w-3 h-3 text-[#B8C3D9] flex-shrink-0"/>
+    {saving&&<span className="text-[10px] text-[#6B7A99] whitespace-nowrap">Opslaan…</span>}
+    <select
+      aria-label="Status wijzigen"
+      value={project.status}
+      disabled={saving}
+      onClick={e=>e.stopPropagation()}
+      onChange={async e=>{
+        const v=e.target.value as ProjectStatus;
+        if(v===project.status||saving)return;
+        setSaving(true);
+        try{await onStatusChange(project,v);}finally{setSaving(false);}
+      }}
+      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait">
+      {STATS.map(s=><option key={s} value={s}>{s}</option>)}
+    </select>
+  </div>;
+}
+
+function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
   onImport:(rows:ImportRow[])=>void;
+  onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
@@ -1614,7 +1640,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
-          <StatusBadge status={p.status}/>
+          <StatusCell project={p} onStatusChange={onStatusChange}/>
         </div>
         <div className="px-4 py-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
@@ -1690,7 +1716,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.startdatum)}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.afloopdatum)}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam.split(" ")[0]).filter(Boolean).join(", ")||"-"}</td>
-              <td className="px-3 py-3"><StatusBadge status={p.status}/></td>
+              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
@@ -2727,6 +2753,19 @@ export default function PlanningApp(){
 
   const addProject=(p:Project)=>{setProjects(prev=>[...prev,p]);setIsNewProject(false);setEditProject(null);};
   const updateProject=(id:string,u:Partial<Project>)=>setProjects(prev=>prev.map(p=>p.id===id?{...p,...u}:p));
+  // Status direct wijzigen vanuit de projectlijst: zelfde projectrecord, zelfde tabel
+  const changeProjectStatus=async(p:Project,status:ProjectStatus)=>{
+    const prevStatus=p.status;
+    const next=projects.map(x=>x.id===p.id?{...x,status}:x);
+    setProjects(next);
+    try{
+      await syncTable("projects",next);
+      toast.success("Projectstatus is bijgewerkt.");
+    }catch{
+      setProjects(cur=>cur.map(x=>x.id===p.id?{...x,status:prevStatus}:x));
+      toast.error("De projectstatus kon niet worden bijgewerkt.");
+    }
+  };
   const deleteProject=(id:string)=>{setProjects(prev=>prev.filter(p=>p.id!==id));setAvail(prev=>prev.filter(a=>a.projectId!==id));if(detailProject?.id===id)setDetailProject(null);};
   const saveProject=(p:Project)=>{
     if(projects.find(x=>x.id===p.id))updateProject(p.id,p);else addProject(p);
@@ -2845,7 +2884,7 @@ export default function PlanningApp(){
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={projects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport}/>}
+          {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
           {nav==="agenda"&&<AgendaView projects={projects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={projects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
