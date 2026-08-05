@@ -2877,6 +2877,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Volgorde binnen één dag handmatig aanpassen
   const reorderDayPlans=async(row:AvailEntry,dir:number)=>{
+    if(!canAct(row.projectId,row.employeeId))return;
     const list=rowsFor(row.employeeId,row.date);
     const i=list.findIndex(x=>x.id===row.id);
     const j=i+dir;
@@ -2892,6 +2893,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   };
 
   const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
+    if(!visEmpIds.has(empId)||rows.some(r=>!canActSilent(r.projectId,r.employeeId))){toast.error(FILTER_MSG);return;}
     // Bij verplaatsen naar een andere dag/medewerker vervalt de markering; de nieuwe dag wordt genormaliseerd.
     await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true);
   };
@@ -2902,19 +2904,21 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     setDragProject(null);setDragBlock(null);
     if(block){
       if(block.employeeId===empId&&block.date===ds)return;
+      if(!canAct(block.projectId,block.employeeId)||!visEmpIds.has(empId)){if(block.projectId)toast.error(FILTER_MSG);return;}
       const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
       if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
       await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true);
       return;
     }
     if(!pid)return;
-    const p=projects.find(x=>x.id===pid);if(!p)return;
+    const p=visProj(pid);if(!p||!visEmpIds.has(empId)){toast.error(FILTER_MSG);return;}
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
     await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
   };
 
   // Planning verwijderen: de dag hernummeren en zo nodig het volgende project promoveren
   const deletePlanRow=async(b:AvailEntry)=>{
+    if(!canAct(b.projectId,b.employeeId))return;
     const rest=b.projectId?dayPlanRows(availability,b.employeeId,b.date).filter(r=>r.id!==b.id):[];
     await onDeletePlanning(b.id);
     if(!rest.length)return;
@@ -2922,6 +2926,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const target=keep?keep.id:((b.isFirstOfDay||rest.length===1)?rest[0].id:null);
     await onSaveManyPlanning(applyFirstOfDay(rest,target));
   };
+
 
 
   // Snelmenu op een cel: direct een afwezigheidsstatus zetten of inplannen
