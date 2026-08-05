@@ -2606,13 +2606,22 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {teams.length>0&&section("Teams",teams.map(t=>row("tm-"+t.key,t.label,teamColor(t.key,teamColors),
         c=>setS(p=>({...p,teamColors:{...(p.teamColors||{}),[t.key]:c}})),
         ()=>setS(p=>{const n={...(p.teamColors||{})};delete n[t.key];return{...p,teamColors:n};}))))}
+      {section("Dagranden (hele dag afwezig)",ABSENCE_STATS.map(st=>row("bd-"+st,st,borderColorOf(st,borderColors,statusColors),
+        c=>setS(p=>({...p,borderColors:{...(p.borderColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.borderColors||{})};delete n[st];return{...p,borderColors:n};}))))}
+      {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
+        c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
       {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
     </div>
-    <div className="flex justify-end gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
-      <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
-      <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+    <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
+      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
+      <div className="flex gap-2">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+      </div>
     </div>
   </Modal>;
 }
