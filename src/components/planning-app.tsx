@@ -1514,7 +1514,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",facturatie:"Facturatie",instellingen:"Instellingen"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
     <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
