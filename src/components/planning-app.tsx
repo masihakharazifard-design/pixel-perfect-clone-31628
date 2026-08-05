@@ -51,6 +51,8 @@ interface AppSettings {
   teamColors?:Record<string,string>;
   statusColors?:Record<string,string>;
   projectColors?:Record<string,string>;
+  borderColors?:Record<string,string>;
+  badgeColors?:Record<string,string>;
 }
 
 // ===== DEPT COLOR CONTEXT =====
