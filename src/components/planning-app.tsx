@@ -315,7 +315,8 @@ function normalizeFirstOfDay(all:AvailEntry[],entries:AvailEntry[],removeIds:str
     const rows=dayPlanRows(merged,empId,date);
     if(!rows.length)return;
     const marked=rows.find(r=>r.isFirstOfDay);
-    const want=marked?marked.id:(rows.length===1?rows[0].id:null);
+    // Nooit automatisch markeren: alleen een bewuste keuze van de gebruiker zet de ster.
+    const want=marked?marked.id:null;
     rows.forEach(r=>{
       const should=r.id===want;
       if(!!r.isFirstOfDay===should)return;
@@ -2806,7 +2807,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const markFirstOfDay=async(row:AvailEntry,on:boolean)=>{
     if(!canAct(row.projectId,row.employeeId))return;
     const rows=dayPlanRows(availability,row.employeeId,row.date);
-    await commitPlanning(applyFirstOfDay(rows,on?row.id:null));
+    await onSaveManyPlanning(applyFirstOfDay(rows,on?row.id:null));
   };
 
 
@@ -2956,7 +2957,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     await onDeletePlanning(b.id);
     if(!rest.length)return;
     const keep=rest.find(r=>r.isFirstOfDay);
-    const target=keep?keep.id:((b.isFirstOfDay||rest.length===1)?rest[0].id:null);
+    const target=keep?keep.id:(b.isFirstOfDay?(rest[0]?.id||null):null);
     await onSaveManyPlanning(applyFirstOfDay(rest,target));
   };
 
@@ -3011,12 +3012,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
   // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
+  // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
+  // inplannen op exact dezelfde positie blijft staan.
   const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
-
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  }).sort((a,b)=>(b.rest-a.rest)||((a.p.startdatum||"9999").localeCompare(b.p.startdatum||"9999")));
+  });
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
@@ -3135,10 +3137,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             </td>
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
             const blockState=dayBlockState(availability,e.id,ds);
+            // Cellen met een doorlopende reeks krijgen geen horizontale padding, zodat de balk aansluit
+            const linkedCell=ps.some(x=>{const s=segInfo(x.row);return s.prev||s.next;});
             return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onContextMenu={ev=>{ev.preventDefault();setCellMenu({empId:e.id,date:ds,x:ev.clientX,y:ev.clientY});}}
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
               style={blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:undefined}
-              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
+              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();openEditAbsence(a);}}
@@ -3147,8 +3151,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,a,"date");}} onOpen={()=>setPeriodModal(a)}/>}
                 </div>)}
-                {ps.map(({row,proj},bi)=>{const seg=segInfo(row);return<div key={row.id} className="group relative"
-                  style={seg.prev||seg.next?{marginLeft:seg.prev?-3:0,marginRight:seg.next?-3:0}:undefined}>
+                {ps.map(({row,proj},bi)=>{const seg=segInfo(row);return<div key={row.id} className="group relative">
+
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
                   onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
@@ -3216,7 +3220,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
-      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten in deze periode.</p>
+      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten.</p>
       :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
