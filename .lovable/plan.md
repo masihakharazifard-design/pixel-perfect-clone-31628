@@ -12,6 +12,7 @@ Nieuw gedrag:
 - Zodra de status van een project in Projecten of via de statuscel op **Afgerond** wordt gezet, verdwijnt het direct uit de lijst en worden de aantallen herberekend.
 - De badge **Eerste** (⭐) verdwijnt uit deze lijst. De markering "Als eerste uitvoeren" blijft in Personeelsplanning, Agenda en Projectdetails ongewijzigd.
 - Sorteervolgorde blijft: nog in te plannen eerst, daarna op startdatum.
+- De lijst en de badge worden realtime herberekend uit de actuele planningregels, dus direct na: een statuswijziging, een medewerker inplannen, een planning verwijderen, of een wijziging van het aantal benodigde medewerkers.
 
 Opmerking: de app kent op dit moment de statussen Offerte, Bevestigd, In uitvoering, Afgerond en Gefactureerd — er is geen status "Geannuleerd". Ik filter daarom op Afgerond en Gefactureerd; als er echt een status Geannuleerd moet komen, kan dat later apart.
 
