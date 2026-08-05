@@ -363,6 +363,14 @@ function absenceStyle(s:AvailStatus,ov:Record<string,string>={}):React.CSSProper
   const c=statusColorOf(s,ov);
   return{backgroundColor:c,backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 5px, transparent 5px 10px)",color:"#fff"};
 }
+// Dagrand bij een hele dag afwezig: eigen override, anders de statuskleur
+function borderColorOf(s:AvailStatus,bo:Record<string,string>={},ov:Record<string,string>={}):string{return bo[s]||statusColorOf(s,ov);}
+// Planningsbadge (Niet / Gedeeltelijk / Volledig ingepland)
+function badgeColorOf(s:PlanStatus,bc:Record<string,string>={}):string{return bc[s]||DEFAULT_BADGE_COLORS[s];}
+function badgeStyle(s:PlanStatus,bc:Record<string,string>={}):React.CSSProperties{
+  const c=badgeColorOf(s,bc);
+  return{backgroundColor:c+"22",color:c,border:`1px solid ${c}55`};
+}
 // ===== FILTERS =====
 interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
 const DEFAULT_PLAN_FILTERS:PlanFilter[]=AFDS.map((a,i)=>({id:"pf"+(i+1),naam:a,kleur:DEFAULT_DC[a].bg,afdeling:a,actief:true}));
