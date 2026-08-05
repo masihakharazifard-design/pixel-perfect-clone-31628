@@ -93,3 +93,44 @@ export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Pro
   if (error) throw error;
 }
 
+
+// ===== Persoonlijke notities (privé per ingelogde gebruiker) =====
+export interface PersonalNote {
+  id: string;
+  datum: string;
+  tekst: string;
+}
+
+export async function loadPersonalNotes(): Promise<PersonalNote[]> {
+  const { data, error } = await supabase
+    .from("personal_notes")
+    .select("id, datum, tekst")
+    .order("datum", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PersonalNote[];
+}
+
+export async function savePersonalNote(ownerId: string, datum: string, tekst: string, id?: string): Promise<PersonalNote> {
+  if (id) {
+    const { data, error } = await supabase
+      .from("personal_notes")
+      .update({ datum, tekst })
+      .eq("id", id)
+      .select("id, datum, tekst")
+      .single();
+    if (error) throw error;
+    return data as PersonalNote;
+  }
+  const { data, error } = await supabase
+    .from("personal_notes")
+    .insert({ owner_id: ownerId, datum, tekst })
+    .select("id, datum, tekst")
+    .single();
+  if (error) throw error;
+  return data as PersonalNote;
+}
+
+export async function deletePersonalNote(id: string): Promise<void> {
+  const { error } = await supabase.from("personal_notes").delete().eq("id", id);
+  if (error) throw error;
+}
