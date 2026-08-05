@@ -2693,6 +2693,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
+  const borderColors=settings.borderColors||{};
+  const badgeColors=settings.badgeColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
