@@ -2583,6 +2583,8 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
   const statusColors=s.statusColors||{};
   const projectColors=s.projectColors||{};
   const teamColors=s.teamColors||{};
+  const borderColors=s.borderColors||{};
+  const badgeColors=s.badgeColors||{};
   const filters=s.planFilters?.length?s.planFilters:DEFAULT_PLAN_FILTERS;
   const row=(key:string,naam:string,kleur:string,onChange:(c:string)=>void,onReset:()=>void)=>
     <div key={key} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-2 py-1.5">
