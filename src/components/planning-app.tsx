@@ -210,6 +210,13 @@ function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:s
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
   return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
 }
+// Agenda: kleur uitsluitend op afdeling (geen offerte-, team- of statuskleur)
+function agendaProjStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:string}>):React.CSSProperties{
+  const afds=getAllAfds(p);
+  if(afds.length===1)return{backgroundColor:dc[afds[0]].bg,borderColor:dc[afds[0]].border};
+  if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
+  return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
+}
 function primaryAfd(p:Project):Afdeling{return getAllAfds(p)[0];}
 
 // ===== PLANNINGREGELS (enige bron van waarheid) =====
@@ -1996,7 +2003,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
           const left=leftOffset+ev.sc*cellW;
           const width=(ev.ec-ev.sc+1)*cellW;
           const top=36+ev.slot*22;
-          const st=projStyle(ev.project,dc);
+          const st=agendaProjStyle(ev.project,dc);
           const label=projLabel(ev.project,employees);
           return <div key={ev.project.id} draggable
             onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
@@ -2060,7 +2067,7 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
       <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[9px] text-[#6B7A99] uppercase">All-day</span></div>
       <div className="flex-1 relative" style={{height:adH}}>
         <div className="grid grid-cols-7 h-full absolute inset-0">{weekDays.map((_,i)=><div key={i} className="border-l border-[rgba(26,39,68,0.06)]"/>)}</div>
-        {allDayEvs.map(ev=>{const st=projStyle(ev.project,dc);const lbl=projLabel(ev.project,employees);return <div key={ev.project.id} onClick={()=>onClickProject(ev.project)} draggable className="absolute h-5 rounded text-white text-xs font-medium px-1.5 flex items-center cursor-pointer hover:brightness-110 z-10 overflow-hidden" style={{left:`${ev.sc/7*100+0.3}%`,width:`${(ev.ec-ev.sc+1)/7*100-0.6}%`,top:6+ev.slot*22,...st}}><span className="truncate">{lbl}</span></div>;})}
+        {allDayEvs.map(ev=>{const st=agendaProjStyle(ev.project,dc);const lbl=projLabel(ev.project,employees);return <div key={ev.project.id} onClick={()=>onClickProject(ev.project)} draggable className="absolute h-5 rounded text-white text-xs font-medium px-1.5 flex items-center cursor-pointer hover:brightness-110 z-10 overflow-hidden" style={{left:`${ev.sc/7*100+0.3}%`,width:`${(ev.ec-ev.sc+1)/7*100-0.6}%`,top:6+ev.slot*22,...st}}><span className="truncate">{lbl}</span></div>;})}
       </div>
     </div>
     <div className="flex flex-1 overflow-y-auto">
@@ -2084,7 +2091,7 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
               const top=Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT);
               const durH=(e.getHours()-s.getHours()+(e.getMinutes()-s.getMinutes())/60);
               const h=Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT);
-              const st=projStyle(p,dc);
+              const st=agendaProjStyle(p,dc);
               const isRes=resizingId===p.id;
               return <div key={p.id} draggable
                 onDragStart={ev=>{dragRef.current={id:p.id,offsetMin:0};ev.dataTransfer.effectAllowed="move";}}
@@ -2143,7 +2150,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
         <p className="text-xs text-[#6B7A99]">Week {wn}{hol&&<span className="text-red-500 ml-2">🎉 {hol}</span>}</p>
       </div>
       <div className="flex flex-wrap gap-1 ml-2">
-        {allDay.map(p=><button key={p.id} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={projStyle(p,dc)}>{p.projectnaam}</button>)}
+        {allDay.map(p=><button key={p.id} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}</button>)}
       </div>
     </div>
     <div className="flex flex-1 overflow-y-auto">
@@ -2160,7 +2167,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
           const top=Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT);
           const durH=e.getHours()-s.getHours()+(e.getMinutes()-s.getMinutes())/60;
           const ht=Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT);
-          const st=projStyle(p,dc);
+          const st=agendaProjStyle(p,dc);
           return <div key={p.id} draggable onDragStart={()=>{dragRef.current=p.id;}} onClick={ev=>{ev.stopPropagation();onClickProject(p);}}
             className="absolute left-2 right-2 rounded-xl overflow-hidden cursor-grab text-white shadow-sm hover:shadow-md z-10 transition-shadow"
             style={{top,height:ht,...st}}>
@@ -2258,7 +2265,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                 const left=leftOffset+ev.sc*cellW;
                 const width=(ev.ec-ev.sc+1)*cellW;
                 const top=26+ev.slot*18;
-                const st=projStyle(ev.project,dc);
+                const st=agendaProjStyle(ev.project,dc);
                 const label=projLabel(ev.project,employees);
                 return <div key={ev.project.id} draggable
                   onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
