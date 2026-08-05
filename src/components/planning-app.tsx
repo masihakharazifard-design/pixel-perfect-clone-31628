@@ -2286,10 +2286,11 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,availability,updateProject,onOpenProject,onCreateProject}:{
+function AgendaView({projects,employees,availability,updateProject,onOpenProject,onCreateProject,onSaveManyPlanning}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
   updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
+  onSaveManyPlanning:(entries:AvailEntry[])=>Promise<boolean>;
 }){
   const dc=useDC();
   const [view,setView]=useState<CalView>("month");
