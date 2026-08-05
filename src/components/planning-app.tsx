@@ -235,11 +235,6 @@ function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
   if(n===0)return "Niet ingepland";
   return n>=benodigd(p)?"Ingepland":"Gedeeltelijk ingepland";
 }
-const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
-  "Niet ingepland":"bg-slate-100 text-slate-600",
-  "Gedeeltelijk ingepland":"bg-amber-100 text-amber-700",
-  "Ingepland":"bg-emerald-100 text-emerald-700",
-};
 // Standaardkleuren voor de planningsbadges (overschrijfbaar via Kleuren beheren)
 const DEFAULT_BADGE_COLORS:Record<PlanStatus,string>={
   "Niet ingepland":"#94A3B8",
