@@ -2324,7 +2324,8 @@ function AgendaView({projects,employees,availability,teamColors={},updateProject
       agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
         eersteVanDag:rs.some(r=>r.isFirstOfDay),
-        teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
+        // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
+        teamKleur:undefined});
     });
   });
   // Agenda toont uitsluitend projecten/projectplanningen; persoonlijke afwezigheid blijft in Personeelsplanning.
