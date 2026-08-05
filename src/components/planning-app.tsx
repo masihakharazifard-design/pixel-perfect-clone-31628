@@ -210,6 +210,13 @@ function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:s
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
   return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
 }
+// Agenda: kleur uitsluitend op afdeling (geen offerte-, team- of statuskleur)
+function agendaProjStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:string}>):React.CSSProperties{
+  const afds=getAllAfds(p);
+  if(afds.length===1)return{backgroundColor:dc[afds[0]].bg,borderColor:dc[afds[0]].border};
+  if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
+  return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
+}
 function primaryAfd(p:Project):Afdeling{return getAllAfds(p)[0];}
 
 // ===== PLANNINGREGELS (enige bron van waarheid) =====
