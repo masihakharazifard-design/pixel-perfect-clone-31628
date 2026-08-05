@@ -3218,7 +3218,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
-      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten in deze periode.</p>
+      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten.</p>
       :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
