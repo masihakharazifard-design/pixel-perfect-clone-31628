@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import {
   LayoutDashboard, FolderOpen, CalendarDays, Users, Clock3,
   Receipt, Settings, ChevronLeft, ChevronRight, Plus, Pencil,
@@ -3197,13 +3197,13 @@ export default function PlanningApp(){
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
-          {nav==="dashboard"&&<Dashboard projects={projects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={projects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
-          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={projects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
+          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
-          {nav==="facturatie"&&<FacturatieView projects={projects}/>}
+          {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
         </div>
       </div>
@@ -3212,7 +3212,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={projects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
