@@ -1428,7 +1428,7 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${PLAN_STATUS_STYLE[planStatusOf(project,availability)]}`}>{planStatusOf(project,availability)}</span>
+          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
           <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
         </div>
         {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
