@@ -3186,10 +3186,6 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-bold text-[#1A2744] text-sm">Openstaande projecten</h2>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-[#6B7A99] cursor-pointer">
-            <input type="checkbox" checked={showPlanned} onChange={ev=>setShowPlanned(ev.target.checked)}/>
-            Volledig ingeplande projecten tonen
-          </label>
           <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
@@ -3200,16 +3196,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate flex items-center gap-1.5">
-                {p.werknummer} – {p.projectnaam}
-                {planRows(availability).some(a=>a.projectId===p.id&&a.isFirstOfDay)&&<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#FDF2E2] text-[#B4761F] text-[10px] font-semibold flex-shrink-0"><Star className="w-2.5 h-2.5" fill="currentColor"/>Eerste</span>}
-              </p>
+              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
               <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
             </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${rest===0?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>
-              {rest===0?"Volledig ingepland":`Nog in te plannen: ${rest}`}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>
+              {PLAN_STATUS_LABEL[st]}{rest>0?` · nog ${rest}`:""}
             </span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${PLAN_STATUS_STYLE[st]}`}>{n}/{nodig}</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>{n}/{nodig}</span>
             <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
             <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
           </div>
