@@ -3195,7 +3195,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>}
 
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
-    {projMenu&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
       onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
