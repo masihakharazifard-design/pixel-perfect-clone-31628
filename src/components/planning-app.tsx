@@ -51,6 +51,8 @@ interface AppSettings {
   teamColors?:Record<string,string>;
   statusColors?:Record<string,string>;
   projectColors?:Record<string,string>;
+  borderColors?:Record<string,string>;
+  badgeColors?:Record<string,string>;
 }
 
 // ===== DEPT COLOR CONTEXT =====
@@ -84,7 +86,7 @@ const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
   Bezet:              {bg:"#FFE4E6",text:"#9F1239",dot:"#F43F5E"},
   "Niet beschikbaar": {bg:"#FEE2E2",text:"#991B1B",dot:"#EF4444"},
   Vakantie:           {bg:"#EDE9FE",text:"#5B21B6",dot:"#8B5CF6"},
-  Ziek:               {bg:"#FEF3C7",text:"#92400E",dot:"#F59E0B"},
+  Ziek:               {bg:"#F1F3F6",text:"#374151",dot:"#6B7280"},
   Vrij:               {bg:"#F3F4F6",text:"#374151",dot:"#9CA3AF"},
 };
 const DUTCH_HOL = [
@@ -233,10 +235,16 @@ function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
   if(n===0)return "Niet ingepland";
   return n>=benodigd(p)?"Ingepland":"Gedeeltelijk ingepland";
 }
-const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
-  "Niet ingepland":"bg-slate-100 text-slate-600",
-  "Gedeeltelijk ingepland":"bg-amber-100 text-amber-700",
-  "Ingepland":"bg-emerald-100 text-emerald-700",
+// Standaardkleuren voor de planningsbadges (overschrijfbaar via Kleuren beheren)
+const DEFAULT_BADGE_COLORS:Record<PlanStatus,string>={
+  "Niet ingepland":"#94A3B8",
+  "Gedeeltelijk ingepland":"#F59E0B",
+  "Ingepland":"#10B981",
+};
+const PLAN_STATUS_LABEL:Record<PlanStatus,string>={
+  "Niet ingepland":"Niet ingepland",
+  "Gedeeltelijk ingepland":"Gedeeltelijk ingepland",
+  "Ingepland":"Volledig ingepland",
 };
 function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
 interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;kind:"blocking"|"warning";type?:"planning_overlap";}
@@ -349,6 +357,14 @@ function statusBgOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[
 function absenceStyle(s:AvailStatus,ov:Record<string,string>={}):React.CSSProperties{
   const c=statusColorOf(s,ov);
   return{backgroundColor:c,backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 5px, transparent 5px 10px)",color:"#fff"};
+}
+// Dagrand bij een hele dag afwezig: eigen override, anders de statuskleur
+function borderColorOf(s:AvailStatus,bo:Record<string,string>={},ov:Record<string,string>={}):string{return bo[s]||statusColorOf(s,ov);}
+// Planningsbadge (Niet / Gedeeltelijk / Volledig ingepland)
+function badgeColorOf(s:PlanStatus,bc:Record<string,string>={}):string{return bc[s]||DEFAULT_BADGE_COLORS[s];}
+function badgeStyle(s:PlanStatus,bc:Record<string,string>={}):React.CSSProperties{
+  const c=badgeColorOf(s,bc);
+  return{backgroundColor:c+"22",color:c,border:`1px solid ${c}55`};
 }
 // ===== FILTERS =====
 interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
@@ -1306,8 +1322,8 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
 // ===== PROJECT DETAIL =====
 type ProjTab="overzicht"|"werkzaamheden"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,availability=[],teamColors={},onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;
+function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
@@ -1407,7 +1423,7 @@ function ProjectDetail({project,employees,availability=[],teamColors={},onEdit,o
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${PLAN_STATUS_STYLE[planStatusOf(project,availability)]}`}>{planStatusOf(project,availability)}</span>
+          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
           <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
         </div>
         {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
@@ -2562,6 +2578,8 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
   const statusColors=s.statusColors||{};
   const projectColors=s.projectColors||{};
   const teamColors=s.teamColors||{};
+  const borderColors=s.borderColors||{};
+  const badgeColors=s.badgeColors||{};
   const filters=s.planFilters?.length?s.planFilters:DEFAULT_PLAN_FILTERS;
   const row=(key:string,naam:string,kleur:string,onChange:(c:string)=>void,onReset:()=>void)=>
     <div key={key} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-2 py-1.5">
@@ -2585,13 +2603,22 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {teams.length>0&&section("Teams",teams.map(t=>row("tm-"+t.key,t.label,teamColor(t.key,teamColors),
         c=>setS(p=>({...p,teamColors:{...(p.teamColors||{}),[t.key]:c}})),
         ()=>setS(p=>{const n={...(p.teamColors||{})};delete n[t.key];return{...p,teamColors:n};}))))}
+      {section("Dagranden (hele dag afwezig)",ABSENCE_STATS.map(st=>row("bd-"+st,st,borderColorOf(st,borderColors,statusColors),
+        c=>setS(p=>({...p,borderColors:{...(p.borderColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.borderColors||{})};delete n[st];return{...p,borderColors:n};}))))}
+      {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
+        c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
       {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
     </div>
-    <div className="flex justify-end gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
-      <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
-      <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+    <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
+      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
+      <div className="flex gap-2">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+      </div>
     </div>
   </Modal>;
 }
@@ -2655,7 +2682,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const [projMenu,setProjMenu]=useState<Project|null>(null);
   const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
   const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
-  const [showPlanned,setShowPlanned]=useState(false);
+  
   const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number;startTime?:string;endTime?:string;block?:AvailEntry}|null>(null);
   const menuRef=useRef<HTMLDivElement|null>(null);
   const [menuH,setMenuH]=useState(260);
@@ -2672,6 +2699,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
+  const borderColors=settings.borderColors||{};
+  const badgeColors=settings.badgeColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
@@ -2965,13 +2994,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return s<=pe&&e>=ps;
   }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
 
-  // Openstaande projecten: prioriteit op startdatum, met "nog in te plannen" per project
-  const openProjects=periodProjects.map(p=>{
+  // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
+  // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
+  const openProjects=periodProjects.filter(p=>p.status!=="Afgerond"&&p.status!=="Gefactureerd").map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  }).filter(x=>showPlanned||x.rest>0)
-    .sort((a,b)=>(b.rest-a.rest)||a.p.startdatum.localeCompare(b.p.startdatum));
+  }).sort((a,b)=>(b.rest-a.rest)||a.p.startdatum.localeCompare(b.p.startdatum));
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
@@ -3092,7 +3121,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             const blockState=dayBlockState(availability,e.id,ds);
             return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onContextMenu={ev=>{ev.preventDefault();setCellMenu({empId:e.id,date:ds,x:ev.clientX,y:ev.clientY});}}
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
-              style={blockState?{boxShadow:`inset 0 0 0 2px ${statusColorOf(blockState,statusColors)}`}:undefined}
+              style={blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:undefined}
               className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
@@ -3165,10 +3194,6 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-bold text-[#1A2744] text-sm">Openstaande projecten</h2>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-[#6B7A99] cursor-pointer">
-            <input type="checkbox" checked={showPlanned} onChange={ev=>setShowPlanned(ev.target.checked)}/>
-            Volledig ingeplande projecten tonen
-          </label>
           <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
@@ -3179,16 +3204,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate flex items-center gap-1.5">
-                {p.werknummer} – {p.projectnaam}
-                {planRows(availability).some(a=>a.projectId===p.id&&a.isFirstOfDay)&&<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#FDF2E2] text-[#B4761F] text-[10px] font-semibold flex-shrink-0"><Star className="w-2.5 h-2.5" fill="currentColor"/>Eerste</span>}
-              </p>
+              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
               <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
             </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${rest===0?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>
-              {rest===0?"Volledig ingepland":`Nog in te plannen: ${rest}`}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>
+              {PLAN_STATUS_LABEL[st]}{rest>0?` · nog ${rest}`:""}
             </span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${PLAN_STATUS_STYLE[st]}`}>{n}/{nodig}</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>{n}/{nodig}</span>
             <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
             <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
           </div>
@@ -3264,10 +3286,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {/* Keuze bij het slepen van een teamblok */}
     {teamChoice&&<Modal title="Planning verplaatsen" onClose={()=>setTeamChoice(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Wat wil je verplaatsen?</p>
+        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Standaard verplaatst het hele team mee.</p>
         <div className="flex flex-col gap-2">
-          <Btn onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze planning verplaatsen</Btn>
-          <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
+          <Btn onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
+          <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze medewerker verplaatsen</Btn>
           <Btn variant="ghost" onClick={()=>setTeamChoice(null)}>Annuleren</Btn>
         </div>
       </div>
@@ -3891,7 +3913,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
