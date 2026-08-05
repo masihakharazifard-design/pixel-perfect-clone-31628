@@ -2123,7 +2123,8 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
   onResizeProject:(id:string,newEnd:Date)=>void;
 }){
   const dc=useDC();
-  const dayProjs=projects.filter(p=>sameDay(new Date(p.startdatum),date));
+  const selectedDateKey=toDateStr(date);
+  const dayProjs=projects.filter(p=>datePart(p.startdatum)===selectedDateKey&&!!timePart(p.startdatum));
   const allDay=projects.filter(p=>{const s=new Date(p.startdatum),e=new Date(p.afloopdatum);return!sameDay(s,e)&&(sameDay(s,date)||sameDay(e,date)||s<date&&e>date);});
   const resizeRef=useRef<{id:string;startY:number;origEndMs:number;origStartMs:number}|null>(null);
   const [resizingId,setResizingId]=useState<string|null>(null);
