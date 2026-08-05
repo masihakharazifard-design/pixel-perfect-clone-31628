@@ -11,7 +11,7 @@ Projecten met planningregels worden in Agenda opgebouwd uit `availability` via `
 - Een blok dat uit planningregels komt en in de dagweergave naar een ander uur of een andere dag wordt gesleept, verplaatst de gekoppelde planningregels zelf. Alleen dag, begintijd en eindtijd wijzigen; de duur blijft gelijk en alle overige gegevens (medewerker, project, status, reeks, team, periode, volgorde, "als eerste uitvoeren", notitie) blijven behouden.
 - Dezelfde verplaatsing is meteen zichtbaar in Personeelsplanning en blijft na verversen staan.
 - Een project zonder planningregels blijft werken zoals nu: alleen de projectdatums verschuiven, met behoud van duur. Er wordt geen planningregel aangemaakt en geen medewerker gekoppeld.
-- Blokken van hetzelfde project met dezelfde dag en begintijd maar een andere eindtijd worden afzonderlijk behandeld: slepen verplaatst alleen het gesleepte blok.
+- Blokken van hetzelfde project op dezelfde dag worden afzonderlijk behandeld: alleen de planningregels van het daadwerkelijk gesleepte blok (of team) verplaatsen, dankzij matching op reeks en team naast datum en tijden.
 - Blokken krijgen altijd de afdelingskleur; geen team-, status- of offertekleur in Agenda.
 - De weekweergave houdt exact haar huidige sleepgedrag.
 
