@@ -2471,28 +2471,37 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="flex rounded-lg border border-[rgba(26,39,68,0.12)] overflow-hidden">
         {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
       </div>
-      <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-36 md:w-40"/>
+      <div className="flex gap-1.5 items-center flex-wrap">
+        {filters.map(f=><button key={f.id} onClick={()=>toggleFilter(f.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-opacity ${f.actief?"border-transparent text-white":"border-[rgba(26,39,68,0.12)] text-[#B8C3D9] bg-white"}`} style={f.actief?{backgroundColor:f.kleur}:undefined}>
+          <span className="w-2 h-2 rounded-full" style={{backgroundColor:f.actief?"rgba(255,255,255,0.9)":f.kleur}}/>{f.naam}
+        </button>)}
+        <Btn variant="secondary" size="sm" onClick={()=>setShowFilters(true)}><Settings className="w-3.5 h-3.5"/>Filters</Btn>
+      </div>
     </div>
 
     {view==="dag"&&<div className="space-y-3">
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
+        const ds=toDateStr(refDate);
         return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-            <div><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
           </div>
           {blocks.length===0
-            ?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen tijdblokken voor deze dag</p>
+            ?<button onClick={()=>openPlan(e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
             :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
-              {blocks.map((b,bi)=>(
-                <div key={bi} className={`flex items-center gap-3 px-4 py-2.5 ${b.proj?"cursor-pointer hover:bg-[#F8F9FC]":""}`} onClick={()=>b.proj&&onOpenProject(b.proj)}>
+              {blocks.map(({av:b,proj})=>(
+                <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):openPlan(e.id,ds)}>
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{b.endTime}</span>
+                  {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:AS[b.status].bg,color:AS[b.status].text}}>
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:AS[b.status].dot}}/>
                     {b.status}
                   </span>
-                  {b.label!==b.status&&<span className="text-xs text-[#1A2744] truncate">{b.label}</span>}
+                  <span className="text-xs text-[#1A2744] truncate flex-1">{proj?`${proj.werknummer} – ${proj.projectnaam}`:(b.note||"")}</span>
+                  {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                 </div>
               ))}
             </div>
@@ -2522,14 +2531,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                 <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
               </div>
             </td>
-            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const conflict=ps.length>1;const isWE=d.getDay()===0||d.getDay()===6;const avDay=availability.filter(a=>a.employeeId===e.id&&a.date===ds);const dom=getDominantStatus(avDay);
-            return<td key={ds} className={`py-1 px-0.5 text-center align-middle ${isWE?"bg-[#F8F8FB]":""} ${conflict?"bg-red-50":""}`}>
+            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const avDay=availability.filter(a=>a.employeeId===e.id&&a.date===ds&&!a.projectId);const dom=avDay.length?getDominantStatus(avDay):null;
+            return<td key={ds} onClick={()=>ps.length===0&&openPlan(e.id,ds)} onDragOver={ev=>{if(dragProject)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
+              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${dragProject?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik om in te plannen">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.map(p=><button key={p.id} onClick={()=>onOpenProject(p)} className="rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
-                  {p.projectnaam.slice(0,4)+".."}
+                {ps.map(({row,proj})=><button key={row.id} onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className="rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                  {proj.projectnaam.slice(0,4)+".."}
                 </button>)}
-                {conflict&&<div className="text-[9px] text-red-500 font-bold">⚠</div>}
-              </div>:avDay.length>0?<div className="w-6 h-6 rounded-full mx-auto" style={{backgroundColor:AS[dom].bg}} title={dom}/>:null}
+                <button onClick={ev=>{ev.stopPropagation();openPlan(e.id,ds);}} className="text-[9px] text-[#B8C3D9] hover:text-[#0ABFB8] w-full">+</button>
+              </div>:dom?<div className="w-6 h-6 rounded-full mx-auto" style={{backgroundColor:AS[dom].bg}} title={dom}/>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
         </tbody>
@@ -2543,7 +2553,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {weeks.map((wk,i)=>{const we=new Date(wk);we.setDate(wk.getDate()+6);const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
+            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
               <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
             </th>;})}
@@ -2557,13 +2567,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                 <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
               </div>
             </td>
-            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} className="py-1.5 px-1 text-center align-middle">
+            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={()=>onOpenProject(p)} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
                   {p.projectnaam.slice(0,7)}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
-              </div>:null}
+              </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
         </tbody>
@@ -2571,10 +2581,57 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>
     )}
 
+    {/* ===== Projecten in deze periode ===== */}
+    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
+        <h2 className="font-bold text-[#1A2744] text-sm">Projecten in deze periode</h2>
+        <span className="text-xs text-[#6B7A99]">{periodProjects.length} project{periodProjects.length!==1?"en":""} · sleep naar een cel om in te plannen</span>
+      </div>
+      {periodProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen projecten in deze periode.</p>
+      :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
+        {periodProjects.map(p=>{
+          const st=planStatusOf(p,availability);
+          const n=assignedEmpIds(availability,p.id).length;
+          return<div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
+            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
+              <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
+            </div>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${PLAN_STATUS_STYLE[st]}`}>{st} {n}/{benodigd(p)}</span>
+            <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
+            <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
+          </div>;
+        })}
+      </div>}
+    </div>
+
     <div className="flex items-center gap-4 flex-wrap">
-      {AFDS.map(a=><div key={a} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:dc[a].bg}}/><span className="text-xs text-[#6B7A99]">{a}</span></div>)}
+      {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
       {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:AS[s].dot}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
     </div>
+    {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
+      <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
+      <div className="flex flex-wrap gap-3">
+        {teams.map(t=><div key={t.key} className="flex items-center gap-1.5">
+          <input type="color" value={t.kleur} onChange={ev=>setTeamColor(t.key,ev.target.value)} className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0" title="Teamkleur aanpassen"/>
+          <span className="text-xs text-[#6B7A99]">{t.label}</span>
+        </div>)}
+      </div>
+    </div>}
+
+    {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
+    {projMenu&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+      empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
+      startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
+      onSave={async e=>{await onSavePlanning(e);setProjMenu(null);}} onClose={()=>setProjMenu(null)}/>}
+    {planModal&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+      empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
+      projectId={planModal.projectId} editId={planModal.editId}
+      onSave={async e=>{await onSavePlanning(e);setPlanModal(null);}}
+      onDelete={async id=>{await onDeletePlanning(id);setPlanModal(null);}}
+      onClose={()=>setPlanModal(null)}/>}
   </div>;
 }
 
