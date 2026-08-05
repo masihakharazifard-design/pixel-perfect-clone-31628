@@ -70,3 +70,10 @@ In een echte browser: project naar andere dag en andere medewerker slepen, tijd 
 - `AgendaView` krijgt naast projectevents ook afwezigheidsevents uit dezelfde `availability`-regels, met eigen stijl; project- en afwezigheidsblokken houden aparte, unieke keys.
 - Kleuren: uitbreiding van de bestaande instellingen (`app_settings`) met `statusColors`, `afdelingColors`, `projectColors` naast de bestaande `teamColors` en filterkleuren; nieuw `ColorManagerModal` met kleurkiezer, voorbeeld en reset per item. Alle views lezen kleuren via één helper met fallback op de huidige standaardkleuren.
 - Opslaan verloopt via de bestaande `syncTable`/`syncSettings`: eerst opslaan, dan herladen; bij fout terugdraaien naar de vorige state.
+
+## Aanvullende voorwaarden
+
+- **periodeId zonder migratie**: gecontroleerd — de tabel `availability` bestaat uit `id`, een JSON-veld `data` en `updated_at`; alle planningvelden zitten al in dat JSON-object. `periodeId` komt daar gewoon bij, dus geen nieuwe kolom en geen migratie.
+- **Conflictcontrole bij bewerken**: de gedeelde controle sluit het eigen record uit (`other.id !== currentPlanningId`) en vergelijkt alleen andere regels van dezelfde medewerker. `Beschikbaar` geeft nooit conflict; Ingepland, Vakantie, Ziek, Vrij en Bezet blokkeren alleen bij echte tijdoverlap.
+- **Projectdatums veilig herberekenen**: alleen regels met status `Ingepland` en hetzelfde projectId tellen mee — start = vroegste begin, einde = laatste eind. Vakantie, Ziek, Vrij, Bezet en Beschikbaar raken projectdatums nooit. Bij het verwijderen van de laatste ingeplande regel blijven de bestaande projectdatums staan en worden ze niet leeggemaakt.
+- **Meerdaagse afwezigheid**: opgeslagen als één regel per dag met dezelfde `periodeId`, maar in de interface beheerd als één periode — wijzigen of verwijderen verwerkt alle regels met die `periodeId` tegelijk. De vakantie-import ontdubbelt op medewerker + datum + status (en bestaande `periodeId`), zodat dezelfde periode niet dubbel binnenkomt.
