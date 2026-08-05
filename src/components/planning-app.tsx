@@ -2807,7 +2807,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const markFirstOfDay=async(row:AvailEntry,on:boolean)=>{
     if(!canAct(row.projectId,row.employeeId))return;
     const rows=dayPlanRows(availability,row.employeeId,row.date);
-    await commitPlanning(applyFirstOfDay(rows,on?row.id:null));
+    await onSaveManyPlanning(applyFirstOfDay(rows,on?row.id:null));
   };
 
 
