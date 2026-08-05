@@ -1,28 +1,35 @@
-# Afdelingsfilter doortrekken naar Openstaande projecten
+# Afdelingsfilter overal doortrekken in Personeelsplanning
 
-De bestaande aan/uit-knoppen per afdeling in Personeelsplanning blijven ongewijzigd. Er komt geen tweede filter en geen nieuw ontwerp.
+De bestaande aan/uit-knoppen per afdeling blijven ongewijzigd. Er komt geen tweede filter en geen nieuw ontwerp; overal wordt dezelfde bestaande `activeAfds` gebruikt.
 
 ## Wat er verandert
 
-- De lijst **Openstaande projecten** volgt exact dezelfde afdelingsselectie als de knoppen bovenaan de pagina.
-- Kies je alleen Zonwering, dan zie je onderaan uitsluitend openstaande projecten van Zonwering. Hetzelfde voor Stoffering en Schilderwerk.
-- Staan alle knoppen aan (of alle uit), dan worden alle openstaande projecten getoond.
-- Het aantal achter de kop ("x projecten") telt alleen de zichtbare projecten mee.
-- Werkt direct, zonder de pagina te verversen.
+Kies je bijvoorbeeld alleen Zonwering, dan geldt op de hele pagina Personeelsplanning:
+
+- **Medewerkers**: alleen Zonwering-medewerkers (werkt al zo).
+- **Ingeplande projecten**: alleen blokken van Zonwering-projecten bij de zichtbare medewerkers; blokken van projecten buiten de selectie worden niet getoond.
+- **Openstaande projecten**: alleen Zonwering-projecten; de teller "x projecten" en "Nog in te plannen" worden op die gefilterde lijst berekend.
+- **Project zoeken / selecteren bij inplannen**: de zoeklijst toont alleen Zonwering-projecten.
+- **Drag & drop**: alleen een zichtbaar (Zonwering-)project kan uit Openstaande projecten naar een cel worden gesleept.
+- **Projectdetails** die vanuit Openstaande projecten worden geopend, komen altijd uit dezelfde gefilterde lijst.
+
+Zijn meerdere afdelingen actief, dan worden alle projecten van die afdelingen getoond. Is geen filter actief of zijn alle afdelingen actief, dan is alles zichtbaar. Alles werkt direct, zonder verversen.
 
 ## Wat gelijk blijft
 
-- Medewerkerslijst blijft filteren zoals nu.
-- Ingeplande blokken van een zichtbare medewerker blijven altijd zichtbaar, ook als het project bij een andere afdeling hoort.
-- Zoeken, sorteren, badges (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland), "Nog in te plannen", de schakelaar voor volledig ingeplande projecten, slepen naar een cel, Openen en Inplannen blijven gewoon werken — alleen binnen de gefilterde lijst.
-- Turnkey-projecten worden behandeld zoals nu: die horen bij alle drie de afdelingen en blijven dus zichtbaar bij elke actieve afdeling.
+- Zoeken, sorteren, badges (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland), de schakelaar voor volledig ingeplande projecten, Openen en Inplannen werken gewoon, maar binnen de gefilterde lijst.
+- Turnkey-projecten worden behandeld zoals nu: ze horen bij alle drie de afdelingen en blijven dus zichtbaar bij elke actieve afdeling.
+- Geen wijzigingen aan de agenda, de projectenpagina of de database.
 
 ## Technische details
 
-- In `PersoneelsplanningView` (`src/components/planning-app.tsx`) bestaat al `activeAfds`, afgeleid uit `settings.planFilters`. Diezelfde waarde wordt gebruikt voor de datasource van de openstaande-projectenlijst; er komt geen tweede filterstate.
-- `periodProjects` past `activeAfds` al toe via `getAllAfds(p)`; de controle wordt vastgelegd/gecontroleerd zodat `openProjects` gegarandeerd dezelfde selectie gebruikt, ook wanneer een project geen `afdelingen` heeft (dan telt `p.afdeling`).
-- Geen wijzigingen aan de database, de planningregels of andere pagina's.
+In `src/components/planning-app.tsx`, uitsluitend binnen `PersoneelsplanningView`:
+
+- Eén gedeelde helper `inAfd(p)` op basis van de bestaande `activeAfds` (leeg = alles), met `getAllAfds(p)` als bron zodat een project zonder `afdelingen` op `p.afdeling` terugvalt.
+- `visProjects = projects.filter(inAfd)` als enige projectbron voor: `periodProjects`/`openProjects`, de dag-/week-/maand-/kwartaalblokken (`getDayBlocks`, `getEmpProjsDate`, `getEmpProjsWeek`, `rowsFor`-mapping: blokken waarvan het project niet in `visProjects` zit worden niet gerenderd), de projectlijst in `PlanEmployeeModal` (nieuwe prop, geen eigen filterstate), `dragProject`/`dropOnCell` en `setProjMenu`/`onOpenProject` vanuit de openstaande-lijst.
+- Afwezigheidsblokken (Vakantie, Ziek, Bezet) horen niet bij een project en blijven altijd zichtbaar bij de zichtbare medewerkers.
+- Tellers en badges worden afgeleid van de gefilterde lijst; planningregels zelf worden niet gewijzigd of verwijderd door het filter.
 
 ## Test
 
-Knoppen op alleen Zonwering zetten en controleren dat onderaan uitsluitend Zonwering-projecten staan; daarna Stoffering en Schilderwerk; alle knoppen aan geeft weer de volledige lijst. Slepen, zoeken en badges controleren binnen een actieve filter.
+Alleen Zonwering activeren en controleren: medewerkers, ingeplande blokken, openstaande projecten, zoeklijst bij inplannen, slepen en projectdetails tonen uitsluitend Zonwering. Daarna twee afdelingen tegelijk, en tot slot alles aan voor de volledige lijst.
