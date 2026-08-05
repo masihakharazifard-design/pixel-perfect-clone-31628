@@ -2306,6 +2306,7 @@ function AgendaView({projects,employees,availability,teamColors={},statusColors=
       const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
       agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
+        eersteVanDag:rs.some(r=>r.isFirstOfDay),
         teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
     });
   });
