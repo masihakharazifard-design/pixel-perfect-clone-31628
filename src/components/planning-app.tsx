@@ -197,6 +197,69 @@ function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:s
 }
 function primaryAfd(p:Project):Afdeling{return getAllAfds(p)[0];}
 
+// ===== PLANNINGREGELS (enige bron van waarheid) =====
+// Een planningregel = availability-rij met projectId en status "Ingepland".
+function planRows(av:AvailEntry[]):AvailEntry[]{return av.filter(a=>!!a.projectId&&a.status==="Ingepland");}
+function projectPlans(av:AvailEntry[],projectId:string):AvailEntry[]{return planRows(av).filter(a=>a.projectId===projectId);}
+function assignedEmpIds(av:AvailEntry[],projectId:string):string[]{return [...new Set(projectPlans(av,projectId).map(a=>a.employeeId))];}
+function planPeriod(rows:AvailEntry[]):{start:string;end:string}|null{
+  if(!rows.length)return null;
+  let start="",end="";
+  rows.forEach(r=>{
+    const s=combineLocalDT(r.date,r.startTime||"08:00",8,0);
+    const e=combineLocalDT(r.date,r.endTime||"17:00",17,0);
+    if(!start||new Date(s)<new Date(start))start=s;
+    if(!end||new Date(e)>new Date(end))end=e;
+  });
+  return start&&end?{start,end}:null;
+}
+function benodigd(p:Project):number{return Math.max(1,Number(p.benodigdeMedewerkers)||1);}
+type PlanStatus="Niet ingepland"|"Gedeeltelijk ingepland"|"Ingepland";
+function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
+  const n=assignedEmpIds(av,p.id).length;
+  if(n===0)return "Niet ingepland";
+  return n>=benodigd(p)?"Ingepland":"Gedeeltelijk ingepland";
+}
+const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
+  "Niet ingepland":"bg-slate-100 text-slate-600",
+  "Gedeeltelijk ingepland":"bg-amber-100 text-amber-700",
+  "Ingepland":"bg-emerald-100 text-emerald-700",
+};
+function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
+interface PlanConflict{employee:string;label:string;time:string;}
+function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
+  const emp=employees.find(e=>e.id===empId);
+  const naam=emp?emp.naam:"Medewerker";
+  const out:PlanConflict[]=[];
+  av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
+    if(!overlaps(start,end,a.startTime,a.endTime))return;
+    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij"];
+    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`});return;}
+    if(a.status==="Ingepland"){
+      const p=projects.find(x=>x.id===a.projectId);
+      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`});
+    }
+  });
+  return out;
+}
+// ===== TEAMKLEUREN =====
+const TEAM_PALETTE=["#3B82F6","#10B981","#8B5CF6","#F59E0B","#EC4899","#14B8A6","#6366F1","#EF4444","#84CC16","#0EA5E9","#D946EF","#F97316"];
+function teamKey(projectId:string,date:string,empIds:string[]):string{return `${projectId}|${date}|${[...empIds].sort().join(",")}`;}
+function teamColor(key:string,overrides:Record<string,string>={}):string{
+  if(overrides[key])return overrides[key];
+  let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))>>>0;
+  return TEAM_PALETTE[h%TEAM_PALETTE.length];
+}
+// Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
+function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
+  return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
+}
+// ===== FILTERS =====
+interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
+const DEFAULT_PLAN_FILTERS:PlanFilter[]=AFDS.map((a,i)=>({id:"pf"+(i+1),naam:a,kleur:DEFAULT_DC[a].bg,afdeling:a,actief:true}));
+
+
+
 function getMonthWeeks(year:number,month:number):Date[][]{
   const first=new Date(year,month,1),last=new Date(year,month+1,0);
   const dow=first.getDay();
