@@ -240,6 +240,17 @@ const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
   "Gedeeltelijk ingepland":"bg-amber-100 text-amber-700",
   "Ingepland":"bg-emerald-100 text-emerald-700",
 };
+// Standaardkleuren voor de planningsbadges (overschrijfbaar via Kleuren beheren)
+const DEFAULT_BADGE_COLORS:Record<PlanStatus,string>={
+  "Niet ingepland":"#94A3B8",
+  "Gedeeltelijk ingepland":"#F59E0B",
+  "Ingepland":"#10B981",
+};
+const PLAN_STATUS_LABEL:Record<PlanStatus,string>={
+  "Niet ingepland":"Niet ingepland",
+  "Gedeeltelijk ingepland":"Gedeeltelijk ingepland",
+  "Ingepland":"Volledig ingepland",
+};
 function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
 interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;kind:"blocking"|"warning";type?:"planning_overlap";}
 // Blokkerend: Bezet, Vakantie, Ziek, Vrij, Niet beschikbaar.
