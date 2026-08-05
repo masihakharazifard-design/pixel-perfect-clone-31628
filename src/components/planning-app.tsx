@@ -185,8 +185,11 @@ function fmtHM(h:number,m:number){return `${String(h).padStart(2,"0")}:${String(
 function getWeekNumber(d:Date):number{const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dayNum=date.getUTCDay()||7;date.setUTCDate(date.getUTCDate()+4-dayNum);const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));return Math.ceil((((date.getTime()-yearStart.getTime())/86400000)+1)/7);}
 
 function getAllAfds(p:Project):Afdeling[]{return p.afdelingen?.length?p.afdelingen:[p.afdeling];}
+function isOfferte(p:Project){return (p.status||"").trim().toLowerCase()==="offerte";}
 function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:string}>):React.CSSProperties{
   const afds=getAllAfds(p);
+  // Offertes blijven zichtbaar in de agenda, maar met een grijze, gestippelde stijl
+  if(isOfferte(p))return{backgroundColor:"#9AA5B8",backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)",border:"1px dashed #6B7A99",opacity:0.9};
   if(afds.length===1)return{backgroundColor:dc[afds[0]].bg};
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
   return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
