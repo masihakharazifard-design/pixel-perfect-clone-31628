@@ -2983,24 +2983,20 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const wd7=getWeekDays(refDate);
   const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
 
-  // ===== Projecten in deze periode =====
+  // ===== Periode =====
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
-  const periodProjects=visProjects.filter(p=>{
-    if(!validDate(p.startdatum))return false;
-    const s=new Date(p.startdatum);s.setHours(0,0,0,0);
-    const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
-    const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
-    return s<=pe&&e>=ps;
-  }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
 
   // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
   // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
-  const openProjects=periodProjects.filter(p=>p.status!=="Afgerond"&&p.status!=="Gefactureerd").map(p=>{
+  const openProjects=visProjects.filter(p=>{
+    const s=String(p.status||"").trim().toLowerCase();
+    return s!=="afgerond"&&s!=="gefactureerd";
+  }).map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  }).sort((a,b)=>(b.rest-a.rest)||a.p.startdatum.localeCompare(b.p.startdatum));
+  }).sort((a,b)=>(b.rest-a.rest)||((a.p.startdatum||"9999").localeCompare(b.p.startdatum||"9999")));
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
@@ -3220,7 +3216,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
     <div className="flex items-center gap-4 flex-wrap">
       {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
-      {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
+      {AVAIL_STATS.filter(s=>s!=="Vrij").map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
     </div>
     {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
       <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
