@@ -2983,16 +2983,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const wd7=getWeekDays(refDate);
   const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
 
-  // ===== Projecten in deze periode =====
+  // ===== Periode =====
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
-  const periodProjects=visProjects.filter(p=>{
-    if(!validDate(p.startdatum))return false;
-    const s=new Date(p.startdatum);s.setHours(0,0,0,0);
-    const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
-    const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
-    return s<=pe&&e>=ps;
-  }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
 
   // Openstaande projecten = planningslijst: zichtbaar tot de status Afgerond of Gefactureerd is.
   // De planningsstatus bepaalt alleen de badge, nooit de zichtbaarheid.
