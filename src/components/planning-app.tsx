@@ -3705,12 +3705,15 @@ export default function PlanningApp(){
     return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
   }),[projects,avail]);
 
+  // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
+  // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
   const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
     const rows=projectPlans(nextAvail,projectId);
     const per=planPeriod(rows);
     if(!per)return projects; // laatste planning verwijderd: datums bewust behouden
-    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end,medewerkers:assignedEmpIds(nextAvail,projectId)}:p);
+    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end}:p);
   };
+
 
   const savePlanning=async(entry:AvailEntry)=>{
     const exists=avail.some(a=>a.id===entry.id);
