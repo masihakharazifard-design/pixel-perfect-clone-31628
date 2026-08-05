@@ -1,28 +1,32 @@
-# Meerdaagse periode voor Bezet, Vakantie en Ziek
+# Rechtsklik in de Dagweergave van Personeelsplanning
 
-Alleen de bestaande afwezigheidsfunctie in Personeelsplanning wordt aangevuld. Geen nieuwe menu's, geen verwijderde opties, geen wijziging in kleuren of conflictcontrole.
+## Probleem (bevestigd in de code)
+In de dagweergave van Personeelsplanning zit op geen enkel element een `onContextMenu`-handler. De handler staat alleen op de cellen van de week-/maandtabel. Daardoor doet rechtsklikken in de dagweergave niets en verschijnt het browsermenu. Er is geen overlay of z-index die de klik blokkeert — de handler ontbreekt simpelweg.
 
-## Wat er al staat
-Het bestaande venster "Afwezigheid toevoegen / bewerken" heeft al: medewerker, startdatum, einddatum, starttijd, eindtijd, "hele dagen" en notitie. Meerdere dagen worden al opgeslagen als losse regels met hetzelfde periode-ID, en bewerken/verwijderen werkt al op alle regels met dat periode-ID tegelijk.
+## Oplossing
+Het bestaande snelmenu (`cellMenu`) wordt hergebruikt; er komt geen nieuw menu bij.
 
-## Wat er ontbreekt en wordt toegevoegd
+1. **Lege medewerkerrij / "Geen tijdblokken"-regel** — rechtsklik opent het bestaande snelmenu met de aangeklikte medewerker en de getoonde datum als context.
+2. **Bestaand planning- of afwezigheidsblok** — rechtsklik opent hetzelfde snelmenu, maar met de blokacties die er al zijn: bewerken (project- of afwezigheidsvenster) en verwijderen. De start- en eindtijd van het blok worden als context meegegeven, zodat "Project inplannen…" dat tijdvak overneemt.
+3. Ook de kaartkop van de medewerker vangt rechtsklik af, zodat rechtsklikken ergens in de rij altijd werkt.
 
-1. **Bezet en Ziek openen nu op één dag.** Waar het venster vanuit een dagcel of het snelmenu wordt geopend, wordt de einddatum voortaan altijd als apart, vrij invulbaar veld getoond voor Bezet, Vakantie én Ziek — niet alleen bij Vakantie. Zo kun je overal een periode kiezen.
+In alle gevallen wordt het browsermenu onderdrukt en stopt het event bij het diepst aangeklikte element, zodat het menu de juiste context krijgt.
 
-2. **Tijden zijn optioneel.** Starttijd en eindtijd mogen leeg blijven; leeg betekent hele dagen (00:00–23:59), net als de bestaande "Hele dag"-optie. Het vinkje "Hele dag" blijft precies zoals het is.
+## Menu-gedrag
+- Verschijnt op de muispositie en blijft binnen het venster (bestaande begrenzing blijft, aangevuld met een correctie voor de menuhoogte).
+- Sluit bij klikken buiten het menu (bestaande overlay), bij Escape (nieuw) en na het kiezen van een actie.
 
-3. **Doorlopende balk in Personeelsplanning.** Regels die hetzelfde periode-ID delen, worden in de week-, maand- en kwartaalweergave getoond als één doorlopende balk over de betrokken dagen in plaats van losse blokjes per dag. Het label (bijv. "Vakantie 12-08 t/m 16-08" met de notitie in de tooltip) staat één keer op de balk. In de dagweergave verandert er niets.
-
-4. **Mobiel.** Het venster gebruikt op mobiel dezelfde datumvelden (start- en einddatum onder elkaar, volle breedte), zodat een periode ook zonder slepen of shift-klik te kiezen is.
-
-Bewerken en verwijderen van een meerdaagse periode blijven werken zoals nu: alle regels met hetzelfde periode-ID tegelijk. Klikken op een willekeurige dag van de balk opent de hele periode.
+## Wat niet verandert
+Linksklik, slepen en neerzetten, scrollen, mobiel gedrag en de week-, maand- en kwartaalweergave blijven ongewijzigd. Kleuren, statussen en conflictcontrole blijven zoals ze zijn.
 
 ## Technische details
-Alles in `src/components/planning-app.tsx`:
-- `AbsenceModal`: startdatum/einddatum altijd tonen; einddatum leeg of eerder dan startdatum valt terug op de startdatum. Tijdvelden mogen leeg zijn en vallen terug op `00:00`/`23:59`. Grid wordt `grid-cols-1 sm:grid-cols-2` (al zo) zodat mobiel netjes stapelt.
-- Waar het venster wordt geopend (`openAbsence`, snelmenu-acties) wordt de einddatum als bewerkbaar veld meegegeven in plaats van gelijkgetrokken aan de startdatum.
-- Nieuwe helper `absencePeriods(availability, empId, dates)` groepeert afwezigheidsregels per `periodeId` tot aaneengesloten reeksen binnen de zichtbare datums; `PersoneelsplanningView` rendert per rij een absolute overlay-balk over de betrokken kolommen in plaats van `absFor` per cel, met dezelfde `absenceStyle`-kleuren als nu.
-- `saveAbsence`/`deleteAbsence` in `App` blijven ongewijzigd — die werken al per `periodeId`.
+In `src/components/planning-app.tsx`, binnen `PersoneelsplanningView`:
+- `cellMenu`-state uitbreiden met optionele `startTime`, `endTime` en `block?: AvailEntry`.
+- Hulpfunctie `openCellMenu(ev, empId, date, block?)` die `preventDefault()` + `stopPropagation()` doet en de positie uit `clientX`/`clientY` zet.
+- In het blok `{view==="dag"&& …}`: `onContextMenu` toevoegen aan de medewerkerskaart, aan de knop "Geen tijdblokken — klik om in te plannen" en aan elke blokrij (`<div key={b.id} …>`).
+- In de menurender: wanneer `cellMenu.block` gezet is, bovenaan "Bewerken" en "Verwijderen" tonen die de bestaande `openEditPlan` / `openEditAbsence` en de bestaande verwijderfunctie aanroepen; anders het huidige menu ongewijzigd.
+- `useEffect` met een `keydown`-listener die op Escape `setCellMenu(null)` doet.
+- Positieberekening `top` gebruikt de werkelijke menuhoogte via een ref in plaats van de vaste 260 px.
 
 ## Test
-Vakantie 12-08-2026 t/m 16-08-2026 toevoegen en controleren dat dit als één balk verschijnt; Ziek over drie dagen; Bezet over twee dagen met tijden 13:00–17:00; de periode bewerken (nieuwe einddatum) en verwijderen vanaf een willekeurige dag; verversen en controleren dat alles behouden blijft.
+Personeelsplanning → Dag: rechtsklik op een lege medewerkerrij (menu opent), rechtsklik op een projectblok (bewerken/verwijderen), rechtsklik op een afwezigheidsblok, Escape en buitenklik sluiten het menu, en linksklik plus slepen werken nog steeds.
