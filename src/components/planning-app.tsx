@@ -2557,6 +2557,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const [projMenu,setProjMenu]=useState<Project|null>(null);
   const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
   const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
+  const [showPlanned,setShowPlanned]=useState(false);
+  const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number}|null>(null);
+  const [teamChoice,setTeamChoice]=useState<{block:AvailEntry;empId:string;date:string;teamRows:AvailEntry[]}|null>(null);
+  const [overlapAsk,setOverlapAsk]=useState<{entries:AvailEntry[];warnings:PlanConflict[]}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
