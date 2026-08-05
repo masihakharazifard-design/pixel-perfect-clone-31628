@@ -1158,8 +1158,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <Textarea label="Werkzaamheden" value={f.werkzaamheden} onChange={v=>set("werkzaamheden",v)} rows={3} placeholder="Omschrijving van de werkzaamheden..."/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Input label="Uurprijs (€)" value={String(f.uurprijs)} onChange={v=>set("uurprijs",parseFloat(v)||0)} type="number"/>
-      <Input label="Geschatte uren" value={String(f.uren)} onChange={v=>set("uren",parseFloat(v)||0)} type="number"/>
+      <Input label="Benodigde medewerkers" value={String(f.benodigdeMedewerkers??1)} onChange={v=>set("benodigdeMedewerkers",Math.max(1,parseInt(v)||1))} type="number"/>
     </div>
     <div className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
       <div className="bg-[#F0F3F8] px-4 py-2.5 border-b border-[rgba(26,39,68,0.1)]">
