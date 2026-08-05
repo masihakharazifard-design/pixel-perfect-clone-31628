@@ -1271,7 +1271,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 md:gap-3">
-          {[["Opdrachtgever",project.opdrachtgever],["Adres",project.adres||project.plaats],["Startdatum",fmtDate(project.startdatum)+" "+fmtTime(project.startdatum)],["Afloopdatum",fmtDate(project.afloopdatum)+" "+fmtTime(project.afloopdatum)],["Duur",`${dur} dag${dur!==1?"en":""}`],["Totaal",`€ ${totaal.toLocaleString("nl-NL")}`]].map(([k,v])=>
+          {[["Opdrachtgever",project.opdrachtgever],["Adres",project.adres||project.plaats],["Startdatum",fmtDate(project.startdatum)+" "+fmtTime(project.startdatum)],["Afloopdatum",fmtDate(project.afloopdatum)+" "+fmtTime(project.afloopdatum)],["Duur",`${dur} dag${dur!==1?"en":""}`],["Benodigde medewerkers",`${project.benodigdeMedewerkers??1}`]].map(([k,v])=>
             <div key={k} className="bg-[#F0F3F8] rounded-xl p-3">
               <p className="text-xs text-[#6B7A99] mb-0.5">{k}</p>
               <p className="font-semibold text-[#1A2744] text-sm">{v}</p>
