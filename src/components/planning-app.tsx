@@ -2573,7 +2573,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
 
   // Alles komt uit dezelfde planningregels (availability met projectId)
-  const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort(byVolgorde);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
     return rowsFor(empId,ds).map(a=>({row:a,proj:projects.find(p=>p.id===a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
