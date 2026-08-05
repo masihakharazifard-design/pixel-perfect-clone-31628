@@ -2702,6 +2702,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     if(activeAfds.length&&!getAllAfds(p).some(a=>activeAfds.includes(a)))return false;
     return s<=pe&&e>=ps;
   }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
+  // Openstaande projecten: prioriteit op startdatum, met "nog in te plannen" per project
+  const openProjects=periodProjects.map(p=>{
+    const n=assignedEmpIds(availability,p.id).length;
+    const nodig=benodigd(p);
+    return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
+  }).filter(x=>showPlanned||x.rest>0)
+    .sort((a,b)=>(b.rest-a.rest)||a.p.startdatum.localeCompare(b.p.startdatum));
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
