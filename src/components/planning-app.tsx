@@ -2279,8 +2279,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,availability,teamColors={},statusColors={},updateProject,onOpenProject,onCreateProject}:{
-  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;statusColors?:Record<string,string>;
+function AgendaView({projects,employees,availability,teamColors={},updateProject,onOpenProject,onCreateProject}:{
+  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;
   updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
 }){
@@ -3913,7 +3913,7 @@ export default function PlanningApp(){
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={viewProjects} statusColors={settings.statusColors||{}} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
