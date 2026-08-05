@@ -2123,7 +2123,8 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
   onResizeProject:(id:string,newEnd:Date)=>void;
 }){
   const dc=useDC();
-  const dayProjs=projects.filter(p=>sameDay(new Date(p.startdatum),date));
+  const selectedDateKey=toDateStr(date);
+  const dayProjs=projects.filter(p=>datePart(p.startdatum)===selectedDateKey&&!!timePart(p.startdatum));
   const allDay=projects.filter(p=>{const s=new Date(p.startdatum),e=new Date(p.afloopdatum);return!sameDay(s,e)&&(sameDay(s,date)||sameDay(e,date)||s<date&&e>date);});
   const resizeRef=useRef<{id:string;startY:number;origEndMs:number;origStartMs:number}|null>(null);
   const [resizingId,setResizingId]=useState<string|null>(null);
@@ -2164,9 +2165,10 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
           onClick={()=>onClickTime(h)}/>)}
         {dayProjs.map(p=>{
           const s=new Date(p.startdatum),e=new Date(p.afloopdatum);
-          const top=Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT);
+          const colH=HOURS.length*HOUR_HEIGHT;
+          const top=Math.min(colH-HOUR_HEIGHT/2,Math.max(0,(s.getHours()-BASE_HOUR+s.getMinutes()/60)*HOUR_HEIGHT));
           const durH=e.getHours()-s.getHours()+(e.getMinutes()-s.getMinutes())/60;
-          const ht=Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT);
+          const ht=Math.min(colH-top,Math.max(HOUR_HEIGHT/2,durH*HOUR_HEIGHT));
           const st=agendaProjStyle(p,dc);
           return <div key={p.id} draggable onDragStart={()=>{dragRef.current=p.id;}} onClick={ev=>{ev.stopPropagation();onClickProject(p);}}
             className="absolute left-2 right-2 rounded-xl overflow-hidden cursor-grab text-white shadow-sm hover:shadow-md z-10 transition-shadow"
@@ -2286,10 +2288,11 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,availability,updateProject,onOpenProject,onCreateProject}:{
+function AgendaView({projects,employees,availability,updateProject,onOpenProject,onCreateProject,onSaveManyPlanning}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
   updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
+  onSaveManyPlanning:(entries:AvailEntry[])=>Promise<boolean>;
 }){
   const dc=useDC();
   const [view,setView]=useState<CalView>("month");
@@ -2324,11 +2327,11 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     const rows=projectPlans(availability,p.id);
     if(!rows.length){agendaProjects.push(p);return;}
     const groups=new Map<string,AvailEntry[]>();
-    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}`;groups.set(k,[...(groups.get(k)||[]),r]);});
+    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}|${r.reeksId||""}|${r.teamId||""}`;groups.set(k,[...(groups.get(k)||[]),r]);});
     [...groups.entries()].forEach(([k,rs])=>{
-      const [date,st,et]=k.split("|");
+      const [date,st,et,rk,tm]=k.split("|");
       const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
-      agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
+      agendaProjects.push({...p,id:`${p.id}::${date}::${st}::${et}::${rk}::${tm}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
         eersteVanDag:rs.some(r=>r.isFirstOfDay),
         // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
@@ -2349,6 +2352,31 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
+  };
+  // Dagweergave: sleep een blok dat uit planningregels komt -> verplaats die planningregels zelf.
+  const handleDropProjectDayTime=(id:string,newStart:Date)=>{
+    const parts=id.split("::");
+    if(parts.length>=4){
+      const [pid,oldDate,oldSt,oldEt,oldRk="",oldTm=""]=parts;
+      const rows=availability.filter(r=>
+        String(r.projectId||"")===String(pid)
+        &&String(r.date).slice(0,10)===oldDate
+        &&r.startTime===oldSt
+        &&r.endTime===oldEt
+        &&String(r.reeksId||"")===String(oldRk||"")
+        &&String(r.teamId||"")===String(oldTm||""));
+      if(rows.length){
+        const newDate=toDateStr(newStart);
+        const newStartMin=newStart.getHours()*60+newStart.getMinutes();
+        const updated=rows.map(r=>{
+          const dur=Math.max(15,toMin(r.endTime)-toMin(r.startTime));
+          return {...r,date:newDate,startTime:fromMin(newStartMin),endTime:fromMin(Math.min(24*60,newStartMin+dur))};
+        });
+        void onSaveManyPlanning(updated);
+        return;
+      }
+    }
+    handleDropProjectTime(id,newStart);
   };
   const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
@@ -2388,7 +2416,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="day"&&<DayView date={date} projects={agendaProjects} employees={employees}
         onClickProject={openReal} onClickTime={h=>handleClickDateTime(date,h)}
-        onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
+        onDropProject={handleDropProjectDayTime} onResizeProject={handleResize}/>}
       {view==="kwartaal"&&<div className="h-full overflow-y-auto">
         <KwartaalView year={year} quarter={quarter} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
           onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
@@ -3921,7 +3949,7 @@ export default function PlanningApp(){
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
