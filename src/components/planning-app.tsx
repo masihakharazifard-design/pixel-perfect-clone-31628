@@ -2391,9 +2391,16 @@ function PlanEmployeeModal({employees,projects,availability,empId,date,startTime
           <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
         </div>
       </div>}
-      {conflicts.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
-        <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — dubbele planning is niet mogelijk</p>
-        {conflicts.map((c,i)=><p key={i} className="text-xs text-red-700">{c.employee} · {c.label} · {c.time}</p>)}
+      {blockers.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
+        <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
+        {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{c.employee} · {c.label} · {c.time}</p>)}
+      </div>}
+      {blockers.length===0&&warnings.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+        <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
+        {warnings.map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.label} · {c.time}</p>)}
+        {!confirmed
+          ?<div className="flex gap-2 pt-1"><Btn size="sm" onClick={()=>setConfirmed(true)}>Planning toch opslaan</Btn><Btn size="sm" variant="secondary" onClick={onClose}>Annuleren</Btn></div>
+          :<p className="text-xs text-amber-800 font-semibold">Bevestigd — je kunt nu opslaan.</p>}
       </div>}
       {st>=et&&<p className="text-xs text-red-600">Eindtijd moet na de begintijd liggen.</p>}
       <div className="flex justify-between gap-2 pt-1">
