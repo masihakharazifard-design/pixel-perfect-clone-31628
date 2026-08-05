@@ -233,7 +233,9 @@ const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
   "Ingepland":"bg-emerald-100 text-emerald-700",
 };
 function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
-interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;}
+interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;kind:"blocking"|"warning";type?:"planning_overlap";}
+// Blokkerend: Bezet, Vakantie, Ziek, Vrij, Niet beschikbaar.
+// Waarschuwing: de medewerker staat al op een ánder project in hetzelfde tijdvak.
 function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
   const emp=employees.find(e=>e.id===empId);
   const naam=emp?emp.naam:"Medewerker";
@@ -241,14 +243,17 @@ function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],e
   av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
     if(!overlaps(start,end,a.startTime,a.endTime))return;
     const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij","Bezet"];
-    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});return;}
+    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"blocking"});return;}
     if(a.status==="Ingepland"){
       const p=projects.find(x=>x.id===a.projectId);
-      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});
+      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"warning",type:"planning_overlap"});
     }
   });
   return out;
 }
+const blockingOnly=(c:PlanConflict[])=>c.filter(x=>x.kind==="blocking");
+const warningsOnly=(c:PlanConflict[])=>c.filter(x=>x.kind==="warning");
+const conflictLine=(c:PlanConflict)=>`${c.employee} · ${c.label} · ${fmtDate(c.date)} · ${c.time}`;
 // ===== TEAMKLEUREN =====
 const TEAM_PALETTE=["#3B82F6","#10B981","#8B5CF6","#F59E0B","#EC4899","#14B8A6","#6366F1","#EF4444","#84CC16","#0EA5E9","#D946EF","#F97316"];
 function teamKey(projectId:string,date:string,empIds:string[]):string{return `${projectId}|${date}|${[...empIds].sort().join(",")}`;}
