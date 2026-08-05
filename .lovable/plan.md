@@ -29,6 +29,13 @@ In `src/components/planning-app.tsx`, uitsluitend binnen `PersoneelsplanningView
 - `visProjects = projects.filter(inAfd)` als enige projectbron voor: `periodProjects`/`openProjects`, de dag-/week-/maand-/kwartaalblokken (`getDayBlocks`, `getEmpProjsDate`, `getEmpProjsWeek`, `rowsFor`-mapping: blokken waarvan het project niet in `visProjects` zit worden niet gerenderd), de projectlijst in `PlanEmployeeModal` (nieuwe prop, geen eigen filterstate), `dragProject`/`dropOnCell` en `setProjMenu`/`onOpenProject` vanuit de openstaande-lijst.
 - Afwezigheidsblokken (Vakantie, Ziek, Bezet) horen niet bij een project en blijven altijd zichtbaar bij de zichtbare medewerkers.
 - Tellers en badges worden afgeleid van de gefilterde lijst; planningregels zelf worden niet gewijzigd of verwijderd door het filter.
+- Alle interacties lezen uit dezelfde `visProjects`: contextmenu's en rechtsklikmenu's van blokken, "Als eerste uitvoeren", resize van blokken, teamverplaatsingen, kopiëren, verplaatsen naar een andere medewerker of dag, en projectdetails vanuit een planningblok. Geen enkele van deze paden krijgt eigen filterlogica of een lokale kopie van de projectlijst.
+- Omdat `visProjects` van `projects` + `activeAfds` is afgeleid (memo), leidt een gewijzigde afdeling van een project meteen tot verschijnen/verdwijnen in planning, openstaande lijst, zoeklijst en tellers, zonder verversen.
+
+## Afwezigheid
+
+Vakantie, Ziek en Bezet zijn niet projectgebonden en blijven altijd zichtbaar bij de op dat moment zichtbare medewerkers; de projectfilter verbergt ze nooit.
+
 
 ## Test
 
