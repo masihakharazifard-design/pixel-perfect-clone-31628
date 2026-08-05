@@ -31,12 +31,14 @@ interface Project {
   werkzaamheden:string; startdatum:string; afloopdatum:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
+  /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
+  eersteVanDag?:boolean;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
   telefoon:string; email:string; competenties:string[];
 }
-interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; }
+interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean; }
 const WORKDAY_END="17:00";
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
@@ -189,7 +191,7 @@ function abbrevName(naam:string):string{const parts=naam.split(" ");return parts
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
 function normalizeProjectnr(v:unknown):string{return String(v??"").trim();}
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
-function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
+function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
 function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
 function fmtHM(h:number,m:number){return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
@@ -276,11 +278,64 @@ function teamRowsForDay(av:AvailEntry[],projectId:string,date:string):AvailEntry
 }
 // ===== HANDMATIGE VOLGORDE PER MEDEWERKER PER DAG =====
 const byVolgorde=(a:AvailEntry,b:AvailEntry)=>{
+  if(!!a.isFirstOfDay!==!!b.isFirstOfDay)return a.isFirstOfDay?-1:1;
   const va=typeof a.volgorde==="number"?a.volgorde:9999;
   const vb=typeof b.volgorde==="number"?b.volgorde:9999;
   if(va!==vb)return va-vb;
   return a.startTime.localeCompare(b.startTime);
 };
+// ===== "ALS EERSTE UITVOEREN" =====
+// Per medewerker per dag mag hoogstens één projectblok gemarkeerd zijn.
+function dayPlanRows(all:AvailEntry[],empId:string,date:string):AvailEntry[]{
+  return planRows(all).filter(a=>a.employeeId===empId&&a.date===date).sort(byVolgorde);
+}
+function groupKeys(entries:AvailEntry[]):string[]{
+  return [...new Set(planRows(entries).map(e=>e.employeeId+"|"+e.date))];
+}
+function mergeRows(all:AvailEntry[],entries:AvailEntry[],removeIds:string[]=[]):AvailEntry[]{
+  const map=new Map(all.filter(a=>!removeIds.includes(a.id)).map(a=>[a.id,a]));
+  entries.forEach(e=>map.set(e.id,e));
+  return [...map.values()];
+}
+// Zorgt dat er per medewerker+dag maximaal één markering staat en dat een
+// enkel projectblok automatisch als eerste geldt. Geeft de (aangevulde) opslaglijst terug.
+function normalizeFirstOfDay(all:AvailEntry[],entries:AvailEntry[],removeIds:string[]=[]):AvailEntry[]{
+  const merged=mergeRows(all,entries,removeIds);
+  const out=new Map(entries.map(e=>[e.id,e]));
+  groupKeys([...entries,...all.filter(a=>removeIds.includes(a.id))]).forEach(k=>{
+    const [empId,date]=k.split("|");
+    const rows=dayPlanRows(merged,empId,date);
+    if(!rows.length)return;
+    const marked=rows.find(r=>r.isFirstOfDay);
+    const want=marked?marked.id:(rows.length===1?rows[0].id:null);
+    rows.forEach(r=>{
+      const should=r.id===want;
+      if(!!r.isFirstOfDay===should)return;
+      out.set(r.id,{...(out.get(r.id)||r),isFirstOfDay:should});
+    });
+  });
+  return [...out.values()];
+}
+// Zoekt een dag waar het gemarkeerde project niet langer als eerste begint.
+function firstStartMismatch(all:AvailEntry[],entries:AvailEntry[],removeIds:string[]=[]):{rows:AvailEntry[];target:AvailEntry}|null{
+  const merged=mergeRows(all,entries,removeIds);
+  for(const k of groupKeys(entries)){
+    const [empId,date]=k.split("|");
+    const rows=dayPlanRows(merged,empId,date);
+    if(rows.length<2)continue;
+    const marked=rows.find(r=>r.isFirstOfDay);
+    if(!marked)continue;
+    const earliest=[...rows].sort((a,b)=>a.startTime.localeCompare(b.startTime))[0];
+    if(earliest.id!==marked.id&&earliest.startTime<marked.startTime)return {rows,target:earliest};
+  }
+  return null;
+}
+// Zet de markering op één regel en hernummert de dag.
+function applyFirstOfDay(rows:AvailEntry[],targetId:string|null):AvailEntry[]{
+  const rest=rows.filter(r=>r.id!==targetId).sort(byVolgorde);
+  const order=targetId?[...rows.filter(r=>r.id===targetId),...rest]:rest;
+  return order.map((r,idx)=>({...r,volgorde:idx,isFirstOfDay:!!targetId&&idx===0}));
+}
 // Volledige dagafwezigheid: kleurt de celrand
 function dayBlockState(av:AvailEntry[],empId:string,date:string):AvailStatus|null{
   const rows=av.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===date&&ABSENCE_STATS.includes(a.status));
@@ -1365,7 +1420,7 @@ function ProjectDetail({project,employees,availability=[],teamColors={},onEdit,o
               <p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p>
               <p className="text-xs text-[#6B7A99]">{e.functie}</p>
               {rows.length>0&&<div className="mt-1 space-y-0.5">
-                {rows.map(r=><p key={r.id} className="text-xs text-[#6B7A99] font-mono">{fmtDate(r.date)} · {r.startTime}–{r.endTime}</p>)}
+                {rows.map(r=><p key={r.id} className="text-xs text-[#6B7A99] font-mono flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
               </div>}
             </div>
             <DeptBadge afd={e.afdeling}/>
@@ -2251,6 +2306,7 @@ function AgendaView({projects,employees,availability,teamColors={},statusColors=
       const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
       agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
+        eersteVanDag:rs.some(r=>r.isFirstOfDay),
         teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
     });
   });
@@ -2611,7 +2667,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     setCellMenu({empId,date,x:ev.clientX,y:ev.clientY,startTime:block?.startTime,endTime:block?.endTime,block});
   };
   const [teamChoice,setTeamChoice]=useState<{block:AvailEntry;empId:string;date:string;teamRows:AvailEntry[]}|null>(null);
-  const [overlapAsk,setOverlapAsk]=useState<{entries:AvailEntry[];warnings:PlanConflict[];removeIds?:string[]}|null>(null);
+  const [overlapAsk,setOverlapAsk]=useState<{entries:AvailEntry[];warnings:PlanConflict[];removeIds?:string[];checkFirst?:boolean}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
@@ -2672,18 +2728,30 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const base=availability.filter(a=>!ids.includes(a.id));
     return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
   };
-  const commitPlanning=async(entries:AvailEntry[],removeIds?:string[])=>{
-    const ok=removeIds&&removeIds.length?await onResizePlanning(entries,removeIds):await onSaveManyPlanning(entries);
-    if(!ok)toast.error("Opslaan mislukt — de planning blijft ongewijzigd.");
+  const commitPlanning=async(entries:AvailEntry[],removeIds?:string[],checkFirst=false)=>{
+    const rem=removeIds||[];
+    const list=normalizeFirstOfDay(availability,entries,rem);
+    const ok=rem.length?await onResizePlanning(list,rem):await onSaveManyPlanning(list);
+    if(!ok){toast.error("Opslaan mislukt — de planning blijft ongewijzigd.");return ok;}
+    if(checkFirst){
+      const m=firstStartMismatch(availability,list,rem);
+      if(m)setFirstAsk({kind:"start",rows:m.rows,target:m.target});
+    }
     return ok;
   };
-  const tryCommit=async(entries:AvailEntry[],removeIds:string[]=[])=>{
+  const tryCommit=async(entries:AvailEntry[],removeIds:string[]=[],checkFirst=false)=>{
     const c=evaluate(entries,removeIds);
     const b=blockingOnly(c);
     if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return;}
     const w=warningsOnly(c);
-    if(w.length){setOverlapAsk({entries,warnings:w,removeIds});return;}
-    await commitPlanning(entries,removeIds);
+    if(w.length){setOverlapAsk({entries,warnings:w,removeIds,checkFirst});return;}
+    await commitPlanning(entries,removeIds,checkFirst);
+  };
+  // "Als eerste uitvoeren" markeren of juist weghalen
+  const [firstAsk,setFirstAsk]=useState<{kind:"start"|"reorder";rows:AvailEntry[];target:AvailEntry;fallback?:AvailEntry[]}|null>(null);
+  const markFirstOfDay=async(row:AvailEntry,on:boolean)=>{
+    const rows=dayPlanRows(availability,row.employeeId,row.date);
+    await commitPlanning(applyFirstOfDay(rows,on?row.id:null));
   };
 
   // ===== Blokken doortrekken (resize) =====
@@ -2712,7 +2780,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         if(seen.has(key))return;seen.add(key);
         const ex=rows.find(r=>r.date===d);
         ups.push({...(ex||row),id:ex?ex.id:"plan-"+nid(),employeeId:row.employeeId,date:d,startTime:row.startTime,
-          endTime,status:"Ingepland",projectId:row.projectId,teamId:row.teamId,reeksId:span.length>1?reeks:row.reeksId,note:row.note});
+          endTime,status:"Ingepland",projectId:row.projectId,teamId:row.teamId,reeksId:span.length>1?reeks:row.reeksId,note:row.note,
+          // Nieuwe dagen in de reeks nemen de markering niet mee
+          isFirstOfDay:ex?ex.isFirstOfDay:false,volgorde:ex?ex.volgorde:undefined});
       });
       rows.filter(r=>!span.includes(r.date)).forEach(r=>rem.push(r.id));
     });
@@ -2720,7 +2790,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   };
   const commitResize=async(baseRows:AvailEntry[],patch:{endTime?:string;endDate?:string})=>{
     const {ups,rem}=buildResize(baseRows,patch);
-    await tryCommit(ups,rem);
+    await tryCommit(ups,rem,true);
   };
   const applyResize=async(block:AvailEntry,patch:{endTime?:string;endDate?:string})=>{
     if(!block.projectId){
@@ -2787,12 +2857,20 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const j=i+dir;
     if(i<0||j<0||j>=list.length)return;
     const next=[...list];[next[i],next[j]]=[next[j],next[i]];
-    await commitPlanning(next.map((r,idx)=>({...r,volgorde:idx})));
+    // Alleen de bovenste regel kan de markering houden; wie zakt verliest hem.
+    const renum=next.map((r,idx)=>({...r,volgorde:idx,isFirstOfDay:idx===0?!!r.isFirstOfDay:false}));
+    if(renum[0].id===row.id&&!row.isFirstOfDay){
+      setFirstAsk({kind:"reorder",rows:renum,target:renum[0],fallback:renum});
+      return;
+    }
+    await commitPlanning(renum);
   };
 
   const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
-    await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds})));
+    // Bij verplaatsen naar een andere dag/medewerker vervalt de markering; de nieuwe dag wordt genormaliseerd.
+    await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true);
   };
+
 
   const dropOnCell=async(empId:string,ds:string)=>{
     const block=dragBlock;const pid=dragProject;
@@ -2801,14 +2879,25 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       if(block.employeeId===empId&&block.date===ds)return;
       const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
       if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
-      await tryCommit([{...block,employeeId:empId,date:ds}]);
+      await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true);
       return;
     }
     if(!pid)return;
     const p=projects.find(x=>x.id===pid);if(!p)return;
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
-    await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}]);
+    await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
   };
+
+  // Planning verwijderen: de dag hernummeren en zo nodig het volgende project promoveren
+  const deletePlanRow=async(b:AvailEntry)=>{
+    const rest=b.projectId?dayPlanRows(availability,b.employeeId,b.date).filter(r=>r.id!==b.id):[];
+    await onDeletePlanning(b.id);
+    if(!rest.length)return;
+    const keep=rest.find(r=>r.isFirstOfDay);
+    const target=keep?keep.id:((b.isFirstOfDay||rest.length===1)?rest[0].id:null);
+    await onSaveManyPlanning(applyFirstOfDay(rest,target));
+  };
+
 
   // Snelmenu op een cel: direct een afwezigheidsstatus zetten of inplannen
   const quickStatus=async(empId:string,ds:string,status:AvailStatus)=>{
@@ -2909,6 +2998,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
                   className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?openEditAbsence(b):openPlan(e.id,ds)}>
+                  {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
@@ -2968,8 +3058,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                 </div>)}
                 {ps.map(({row,proj},bi)=><div key={row.id} className="group relative">
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
-                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
-                    {proj.projectnaam.slice(0,4)+".."}
+                  onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
+                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                    {row.isFirstOfDay&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
+                    <span className="truncate">{proj.projectnaam.slice(0,4)+".."}</span>
                   </button>
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
                     <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
@@ -3041,7 +3133,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
+              <p className="text-sm font-semibold text-[#1A2744] truncate flex items-center gap-1.5">
+                {p.werknummer} – {p.projectnaam}
+                {planRows(availability).some(a=>a.projectId===p.id&&a.isFirstOfDay)&&<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#FDF2E2] text-[#B4761F] text-[10px] font-semibold flex-shrink-0"><Star className="w-2.5 h-2.5" fill="currentColor"/>Eerste</span>}
+              </p>
               <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
             </div>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${rest===0?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>
@@ -3073,12 +3168,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {projMenu&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
-      onSave={async e=>{await onSavePlanning(e);setProjMenu(null);}} onClose={()=>setProjMenu(null)}/>}
+      onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
     {planModal&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
       projectId={planModal.projectId} editId={planModal.editId}
-      onSave={async e=>{await onSavePlanning(e);setPlanModal(null);}}
-      onDelete={async id=>{await onDeletePlanning(id);setPlanModal(null);}}
+      onSave={async e=>{
+        const prev=availability.find(a=>a.id===e.id);
+        // Bij bewerken blijven volgorde en markering behouden; bij een andere dag/medewerker vervallen ze
+        const same=prev&&prev.employeeId===e.employeeId&&prev.date===e.date;
+        setPlanModal(null);
+        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId}],undefined,true);
+      }}
+      onDelete={async id=>{const b=availability.find(a=>a.id===id);setPlanModal(null);if(b)await deletePlanRow(b);else await onDeletePlanning(id);}}
       onClose={()=>setPlanModal(null)}/>}
     {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
@@ -3098,9 +3199,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         style={{left:Math.max(8,Math.min(cellMenu.x,window.innerWidth-200)),top:Math.max(8,Math.min(cellMenu.y,window.innerHeight-menuH-8))}}>
         <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
         {cellMenu.block&&<>
+          {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
+            <Star className="w-3.5 h-3.5 text-[#F2A65A]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
+          </button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else openEditAbsence(b);}}>Bewerken…</button>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await onDeletePlanning(b.id);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
         </>}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");}}>Project inplannen…</button>
@@ -3132,7 +3236,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setOverlapAsk(null)}>Annuleren</Btn>
-          <Btn onClick={async()=>{const o=overlapAsk;setOverlapAsk(null);await commitPlanning(o.entries,o.removeIds);}}>Planning toch opslaan</Btn>
+          <Btn onClick={async()=>{const o=overlapAsk;setOverlapAsk(null);await commitPlanning(o.entries,o.removeIds,o.checkFirst);}}>Planning toch opslaan</Btn>
+        </div>
+      </div>
+    </Modal>}
+
+    {/* Als eerste uitvoeren: bevestiging */}
+    {firstAsk&&<Modal title="Als eerste uitvoeren" onClose={()=>setFirstAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">{firstAsk.kind==="start"
+          ?"Er is nu een project dat eerder begint. Wilt u dit project automatisch als eerste uitvoeren markeren?"
+          :"Dit project als eerste uitvoeren?"}</p>
+        <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
+          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Project"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={async()=>{const f=firstAsk;setFirstAsk(null);if(f.kind==="reorder"&&f.fallback)await commitPlanning(f.fallback);}}>Nee</Btn>
+          <Btn onClick={async()=>{const f=firstAsk;setFirstAsk(null);await commitPlanning(applyFirstOfDay(f.rows,f.target.id));}}>Ja</Btn>
         </div>
       </div>
     </Modal>}
