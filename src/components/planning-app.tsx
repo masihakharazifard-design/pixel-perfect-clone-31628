@@ -2344,7 +2344,11 @@ function PlanEmployeeModal({employees,projects,availability,empId,date,startTime
       (p.projectnaam||"").toLowerCase().includes(s)||(p.werkzaamheden||"").toLowerCase().includes(s);
   }).slice(0,20);
   const conflicts=sel?findConflicts(availability,employees,projects,emp,d,st,et,editId):[];
-  const canSave=!!sel&&!!emp&&!!d&&st<et&&conflicts.length===0&&!busy;
+  const blockers=blockingOnly(conflicts);
+  const warnings=warningsOnly(conflicts);
+  const [confirmed,setConfirmed]=useState(false);
+  const needsConfirm=warnings.length>0&&!confirmed;
+  const canSave=!!sel&&!!emp&&!!d&&st<et&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
