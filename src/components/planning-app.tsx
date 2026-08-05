@@ -9,6 +9,7 @@ import {
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
 import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META } from "@/lib/planning-store";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
