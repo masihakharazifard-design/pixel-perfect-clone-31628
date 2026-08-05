@@ -2957,14 +2957,14 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // ===== Projecten in deze periode =====
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
-  const periodProjects=projects.filter(p=>{
+  const periodProjects=visProjects.filter(p=>{
     if(!validDate(p.startdatum))return false;
     const s=new Date(p.startdatum);s.setHours(0,0,0,0);
     const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
     const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
-    if(activeAfds.length&&!getAllAfds(p).some(a=>activeAfds.includes(a)))return false;
     return s<=pe&&e>=ps;
   }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
+
   // Openstaande projecten: prioriteit op startdatum, met "nog in te plannen" per project
   const openProjects=periodProjects.map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
