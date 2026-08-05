@@ -3099,6 +3099,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
         {cellMenu.block&&<>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else openEditAbsence(b);}}>Bewerken…</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await onDeletePlanning(b.id);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
         </>}
