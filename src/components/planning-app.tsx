@@ -2279,8 +2279,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,availability,teamColors={},updateProject,onOpenProject,onCreateProject}:{
-  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;
+function AgendaView({projects,employees,availability,updateProject,onOpenProject,onCreateProject}:{
+  projects:Project[];employees:Employee[];availability:AvailEntry[];
   updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
 }){
