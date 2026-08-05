@@ -12,6 +12,7 @@ Nieuw gedrag:
 - Zodra de status van een project in Projecten of via de statuscel op **Afgerond** wordt gezet, verdwijnt het direct uit de lijst en worden de aantallen herberekend.
 - De badge **Eerste** (⭐) verdwijnt uit deze lijst. De markering "Als eerste uitvoeren" blijft in Personeelsplanning, Agenda en Projectdetails ongewijzigd.
 - Sorteervolgorde blijft: nog in te plannen eerst, daarna op startdatum.
+- De lijst en de badge worden realtime herberekend uit de actuele planningregels, dus direct na: een statuswijziging, een medewerker inplannen, een planning verwijderen, of een wijziging van het aantal benodigde medewerkers.
 
 Opmerking: de app kent op dit moment de statussen Offerte, Bevestigd, In uitvoering, Afgerond en Gefactureerd — er is geen status "Geannuleerd". Ik filter daarom op Afgerond en Gefactureerd; als er echt een status Geannuleerd moet komen, kan dat later apart.
 
@@ -26,7 +27,12 @@ Bij slepen van een blok dat op die dag bij een team hoort (zelfde project, zelfd
 Nieuw:
 - **Hele team verplaatsen** wordt de primaire, vooraf gekozen actie (Enter/hoofdknop).
 - **Alleen deze medewerker verplaatsen** blijft beschikbaar als secundaire keuze.
-- Bij het gezamenlijk verplaatsen blijven `teamId`, teamkleur en `reeksId` behouden; datum, planning van alle teamleden, Agenda, Beschikbaarheid, Projectdetails en de afgeleide projectperiode worden zoals nu automatisch bijgewerkt.
+- Bij het gezamenlijk verplaatsen blijven `teamId`, `reeksId` en teamkleur behouden; automatisch bijgewerkt worden: planning van alle teamleden, Agenda, Personeelsplanning, Beschikbaarheid, Projectdetails, Dashboard, projectperiode, Openstaande projecten, planningsstatus en badges.
+
+## 3b. Vaste synchronisatievolgorde
+
+Elke wijziging (planning, status, teamverplaatsing, kleurwijziging) volgt dezelfde volgorde: opslaan in de database → bevestiging → centrale data opnieuw laden → alle schermen tegelijk verversen vanuit diezelfde dataset. Zo kunnen Personeelsplanning, Agenda, Dashboard, Projectdetails en Openstaande projecten nooit uiteenlopen.
+
 
 ## 4. Ziek wordt grijs
 
@@ -39,7 +45,7 @@ Het venster krijgt alle kleurgroepen op één plek, elk met kleurkiezer en live 
 - Afdelingen, Filters, Teams, Projecten (bestaand, blijft).
 - Nieuw: Dagranden (rand hele dag afwezig) en Badges (planningsstatussen Niet/Gedeeltelijk/Volledig ingepland).
 
-Per kleur: kleurkiezer, live voorbeeld en **Standaard herstellen**. Onderin **Opslaan** (alles) en **Alles standaard herstellen**. Opslaan schrijft naar de bestaande instellingen in de database, zodat de kleuren na een refresh behouden blijven en direct doorwerken in Personeelsplanning, Agenda, Projectdetails, Openstaande projecten, legenda en dashboard. Nergens komen hardcoded of pagina-eigen kleuren terug.
+Per kleurgroep: kleurkiezer, live voorbeeld en **Standaard herstellen**. Onderin **Opslaan** en **Alles standaard herstellen**. Opslaan schrijft naar de bestaande instellingen in de database; na opslaan zijn de kleuren direct zichtbaar in Personeelsplanning, Agenda, Projectdetails, Openstaande projecten, Dashboard, legenda, dagranden, badges, teamkleuren en afwezigheidsblokken, en blijven ze na een refresh behouden. Resterende hardcoded statuskleuren in componenten worden vervangen door lezingen uit de centrale instellingen.
 
 ## Technische details
 
