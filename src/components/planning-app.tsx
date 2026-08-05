@@ -2559,7 +2559,16 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
   const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
   const [showPlanned,setShowPlanned]=useState(false);
-  const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number}|null>(null);
+  const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number;startTime?:string;endTime?:string;block?:AvailEntry}|null>(null);
+  const menuRef=useRef<HTMLDivElement|null>(null);
+  const [menuH,setMenuH]=useState(260);
+  useEffect(()=>{if(!cellMenu)return;const el=menuRef.current;if(el)setMenuH(el.offsetHeight);
+    const onKey=(ev:KeyboardEvent)=>{if(ev.key==="Escape")setCellMenu(null);};
+    window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);},[cellMenu]);
+  const openCellMenu=(ev:React.MouseEvent,empId:string,date:string,block?:AvailEntry)=>{
+    ev.preventDefault();ev.stopPropagation();
+    setCellMenu({empId,date,x:ev.clientX,y:ev.clientY,startTime:block?.startTime,endTime:block?.endTime,block});
+  };
   const [teamChoice,setTeamChoice]=useState<{block:AvailEntry;empId:string;date:string;teamRows:AvailEntry[]}|null>(null);
   const [overlapAsk,setOverlapAsk]=useState<{entries:AvailEntry[];warnings:PlanConflict[]}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
@@ -2752,17 +2761,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
-        return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+        return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
             <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
           </div>
           {blocks.length===0
-            ?<button onClick={()=>openPlan(e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
+            ?<button onClick={()=>openPlan(e.id,ds)} onContextMenu={ev=>openCellMenu(ev,e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
             :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
+                  onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
                   className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?openEditAbsence(b):openPlan(e.id,ds)}>
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
@@ -2936,10 +2946,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {/* Snelmenu op een cel */}
     {cellMenu&&<>
       <div className="fixed inset-0 z-40" onClick={()=>setCellMenu(null)} onContextMenu={ev=>{ev.preventDefault();setCellMenu(null);}}/>
-      <div className="fixed z-50 bg-white rounded-xl border border-[rgba(26,39,68,0.12)] shadow-lg py-1 text-xs min-w-44"
-        style={{left:Math.min(cellMenu.x,window.innerWidth-200),top:Math.min(cellMenu.y,window.innerHeight-260)}}>
-        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}</p>
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date);}}>Project inplannen…</button>
+      <div ref={menuRef} className="fixed z-50 bg-white rounded-xl border border-[rgba(26,39,68,0.12)] shadow-lg py-1 text-xs min-w-44"
+        style={{left:Math.max(8,Math.min(cellMenu.x,window.innerWidth-200)),top:Math.max(8,Math.min(cellMenu.y,window.innerHeight-menuH-8))}}>
+        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
+        {cellMenu.block&&<>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else openEditAbsence(b);}}>Bewerken…</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await onDeletePlanning(b.id);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
+          <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
+        </>}
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");}}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s} (hele dag)
         </button>)}
