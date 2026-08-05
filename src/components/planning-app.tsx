@@ -315,7 +315,8 @@ function normalizeFirstOfDay(all:AvailEntry[],entries:AvailEntry[],removeIds:str
     const rows=dayPlanRows(merged,empId,date);
     if(!rows.length)return;
     const marked=rows.find(r=>r.isFirstOfDay);
-    const want=marked?marked.id:(rows.length===1?rows[0].id:null);
+    // Nooit automatisch markeren: alleen een bewuste keuze van de gebruiker zet de ster.
+    const want=marked?marked.id:null;
     rows.forEach(r=>{
       const should=r.id===want;
       if(!!r.isFirstOfDay===should)return;
