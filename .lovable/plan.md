@@ -2,7 +2,7 @@
 
 ## 1. Openstaande projecten: alleen weg bij status "Afgerond"
 
-De zichtbaarheid wordt meteen definitief doorgevoerd, zonder eerst onderzoek:
+De zichtbaarheid wordt meteen definitief doorgevoerd:
 
 ```
 const openProjects = visProjects.filter(project =>
@@ -20,15 +20,17 @@ Wat ik in de code al heb vastgesteld:
   `setOpenProjects`, geen `filter(p => p.id !== draggedProjectId)` en geen optimistische
   verwijdering. Die blijven zo.
 
-Extra controle en zo nodig correctie: `applyDerivedDates` en alle opslagfuncties
-(`savePlanning`, `savePlanningMany`, `savePlanningResize`, `deletePlanning`) mogen bij het
-afleiden van projectdatums uitsluitend `startdatum`, `afloopdatum` en `medewerkers` raken —
-nooit `status`, `afdeling`, `afdelingen`, `projectId` of zichtbaarheid. Ik leg dat vast door
-alleen die drie velden expliciet te overschrijven op een spread van het bestaande project.
+### Projectrecord blijft ongemoeid
 
-Na drag & drop wordt alleen de planningregel opgeslagen; het projectrecord blijft verder
-ongewijzigd. Daarna herladen en enkel badge (Niet/Gedeeltelijk/Volledig ingepland) en
-aantallen herberekenen.
+`applyDerivedDates` past uitsluitend `startdatum` en `afloopdatum` aan. Het veld
+`projects.data.medewerkers` wordt niet meer bijgewerkt en is geen bron van waarheid; de
+ingeplande medewerkers worden altijd dynamisch afgeleid uit de `availability`-planningregels
+met hetzelfde `projectId` (zoals `assignedEmpIds` nu al doet in de weergave).
+
+Alle overige projectgegevens blijven ongewijzigd: status, afdeling, afdelingen, calculator,
+werkzaamheden, projectnummer, werknummer, opdrachtgever. Na drag & drop of resize wordt alleen
+de planning opgeslagen; het project krijgt hooguit nieuwe datums wanneer de bestaande
+planningsregels dat voorschrijven.
 
 ## 2. Doorgetrokken project: één kleur, één doorlopende balk
 
@@ -39,25 +41,32 @@ krijgt een andere kleur.
 Nieuwe kleurbepaling, in deze volgorde:
 
 1. opgeslagen teamkleur via `teamId`;
-2. opgeslagen projectkleur (`projectColors[projectId]`);
-3. stabiele fallback uitsluitend op `projectId`.
+2. opgeslagen projectkleur via `projectId`;
+3. stabiele fallbackkleur uitsluitend op `projectId`.
 
-Datum, availability-id en rij-index maken nooit deel uit van de kleursleutel. Resizen of
-doortrekken wijzigt de kleur nooit; `projectId`, `reeksId` en `teamId` blijven behouden op
-alle gekoppelde dagregels. Projecten met meerdere afdelingskleuren houden dezelfde
-split/gestreepte weergave over de hele periode.
+Datum, rij-index en availability-record-id worden nooit gebruikt om kleur te bepalen. Resizen
+of doortrekken wijzigt de kleur nooit; `projectId`, `reeksId` en `teamId` blijven behouden.
+Projecten met meerdere afdelingskleuren houden dezelfde split/gestreepte weergave over de
+hele periode.
 
-Weergave als één reeks:
+### Veilig groeperen
 
-- Groeperen op medewerkerId + projectId + reeksId + teamId (indien aanwezig) + aaneengesloten
-  datums.
+- Met `reeksId`: groeperen op medewerkerId + projectId + reeksId + teamId (indien aanwezig) +
+  aaneengesloten datums.
+- Zonder `reeksId`: regels worden **niet** automatisch samengevoegd, ook niet als project,
+  medewerker en datums aansluiten.
+- Combineren zonder `reeksId` mag alleen als aantoonbaar dezelfde doortrekactie geldt:
+  gelijke medewerker, project, team én exact gelijke begin- en eindtijd.
+- Bij twijfel blijft elke regel een afzonderlijk blok; het unieke planningrecord-id is de
+  fallback-groepssleutel, zodat losse handmatige planningen nooit één balk worden.
+
+### Weergave
+
 - De reeks wordt bij voorkeur als één balk over een CSS Grid getekend dat over de
-  opeenvolgende dagkolommen van de weekweergave loopt (grid-column start/eind = dagindex),
-  in plaats van losse blokken met negatieve marges.
-- Past één gridbalk technisch niet binnen de bestaande tabelstructuur, dan losse
-  dagsegmenten die visueel naadloos aansluiten: ronding links op de eerste dag, rechte
-  aansluitende randen in het midden, ronding rechts op de laatste dag, geen zichtbare gaten,
-  en altijd exact dezelfde opgeslagen kleur.
+  opeenvolgende dagkolommen van de weekweergave loopt (grid-column start/eind = dagindex).
+- Past dat technisch niet in de bestaande tabel, dan naadloos aansluitende dagsegmenten:
+  ronding links op de eerste dag, rechte randen in het midden, ronding rechts op de laatste
+  dag, geen zichtbare gaten, altijd dezelfde opgeslagen kleur.
 - Zelfde hoogte, achtergrond, rand en tekststijl over de hele reeks; label alleen op de
   eerste dag. De resize-handle blijft op de laatste dag van de reeks.
 
@@ -66,11 +75,13 @@ Weergave als één reeks:
 Alles in `src/components/planning-app.tsx`:
 
 - `openProjects` (~2992): conditie terug naar alleen `status !== "afgerond"`.
-- `applyDerivedDates` (~3685) en de opslagfuncties: expliciet alleen datums + medewerkers
-  overschrijven, overige projectvelden onaangeroerd.
-- `rowColor` (~2745): datum-onafhankelijke kleursleutel volgens de drietrapsvolgorde hierboven.
-- Weekweergave (~3115-3145): reeksberekening per medewerkerrij, celinhoud rendert een
-  grid-overlay per reeks (of naadloze dagsegmenten als fallback).
+- `applyDerivedDates` (~3685): alleen `startdatum` en `afloopdatum` overschrijven, geen
+  `medewerkers` meer; opslagfuncties (`savePlanning`, `savePlanningMany`,
+  `savePlanningResize`, `deletePlanning`) raken verder geen projectvelden.
+- `viewProjects` blijft de medewerkers dynamisch afleiden uit `availability`.
+- `rowColor` (~2745): datum-onafhankelijke kleursleutel volgens de drietrapsvolgorde.
+- Weekweergave (~3115-3145): reeksberekening per medewerkerrij met bovenstaande
+  groeperingsregels, daarna grid-overlay per reeks (of naadloze dagsegmenten als fallback).
 - Geen wijzigingen aan database, agenda, projectenpagina of overige functies.
 
 ## Test
@@ -78,4 +89,5 @@ Alles in `src/components/planning-app.tsx`:
 Slepen naar medewerker, tweede medewerker toevoegen, volledig inplannen, naar andere datum
 verplaatsen: project blijft steeds in Openstaande projecten. Status op Afgerond: verdwijnt.
 Project van één naar vier dagen doortrekken: identieke kleur, één doorlopende balk zonder
-gaten; na refresh onveranderd.
+gaten. Twee losse handmatige planningen op opeenvolgende dagen blijven twee blokken. Na
+refresh onveranderd.
