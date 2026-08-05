@@ -3057,24 +3057,50 @@ export default function PlanningApp(){
   const deleteProject=(id:string)=>{setProjects(prev=>prev.filter(p=>p.id!==id));setAvail(prev=>prev.filter(a=>a.projectId!==id));if(detailProject?.id===id)setDetailProject(null);};
   const saveProject=(p:Project)=>{
     if(projects.find(x=>x.id===p.id))updateProject(p.id,p);else addProject(p);
-    setAvail(prev=>{
-      const withoutAuto=prev.filter(a=>a.projectId!==p.id);
-      const newBlocks:AvailEntry[]=[];
-      const projStartD=new Date(p.startdatum);const projEndD=new Date(p.afloopdatum);
-      const startH=projStartD.getHours();const startM=projStartD.getMinutes();
-      const endH=projEndD.getHours();const endM=projEndD.getMinutes();
-      p.medewerkers.forEach(empId=>{
-        const dates=getDatesInRange(projStartD,projEndD);
-        dates.forEach((ds,i)=>{
-          const st=i===0?fmtHM(startH||8,startM):"08:00";
-          const et=i===dates.length-1?fmtHM(endH||17,endM):"17:00";
-          newBlocks.push({id:`auto-${p.id}-${empId}-${ds}`,employeeId:empId,date:ds,startTime:st,endTime:et,status:"Ingepland",note:p.projectnaam,projectId:p.id});
-        });
-      });
-      return [...withoutAuto,...newBlocks];
-    });
     setEditProject(null);setIsNewProject(false);
   };
+
+  // ===== PLANNINGREGELS = enige bron van waarheid =====
+  // Projecten krijgen hun medewerkers en periode uit de planningregels.
+  const viewProjects=useMemo(()=>projects.map(p=>{
+    const rows=projectPlans(avail,p.id);
+    if(!rows.length)return p;
+    const per=planPeriod(rows);
+    return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
+  }),[projects,avail]);
+
+  const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
+    const rows=projectPlans(nextAvail,projectId);
+    const per=planPeriod(rows);
+    if(!per)return projects; // laatste planning verwijderd: datums bewust behouden
+    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end,medewerkers:assignedEmpIds(nextAvail,projectId)}:p);
+  };
+
+  const savePlanning=async(entry:AvailEntry)=>{
+    const exists=avail.some(a=>a.id===entry.id);
+    const nextAvail=exists?avail.map(a=>a.id===entry.id?entry:a):[...avail,entry];
+    const nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
+      toast.success("Planning opgeslagen.");
+    }catch{toast.error("Planning kon niet worden opgeslagen.");}
+  };
+
+  const deletePlanning=async(id:string)=>{
+    const row=avail.find(a=>a.id===id);
+    const nextAvail=avail.filter(a=>a.id!==id);
+    const pid=row?.projectId;
+    const rest=pid?projectPlans(nextAvail,pid):[];
+    const nextProjects=pid?applyDerivedDates(nextAvail,pid):projects;
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
+      if(pid&&rest.length===0)toast.info("Laatste planning verwijderd — de projectdatums blijven staan tot je ze zelf aanpast.");
+      else toast.success("Planning verwijderd.");
+    }catch{toast.error("Planning kon niet worden verwijderd.");}
+  };
+
 
   const handleImport=async(rows:ImportRow[])=>{
     const createProjectFromImportRow=(r:ImportRow):Project=>{
