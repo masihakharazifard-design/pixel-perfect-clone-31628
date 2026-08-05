@@ -84,7 +84,7 @@ const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
   Bezet:              {bg:"#FFE4E6",text:"#9F1239",dot:"#F43F5E"},
   "Niet beschikbaar": {bg:"#FEE2E2",text:"#991B1B",dot:"#EF4444"},
   Vakantie:           {bg:"#EDE9FE",text:"#5B21B6",dot:"#8B5CF6"},
-  Ziek:               {bg:"#FEF3C7",text:"#92400E",dot:"#F59E0B"},
+  Ziek:               {bg:"#F1F3F6",text:"#374151",dot:"#6B7280"},
   Vrij:               {bg:"#F3F4F6",text:"#374151",dot:"#9CA3AF"},
 };
 const DUTCH_HOL = [
