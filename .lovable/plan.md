@@ -45,7 +45,7 @@ Het venster krijgt alle kleurgroepen op één plek, elk met kleurkiezer en live 
 - Afdelingen, Filters, Teams, Projecten (bestaand, blijft).
 - Nieuw: Dagranden (rand hele dag afwezig) en Badges (planningsstatussen Niet/Gedeeltelijk/Volledig ingepland).
 
-Per kleur: kleurkiezer, live voorbeeld en **Standaard herstellen**. Onderin **Opslaan** (alles) en **Alles standaard herstellen**. Opslaan schrijft naar de bestaande instellingen in de database, zodat de kleuren na een refresh behouden blijven en direct doorwerken in Personeelsplanning, Agenda, Projectdetails, Openstaande projecten, legenda en dashboard. Nergens komen hardcoded of pagina-eigen kleuren terug.
+Per kleurgroep: kleurkiezer, live voorbeeld en **Standaard herstellen**. Onderin **Opslaan** en **Alles standaard herstellen**. Opslaan schrijft naar de bestaande instellingen in de database; na opslaan zijn de kleuren direct zichtbaar in Personeelsplanning, Agenda, Projectdetails, Openstaande projecten, Dashboard, legenda, dagranden, badges, teamkleuren en afwezigheidsblokken, en blijven ze na een refresh behouden. Resterende hardcoded statuskleuren in componenten worden vervangen door lezingen uit de centrale instellingen.
 
 ## Technische details
 
