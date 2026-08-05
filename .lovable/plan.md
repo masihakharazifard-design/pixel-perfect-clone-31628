@@ -35,9 +35,10 @@ Vast blok onderaan Personeelsplanning, los van de zichtbare dag/week/maand/kwart
 
 - Toont alles wat nog gepland moet worden, ook zonder startdatum, zonder medewerker, met status Offerte of buiten de huidige periode.
 - Toont niet: Afgerond, Geannuleerd en volledig ingeplande projecten.
-- Een volledig ingepland project krijgt automatisch de badge "Volledig ingepland" en verdwijnt standaard uit de lijst.
+- Extra kolom **Nog in te plannen** = benodigde medewerkers − ingeplande medewerkers (bijv. 5 − 3 = 2), automatisch berekend uit de planningregels.
+- Is "Nog in te plannen" 0, dan krijgt het project automatisch de status/badge "Volledig ingepland" en verdwijnt het standaard uit de lijst.
 - Boven de lijst komt een schakelaar: ☐ Toon ook volledig ingeplande projecten. Aangezet blijven die projecten zichtbaar, met hun badge, zodat ze later terug te vinden zijn.
-- Per regel: werknummer, projectnaam, werkzaamheden, calculator, afdeling, status, startdatum, benodigde medewerkers, ingeplande medewerkers en planningsstatus (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland).
+- Per regel: werknummer, projectnaam, werkzaamheden, calculator, afdeling, status, startdatum, benodigde medewerkers, ingeplande medewerkers, nog in te plannen en planningsstatus (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland).
 - Zoeken op werknummer, projectnaam, werkzaamheden en calculator. Sorteren op werknummer, afdeling, status en startdatum.
 - Een regel is klikbaar (opent projectdetails), heeft een knop "Inplannen" en kan naar een medewerkerscel in de planning gesleept worden. Direct na plannen verandert de planningsstatus en de badge.
 
