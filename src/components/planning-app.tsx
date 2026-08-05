@@ -1715,7 +1715,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.startdatum)}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.afloopdatum)}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam.split(" ")[0]).filter(Boolean).join(", ")||"-"}</td>
-              <td className="px-3 py-3"><StatusBadge status={p.status}/></td>
+              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
