@@ -2767,9 +2767,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // "Als eerste uitvoeren" markeren of juist weghalen
   const [firstAsk,setFirstAsk]=useState<{kind:"start"|"reorder";rows:AvailEntry[];target:AvailEntry;fallback?:AvailEntry[]}|null>(null);
   const markFirstOfDay=async(row:AvailEntry,on:boolean)=>{
+    if(!canAct(row.projectId,row.employeeId))return;
     const rows=dayPlanRows(availability,row.employeeId,row.date);
     await commitPlanning(applyFirstOfDay(rows,on?row.id:null));
   };
+
 
   // ===== Blokken doortrekken (resize) =====
   const seriesRows=(b:AvailEntry)=>{
