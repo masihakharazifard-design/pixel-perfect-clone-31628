@@ -2258,6 +2258,112 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
   </div>;
 }
 
+// ===== MEDEWERKER INPLANNEN =====
+function PlanEmployeeModal({employees,projects,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+  employees:Employee[];projects:Project[];availability:AvailEntry[];
+  empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
+  onSave:(entry:AvailEntry)=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [emp,setEmp]=useState(empId);
+  const [d,setD]=useState(date);
+  const [st,setSt]=useState(startTime);
+  const [et,setEt]=useState(endTime);
+  const [q,setQ]=useState("");
+  const [sel,setSel]=useState<Project|null>(projectId?projects.find(p=>p.id===projectId)||null:null);
+  const [busy,setBusy]=useState(false);
+  const results=q.trim().length===0?[]:projects.filter(p=>{
+    const s=q.trim().toLowerCase();
+    return (p.werknummer||"").toLowerCase().includes(s)||(p.projectnr||"").toLowerCase().includes(s)||
+      (p.projectnaam||"").toLowerCase().includes(s)||(p.werkzaamheden||"").toLowerCase().includes(s);
+  }).slice(0,20);
+  const conflicts=sel?findConflicts(availability,employees,projects,emp,d,st,et,editId):[];
+  const canSave=!!sel&&!!emp&&!!d&&st<et&&conflicts.length===0&&!busy;
+  const save=async()=>{
+    if(!sel||busy)return;
+    setBusy(true);
+    await onSave({
+      id:editId||("plan-"+nid()),employeeId:emp,date:d,startTime:st,endTime:et,
+      status:"Ingepland",note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
+    });
+    setBusy(false);
+  };
+  return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        <Input label="Datum" value={d} onChange={setD} type="date"/>
+        <div className="grid grid-cols-2 gap-2">
+          <Input label="Begintijd" value={st} onChange={setSt} type="time"/>
+          <Input label="Eindtijd" value={et} onChange={setEt} type="time"/>
+        </div>
+      </div>
+      {!sel?<div>
+        <Input label="Project zoeken" value={q} onChange={setQ} placeholder="Werknummer, projectnaam of werkzaamheden..."/>
+        {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
+          {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
+          {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
+            <p className="text-sm font-semibold text-[#1A2744]">{p.werknummer} – {p.projectnaam}</p>
+            <p className="text-xs text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"}</p>
+          </button>)}
+        </div>}
+      </div>:<div className="border border-[rgba(26,39,68,0.1)] rounded-xl p-4 space-y-2 bg-[#F8F9FC]">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
+            <p className="text-xs text-[#6B7A99]">{sel.werkzaamheden||"Geen omschrijving"}</p>
+          </div>
+          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <div><span className="text-[#6B7A99]">Afdeling</span><p className="font-semibold text-[#1A2744]">{getAllAfds(sel).join(", ")}</p></div>
+          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{plName(sel,employees)||"—"}</p></div>
+          <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
+        </div>
+      </div>}
+      {conflicts.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
+        <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — dubbele planning is niet mogelijk</p>
+        {conflicts.map((c,i)=><p key={i} className="text-xs text-red-700">{c.employee} · {c.label} · {c.time}</p>)}
+      </div>}
+      {st>=et&&<p className="text-xs text-red-600">Eindtijd moet na de begintijd liggen.</p>}
+      <div className="flex justify-between gap-2 pt-1">
+        <div>{editId&&onDelete&&<Btn variant="danger" onClick={async()=>{setBusy(true);await onDelete(editId);setBusy(false);}} disabled={busy}><Trash2 className="w-3.5 h-3.5"/>Planning verwijderen</Btn>}</div>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+          <Btn onClick={save} disabled={!canSave}>{busy?"Opslaan…":"Inplannen"}</Btn>
+        </div>
+      </div>
+    </div>
+  </Modal>;
+}
+
+// ===== FILTERBEHEER =====
+function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSave:(f:PlanFilter[])=>void;onClose:()=>void}){
+  const [list,setList]=useState<PlanFilter[]>(filters.length?filters:DEFAULT_PLAN_FILTERS);
+  const upd=(id:string,u:Partial<PlanFilter>)=>setList(prev=>prev.map(f=>f.id===id?{...f,...u}:f));
+  const move=(i:number,dir:number)=>setList(prev=>{const n=[...prev];const j=i+dir;if(j<0||j>=n.length)return prev;[n[i],n[j]]=[n[j],n[i]];return n;});
+  return <Modal title="Filters beheren" onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-3">
+      {list.map((f,i)=><div key={f.id} className="flex items-center gap-2 border border-[rgba(26,39,68,0.1)] rounded-xl p-2">
+        <input type="color" value={f.kleur} onChange={e=>upd(f.id,{kleur:e.target.value})} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Filterkleur"/>
+        <input value={f.naam} onChange={e=>upd(f.id,{naam:e.target.value})} className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744]"/>
+        <select value={f.afdeling} onChange={e=>upd(f.id,{afdeling:e.target.value})} className="px-2 py-1.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#6B7A99]">
+          <option value="">Alle afdelingen</option>
+          {AFDS.map(a=><option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-lg text-xs font-semibold ${f.actief?"bg-[#E0F7F6] text-[#0ABFB8]":"bg-[#F0F3F8] text-[#B8C3D9]"}`}>{f.actief?"Actief":"Uit"}</button>
+        <button onClick={()=>move(i,-1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omhoog">↑</button>
+        <button onClick={()=>move(i,1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omlaag">↓</button>
+        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#B8C3D9] hover:text-[#FF6B5B]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
+      </div>)}
+      <Btn variant="secondary" size="sm" onClick={()=>setList(prev=>[...prev,{id:"pf"+nid(),naam:"Nieuw filter",kleur:"#0ABFB8",afdeling:"",actief:true}])}><Plus className="w-3.5 h-3.5"/>Filter toevoegen</Btn>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn onClick={()=>{onSave(list);onClose();}}>Opslaan</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
 function PersoneelsplanningView({projects,employees,availability,updateProject,onOpenProject,onVacImport}:{
