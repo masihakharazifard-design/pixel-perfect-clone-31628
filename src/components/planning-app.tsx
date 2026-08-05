@@ -1551,7 +1551,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
           <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Medewerkers vandaag</h3>
-          <button onClick={()=>onNav("beschikbaarheid")} className="text-xs text-[#0ABFB8] hover:underline">Beschikbaarheid</button>
+          <button onClick={()=>onNav("personeelsplanning")} className="text-xs text-[#0ABFB8] hover:underline">Personeelsplanning</button>
         </div>
         <div className="divide-y divide-[rgba(26,39,68,0.05)]">
           {employees.slice(0,6).map(e=>{
