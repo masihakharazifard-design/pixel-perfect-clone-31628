@@ -2366,40 +2366,61 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
 
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
-function PersoneelsplanningView({projects,employees,availability,updateProject,onOpenProject,onVacImport}:{
+function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onOpenProject,onVacImport}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
-  updateProject:(id:string,u:Partial<Project>)=>void;
+  settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
+  onSavePlanning:(e:AvailEntry)=>Promise<void>;onDeletePlanning:(id:string)=>Promise<void>;
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
   const dc=useDC();
   const [view,setView]=useState<PlanView>("week");
   const [refDate,setRefDate]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
-  const [afdFilter,setAfdFilter]=useState<string>("");
-  const visEmp=employees.filter(e=>!afdFilter||e.afdeling===afdFilter);
+  const [showFilters,setShowFilters]=useState(false);
+  const [dragProject,setDragProject]=useState<string|null>(null);
+  const [planModal,setPlanModal]=useState<{empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string}|null>(null);
+  const [projMenu,setProjMenu]=useState<Project|null>(null);
+  const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
+  const teamColors=settings.teamColors||{};
+  const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
+  const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
+  const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
+  const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
-  const getEmpProjsDate=(empId:string,date:Date)=>projects.filter(p=>{const s=new Date(p.startdatum);s.setHours(0,0,0,0);const e=new Date(p.afloopdatum);e.setHours(23,59,59,999);return p.medewerkers.includes(empId)&&s<=date&&e>=date;});
-  const getEmpProjsWeek=(empId:string,wk:Date)=>{const we=new Date(wk);we.setDate(wk.getDate()+6);we.setHours(23,59,59,999);const ws=new Date(wk);ws.setHours(0,0,0,0);return projects.filter(p=>{const s=new Date(p.startdatum);const e=new Date(p.afloopdatum);return p.medewerkers.includes(empId)&&s<=we&&e>=ws;});};
+
+  // Alles komt uit dezelfde planningregels (availability met projectId)
+  const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const getEmpProjsDate=(empId:string,date:Date)=>{
+    const ds=toDateStr(date);
+    return rowsFor(empId,ds).map(a=>({row:a,proj:projects.find(p=>p.id===a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
+  };
+  const getEmpProjsWeek=(empId:string,wk:Date)=>{
+    const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
+    const seen=new Set<string>();const out:Project[]=[];
+    planRows(availability).filter(a=>a.employeeId===empId&&days.includes(a.date)).forEach(a=>{
+      const p=projects.find(x=>x.id===a.projectId);
+      if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
+    });
+    return out;
+  };
+  const rowColor=(a:AvailEntry)=>teamColor(teamKey(a.projectId||"",a.date,teamForDay(availability,a.projectId||"",a.date)),teamColors);
+  const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
+  const openEditPlan=(a:AvailEntry)=>setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});
+  const dropOnCell=async(empId:string,ds:string)=>{
+    const pid=dragProject;setDragProject(null);
+    if(!pid)return;
+    const p=projects.find(x=>x.id===pid);if(!p)return;
+    const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
+    const conflicts=findConflicts(availability,employees,projects,empId,ds,st,et<=st?"17:00":et);
+    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].label} · ${conflicts[0].time}`);return;}
+    await onSavePlanning({id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id});
+  };
 
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    type Block={startTime:string;endTime:string;status:AvailStatus;label:string;proj?:Project};
-    const blocks:Block[]=[];
-    availability.filter(a=>a.employeeId===empId&&a.date===ds).forEach(av=>{
-      const proj=av.projectId?projects.find(p=>p.id===av.projectId):undefined;
-      blocks.push({startTime:av.startTime,endTime:av.endTime,status:av.status,label:proj?`${proj.werknummer} – ${proj.projectnaam}`:av.note||av.status,proj});
-    });
-    projects.forEach(p=>{
-      if(!p.medewerkers.includes(empId))return;
-      const ps=new Date(p.startdatum);ps.setHours(0,0,0,0);const pe=new Date(p.afloopdatum);pe.setHours(23,59,59,999);
-      if(ps>date||pe<date)return;
-      if(blocks.some(b=>b.proj?.id===p.id))return;
-      const psd=new Date(p.startdatum);const ped=new Date(p.afloopdatum);
-      const isFirst=toDateStr(psd)===ds;const isLast=toDateStr(ped)===ds;
-      const st=isFirst?fmtHM(psd.getHours(),psd.getMinutes()):"08:00";
-      const et=isLast?fmtHM(ped.getHours(),ped.getMinutes()):"17:00";
-      blocks.push({startTime:st,endTime:et,status:"Ingepland",label:`${p.werknummer} – ${p.projectnaam}`,proj:p});
-    });
-    return blocks.sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    return availability.filter(a=>a.employeeId===empId&&a.date===ds)
+      .map(av=>({av,proj:av.projectId?projects.find(p=>p.id===av.projectId):undefined}))
+      .sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
   };
 
   const year=refDate.getFullYear(),month=refDate.getMonth();
@@ -2411,6 +2432,30 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
   else{const qStart=new Date(year,quarter*3,1);const qEnd=new Date(year,quarter*3+3,0);const wk=new Date(getWeekDays(qStart)[0]);while(wk<=qEnd){weeks.push(new Date(wk));wk.setDate(wk.getDate()+7);}}
   const wd7=getWeekDays(refDate);
   const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
+
+  // ===== Projecten in deze periode =====
+  const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
+  const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
+  const periodProjects=projects.filter(p=>{
+    if(!validDate(p.startdatum))return false;
+    const s=new Date(p.startdatum);s.setHours(0,0,0,0);
+    const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
+    const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
+    if(activeAfds.length&&!getAllAfds(p).some(a=>activeAfds.includes(a)))return false;
+    return s<=pe&&e>=ps;
+  }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
+  // Teams (unieke combinaties) in deze periode, voor de legenda
+  const teams:{key:string;kleur:string;label:string}[]=[];
+  planRows(availability).forEach(a=>{
+    const d=new Date(a.date);const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
+    if(d<ps||d>pe)return;
+    const ids=teamForDay(availability,a.projectId||"",a.date);
+    if(ids.length<2)return;
+    const key=teamKey(a.projectId||"",a.date,ids);
+    if(teams.some(t=>t.key===key))return;
+    teams.push({key,kleur:teamColor(key,teamColors),label:ids.map(id=>employees.find(e=>e.id===id)?.naam||"?").map(abbrevName).join(" + ")});
+  });
+
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
