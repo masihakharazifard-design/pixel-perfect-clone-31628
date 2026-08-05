@@ -3108,10 +3108,38 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setOverlapAsk(null)}>Annuleren</Btn>
-          <Btn onClick={async()=>{const o=overlapAsk;setOverlapAsk(null);await commitPlanning(o.entries);}}>Planning toch opslaan</Btn>
+          <Btn onClick={async()=>{const o=overlapAsk;setOverlapAsk(null);await commitPlanning(o.entries,o.removeIds);}}>Planning toch opslaan</Btn>
         </div>
       </div>
     </Modal>}
+
+    {/* Buiten werktijd doorplannen */}
+    {lateAsk&&<Modal title="Buiten werktijd" onClose={()=>setLateAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Je trekt dit blok door tot <b>{lateAsk.endTime}</b>, na de standaard werkdag ({WORKDAY_END}).</p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={async()=>{const l=lateAsk;setLateAsk(null);if(l.fallback!==l.block.endTime)await applyResize(l.block,{endTime:l.fallback});}}>Stoppen om {lateAsk.fallback}</Btn>
+          <Btn onClick={async()=>{const l=lateAsk;setLateAsk(null);await applyResize(l.block,{endTime:l.endTime});}}>Doorplannen tot {lateAsk.endTime}</Btn>
+        </div>
+      </div>
+    </Modal>}
+
+    {/* Alleen deze medewerker of het hele team verlengen */}
+    {resizeTeam&&<Modal title="Hele team aanpassen?" onClose={()=>setResizeTeam(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Er staan {resizeTeam.teamRows.length} medewerkers op dit project in dit tijdvak.</p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={async()=>{const r=resizeTeam;setResizeTeam(null);await commitResize([r.block],r.patch);}}>Alleen deze medewerker</Btn>
+          <Btn onClick={async()=>{const r=resizeTeam;setResizeTeam(null);await commitResize(r.teamRows,r.patch);}}>Hele team</Btn>
+        </div>
+      </div>
+    </Modal>}
+
+    {/* Periode aanpassen zonder slepen (kleine cellen / mobiel) */}
+    {periodModal&&<PeriodResizeModal block={periodModal} start={seriesStart(periodModal)} end={seriesEnd(periodModal)}
+      onClose={()=>setPeriodModal(null)}
+      onSave={async(patch)=>{const b=periodModal;setPeriodModal(null);await applyResize(b,patch);}}/>}
+
   </div>;
 }
 
