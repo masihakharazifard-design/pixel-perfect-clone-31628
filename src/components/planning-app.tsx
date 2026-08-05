@@ -1534,10 +1534,35 @@ function ColSelect({value,onChange,options}:{value:string;onChange:(v:string)=>v
   </select>;
 }
 
-function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport}:{
+// Statuscel: direct wijzigen vanuit de projectrij (desktop + mobiel)
+function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>}){
+  const [saving,setSaving]=useState(false);
+  return <div className="relative inline-flex items-center gap-1" onClick={e=>e.stopPropagation()}>
+    <StatusBadge status={project.status}/>
+    <ChevronDown className="w-3 h-3 text-[#B8C3D9] flex-shrink-0"/>
+    {saving&&<span className="text-[10px] text-[#6B7A99] whitespace-nowrap">Opslaan…</span>}
+    <select
+      aria-label="Status wijzigen"
+      value={project.status}
+      disabled={saving}
+      onClick={e=>e.stopPropagation()}
+      onChange={async e=>{
+        const v=e.target.value as ProjectStatus;
+        if(v===project.status||saving)return;
+        setSaving(true);
+        try{await onStatusChange(project,v);}finally{setSaving(false);}
+      }}
+      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait">
+      {STATS.map(s=><option key={s} value={s}>{s}</option>)}
+    </select>
+  </div>;
+}
+
+function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
   onImport:(rows:ImportRow[])=>void;
+  onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
