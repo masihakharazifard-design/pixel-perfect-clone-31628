@@ -1,61 +1,28 @@
-# Personeelsplanning: Bezet, Vakantie en Ziek rechtstreeks plannen
+# Meerdaagse periode voor Bezet, Vakantie en Ziek
 
-Alles blijft in de bestaande Personeelsplanning, op de bestaande availability-gegevens. Geen tweede agenda, geen nieuw ontwerp.
+Alleen de bestaande afwezigheidsfunctie in Personeelsplanning wordt aangevuld. Geen nieuwe menu's, geen verwijderde opties, geen wijziging in kleuren of conflictcontrole.
 
-## Wat er al werkt (blijft staan)
-- Afwezigheidsvenster met medewerker, start-/einddatum, tijden, "hele dagen", notitie en periode-ID voor meerdaagse periodes.
-- Rechtsklik-snelmenu op een dagcel, gekleurde celrand bij een volledig geblokkeerde dag, en conflictcontrole die Bezet/Vakantie/Ziek blokkeert terwijl dubbele projectplanning alleen waarschuwt.
-- Shift-klik om twee cellen te selecteren en daarna een periode afwezigheid te kiezen.
+## Wat er al staat
+Het bestaande venster "Afwezigheid toevoegen / bewerken" heeft al: medewerker, startdatum, einddatum, starttijd, eindtijd, "hele dagen" en notitie. Meerdere dagen worden al opgeslagen als losse regels met hetzelfde periode-ID, en bewerken/verwijderen werkt al op alle regels met dat periode-ID tegelijk.
 
-## 1. "Vrij" verdwijnt voor nieuwe regels
-- "Vrij" wordt verwijderd uit het dagcelmenu, de statuskeuzelijst in het afwezigheidsvenster, de filters, de legenda en het kleurenbeheer.
-- Bestaande regels met "Vrij" blijven bestaan, blijven zichtbaar en blijven blokkerend voor conflictcontrole; bij bewerken wordt de status omgezet naar een van de overgebleven statussen.
-- De Excel-import maakt geen nieuwe "Vrij"-regels meer aan (die rijen worden Bezet).
+## Wat er ontbreekt en wordt toegevoegd
 
-## 2. Dagcelmenu
-Links- én rechtsklik op een cel opent hetzelfde menu:
-- Project inplannen…
-- Bezet
-- Vakantie
-- Ziek
-- Beschikbaar (verwijdert alle afwezigheid op die dag/dat tijdvak)
-- Verwijderen (verwijdert alles in die cel: afwezigheid en projectblokken)
+1. **Bezet en Ziek openen nu op één dag.** Waar het venster vanuit een dagcel of het snelmenu wordt geopend, wordt de einddatum voortaan altijd als apart, vrij invulbaar veld getoond voor Bezet, Vakantie én Ziek — niet alleen bij Vakantie. Zo kun je overal een periode kiezen.
 
-Bezet, Vakantie en Ziek openen direct het afwezigheidsvenster met die status voorgeselecteerd, in plaats van meteen een hele dag weg te schrijven.
+2. **Tijden zijn optioneel.** Starttijd en eindtijd mogen leeg blijven; leeg betekent hele dagen (00:00–23:59), net als de bestaande "Hele dag"-optie. Het vinkje "Hele dag" blijft precies zoals het is.
 
-## 3. Het venster per status
-Eén venster, velden afhankelijk van de status:
-- Bezet: medewerker, datum, starttijd, eindtijd, hele dag, notitie.
-- Ziek: medewerker, startdatum, einddatum, tijden of hele dag, notitie — meerdere dagen krijgen één gedeeld periode-ID.
-- Vakantie: zelfde als Ziek, tijden optioneel; zonder tijden gelden volledige dagen.
+3. **Doorlopende balk in Personeelsplanning.** Regels die hetzelfde periode-ID delen, worden in de week-, maand- en kwartaalweergave getoond als één doorlopende balk over de betrokken dagen in plaats van losse blokjes per dag. Het label (bijv. "Vakantie 12-08 t/m 16-08" met de notitie in de tooltip) staat één keer op de balk. In de dagweergave verandert er niets.
 
-## 4. Periode selecteren
-- Shift-klik blijft werken.
-- Nieuw: knop "Periode selecteren" boven het rooster (ook bruikbaar op mobiel). Aan = cellen aantikken selecteert dagen; daarna kies je Vakantie, Ziek of Bezet voor de hele selectie.
+4. **Mobiel.** Het venster gebruikt op mobiel dezelfde datumvelden (start- en einddatum onder elkaar, volle breedte), zodat een periode ook zonder slepen of shift-klik te kiezen is.
 
-## 5. Bestaand blok aanklikken
-Klikken op een Bezet-/Vakantie-/Ziek-blok opent een klein keuzemenu: Bewerken, Verwijderen, Beschikbaar maken. Bij een meerdaagse periode gelden Bewerken en Verwijderen voor de hele periode (alle regels met hetzelfde periode-ID). "Beschikbaar maken" verwijdert het blok of de periode; er wordt geen aparte "Beschikbaar"-regel aangemaakt.
-
-## 6. Weergave
-- Vakantie- en ziekteperiodes worden per week getoond als één doorlopende balk over de betrokken dagen in plaats van losse blokjes.
-- Hele dag geblokkeerd: rode rand bij Bezet, oranje bij Vakantie, blauw bij Ziek. Gedeeltelijk tijdvak kleurt alleen het blok.
-- De legenda onder het rooster toont Ingepland, Bezet, Vakantie en Ziek.
-
-## 7. Conflicten en opslag
-- Inplannen tijdens Bezet, Vakantie of Ziek blijft geblokkeerd met een melding die medewerker, status, datum en tijd noemt.
-- Elke wijziging wordt eerst opgeslagen in de database, daarna wordt de planning opnieuw geladen; mislukt het opslaan, dan blijft het scherm ongewijzigd met een foutmelding.
-- Agenda, medewerkerdetails en dashboard lezen dezelfde availability-gegevens en lopen dus automatisch mee.
+Bewerken en verwijderen van een meerdaagse periode blijven werken zoals nu: alle regels met hetzelfde periode-ID tegelijk. Klikken op een willekeurige dag van de balk opent de hele periode.
 
 ## Technische details
 Alles in `src/components/planning-app.tsx`:
-- `ABSENCE_STATS` wordt `["Vakantie","Ziek","Bezet"]`; `AvailStatus` behoudt `"Vrij"` zodat oude regels blijven werken. `LEGACY_BLOCKING` houdt "Vrij" en "Niet beschikbaar" blokkerend in `findConflicts`.
-- `cellClick` opent het bestaande `cellMenu` in plaats van direct `openPlan`; menu-items roepen `openAbsence(empId,date,date,status)` aan (signature uitgebreid met status), plus `clearCell` voor Beschikbaar/Verwijderen via `onSaveManyPlanning`/bestaande delete-flow.
-- `AbsenceModal`: statuskeuze zonder Vrij, bij Bezet één datumveld (einddatum = startdatum), status-afhankelijke labels.
-- Nieuw `blockMenu`-state: klik op een afwezigheidsblok toont Bewerken / Verwijderen / Beschikbaar maken in plaats van meteen `openEditAbsence`.
-- Nieuw `rangeMode`-state + knop "Periode selecteren" in de toolbar; verzamelt geselecteerde datums per medewerker en opent het venster met min/max datum.
-- `absFor` wordt in de week-/maandweergave gegroepeerd per `periodeId` tot één doorlopende balk (colspan-achtige overlay binnen de rij).
-- `dayBlockState` blijft de randkleur leveren; standaardkleuren in `statusColorOf` worden rood/oranje/blauw voor Bezet/Vakantie/Ziek.
-- Import-mapping (regel ~821) mapt "vrij"/"free"/"rtvz" voortaan naar "Bezet".
+- `AbsenceModal`: startdatum/einddatum altijd tonen; einddatum leeg of eerder dan startdatum valt terug op de startdatum. Tijdvelden mogen leeg zijn en vallen terug op `00:00`/`23:59`. Grid wordt `grid-cols-1 sm:grid-cols-2` (al zo) zodat mobiel netjes stapelt.
+- Waar het venster wordt geopend (`openAbsence`, snelmenu-acties) wordt de einddatum als bewerkbaar veld meegegeven in plaats van gelijkgetrokken aan de startdatum.
+- Nieuwe helper `absencePeriods(availability, empId, dates)` groepeert afwezigheidsregels per `periodeId` tot aaneengesloten reeksen binnen de zichtbare datums; `PersoneelsplanningView` rendert per rij een absolute overlay-balk over de betrokken kolommen in plaats van `absFor` per cel, met dezelfde `absenceStyle`-kleuren als nu.
+- `saveAbsence`/`deleteAbsence` in `App` blijven ongewijzigd — die werken al per `periodeId`.
 
 ## Test
-Bezet één dag, Bezet 13:00–17:00, Ziek over drie dagen, Vakantie over meerdere dagen via het venster én via "Periode selecteren", periode bewerken, periode verwijderen, beschikbaar maken, project inplannen tijdens Bezet (geblokkeerd), en verversen om te controleren dat alles behouden blijft.
+Vakantie 12-08-2026 t/m 16-08-2026 toevoegen en controleren dat dit als één balk verschijnt; Ziek over drie dagen; Bezet over twee dagen met tijden 13:00–17:00; de periode bewerken (nieuwe einddatum) en verwijderen vanaf een willekeurige dag; verversen en controleren dat alles behouden blijft.
