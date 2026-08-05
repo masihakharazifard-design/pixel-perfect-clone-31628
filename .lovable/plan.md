@@ -2,72 +2,75 @@
 
 ## 1. Openstaande projecten: alleen weg bij status "Afgerond"
 
-Wat ik in de code heb gecontroleerd:
+De zichtbaarheid wordt meteen definitief doorgevoerd, zonder eerst onderzoek:
 
-- De lijst wordt nu berekend in `PersoneelsplanningView` (rond regel 2992) als
-  `visProjects.filter(p => status !== "afgerond" && status !== "gefactureerd")`.
-  Er zit dus **geen** `rest > 0`, `periodProjects`, `showPlanned` of datumvoorwaarde meer in.
-- In de drop-/planhandlers (`dropOnCell`, `tryCommit`, `commitPlanning`, `savePlanningMany`)
-  staat geen enkele regel die het project uit de lijst haalt: er is geen `setOpenProjects`,
-  geen `filter(p => p.id !== draggedProjectId)` en geen optimistische verwijdering.
+```
+const openProjects = visProjects.filter(project =>
+  String(project.status || "").trim().toLowerCase() !== "afgerond");
+```
 
-Dat betekent dat ik de oorzaak nog niet met zekerheid kan aanwijzen. Wat wél nog kan
-verklaren dat een project verdwijnt:
+Gefactureerd blijft dus zichtbaar. Inplannen, volledig inplannen, slepen, datumwijzigingen,
+aantallen en badges beïnvloeden de zichtbaarheid nooit.
 
-1. de resterende voorwaarde `!== "gefactureerd"`;
-2. het afdelingsfilter (`visProjects`): valt het project buiten de actief gekozen
-   afdelingen, dan staat het niet in de lijst;
-3. na inplannen worden de projectdatums afgeleid uit de planningregels
-   (`applyDerivedDates`) — als dat ergens ook de status of afdeling aanraakt.
+Wat ik in de code al heb vastgesteld:
 
-Aanpak:
-- Eerst reproduceren in een echte browser: open project naar een medewerker slepen en
-  kijken of het verdwijnt, met het afdelingsfilter uit. Zo weet ik precies welke van de
-  drie het is en meld ik dat exact terug.
-- Daarna de filter definitief terugbrengen tot uitsluitend:
-  `status !== "afgerond"` (Gefactureerd blijft dus zichtbaar).
-- Als de reproductie een andere oorzaak aanwijst (bijv. filter of afgeleide data), wordt
-  precies die ene oorzaak weggenomen — verder niets.
+- De lijst (rond regel 2992) bevat nu nog de extra voorwaarde `!== "gefactureerd"`; die vervalt.
+  `rest > 0`, `periodProjects`, `showPlanned` en datumvoorwaarden zitten er al niet meer in.
+- In `dropOnCell`, `tryCommit`, `commitPlanning` en `savePlanningMany` staat geen
+  `setOpenProjects`, geen `filter(p => p.id !== draggedProjectId)` en geen optimistische
+  verwijdering. Die blijven zo.
 
-Na inplannen: alleen de planningregel opslaan, het projectrecord ongewijzigd laten,
-opnieuw laden uit de database, en enkel badge (Niet/Gedeeltelijk/Volledig ingepland) en
+Extra controle en zo nodig correctie: `applyDerivedDates` en alle opslagfuncties
+(`savePlanning`, `savePlanningMany`, `savePlanningResize`, `deletePlanning`) mogen bij het
+afleiden van projectdatums uitsluitend `startdatum`, `afloopdatum` en `medewerkers` raken —
+nooit `status`, `afdeling`, `afdelingen`, `projectId` of zichtbaarheid. Ik leg dat vast door
+alleen die drie velden expliciet te overschrijven op een spread van het bestaande project.
+
+Na drag & drop wordt alleen de planningregel opgeslagen; het projectrecord blijft verder
+ongewijzigd. Daarna herladen en enkel badge (Niet/Gedeeltelijk/Volledig ingepland) en
 aantallen herberekenen.
 
-## 2. Doorgetrokken project houdt dezelfde kleur en wordt één balk
+## 2. Doorgetrokken project: één kleur, één doorlopende balk
 
-Bevestigde oorzaak van de kleurwissel: de kleurhelper `rowColor` (regel 2745) bepaalt de
-kleur via `teamKey(projectId, a.date, teamleden)` — de **datum** zit in de sleutel. Elke
-extra dag krijgt daardoor een andere sleutel en dus een andere kleur.
+Bevestigde oorzaak van de kleurwissel: `rowColor` (regel 2745) bepaalt de kleur via
+`teamKey(projectId, a.date, teamleden)` — de **datum** zit in de sleutel, dus elke extra dag
+krijgt een andere kleur.
 
-Fix:
-- `rowColor` wordt datum-onafhankelijk: eerst de opgeslagen teamkleur (`teamId`), anders de
-  opgeslagen projectkleur, anders een kleur afgeleid van uitsluitend `projectId`.
-- Nooit kleur afleiden uit datum, rij-index of het id van een nieuw availability-record.
-- Resizen/doortrekken raakt de kleur niet aan; `projectId`, `reeksId` en `teamId` blijven
-  behouden op alle gekoppelde dagregels.
-- Projecten met meerdere afdelingen houden dezelfde split/gestreepte weergave over de hele
-  periode.
+Nieuwe kleurbepaling, in deze volgorde:
 
-Doorlopende balk in de weekweergave:
-- Dagregels met dezelfde `projectId` + `reeksId` + medewerker worden per rij gegroepeerd tot
-  één aaneengesloten reeks.
-- Eerste dag: ronding links; tussenliggende dagen: rechte, aansluitende randen; laatste dag:
-  ronding rechts; geen zichtbare tussenruimte (celpadding/gap valt weg binnen een reeks).
-- Zelfde hoogte, achtergrond, rand en teksstijl over de hele reeks; de projectnaam staat
-  alleen op de eerste dag.
-- De resize-handle blijft staan waar hij nu staat (laatste dag van de reeks).
+1. opgeslagen teamkleur via `teamId`;
+2. opgeslagen projectkleur (`projectColors[projectId]`);
+3. stabiele fallback uitsluitend op `projectId`.
+
+Datum, availability-id en rij-index maken nooit deel uit van de kleursleutel. Resizen of
+doortrekken wijzigt de kleur nooit; `projectId`, `reeksId` en `teamId` blijven behouden op
+alle gekoppelde dagregels. Projecten met meerdere afdelingskleuren houden dezelfde
+split/gestreepte weergave over de hele periode.
+
+Weergave als één reeks:
+
+- Groeperen op medewerkerId + projectId + reeksId + teamId (indien aanwezig) + aaneengesloten
+  datums.
+- De reeks wordt bij voorkeur als één balk over een CSS Grid getekend dat over de
+  opeenvolgende dagkolommen van de weekweergave loopt (grid-column start/eind = dagindex),
+  in plaats van losse blokken met negatieve marges.
+- Past één gridbalk technisch niet binnen de bestaande tabelstructuur, dan losse
+  dagsegmenten die visueel naadloos aansluiten: ronding links op de eerste dag, rechte
+  aansluitende randen in het midden, ronding rechts op de laatste dag, geen zichtbare gaten,
+  en altijd exact dezelfde opgeslagen kleur.
+- Zelfde hoogte, achtergrond, rand en tekststijl over de hele reeks; label alleen op de
+  eerste dag. De resize-handle blijft op de laatste dag van de reeks.
 
 ## Technische details
 
 Alles in `src/components/planning-app.tsx`:
 
 - `openProjects` (~2992): conditie terug naar alleen `status !== "afgerond"`.
-- `rowColor` (~2745): teamkleur via `teamId`/opgeslagen team-override, dan
-  `projectColors[projectId]`, dan een stabiele kleur op basis van `projectId` alleen.
-- Weekweergave-cellen (~3130): per medewerker eerst een reeksberekening
-  (`projectId+reeksId`) over de zichtbare dagen; per dag wordt `first`/`middle`/`last`
-  bepaald en vertaald naar rounding, negatieve horizontale marges en het weglaten van het
-  label op vervolgdagen.
+- `applyDerivedDates` (~3685) en de opslagfuncties: expliciet alleen datums + medewerkers
+  overschrijven, overige projectvelden onaangeroerd.
+- `rowColor` (~2745): datum-onafhankelijke kleursleutel volgens de drietrapsvolgorde hierboven.
+- Weekweergave (~3115-3145): reeksberekening per medewerkerrij, celinhoud rendert een
+  grid-overlay per reeks (of naadloze dagsegmenten als fallback).
 - Geen wijzigingen aan database, agenda, projectenpagina of overige functies.
 
 ## Test
