@@ -1417,7 +1417,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
 const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Projecten"],
   ["agenda",CalendarDays,"Agenda"],["personeelsplanning",Users,"Personeelsplanning"],
-  ["beschikbaarheid",Clock3,"Beschikbaarheid"],["medewerkers",UserCircle,"Medewerkers"],
+  ["medewerkers",UserCircle,"Medewerkers"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
 function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
