@@ -27,7 +27,12 @@ Bij slepen van een blok dat op die dag bij een team hoort (zelfde project, zelfd
 Nieuw:
 - **Hele team verplaatsen** wordt de primaire, vooraf gekozen actie (Enter/hoofdknop).
 - **Alleen deze medewerker verplaatsen** blijft beschikbaar als secundaire keuze.
-- Bij het gezamenlijk verplaatsen blijven `teamId`, teamkleur en `reeksId` behouden; datum, planning van alle teamleden, Agenda, Beschikbaarheid, Projectdetails en de afgeleide projectperiode worden zoals nu automatisch bijgewerkt.
+- Bij het gezamenlijk verplaatsen blijven `teamId`, `reeksId` en teamkleur behouden; automatisch bijgewerkt worden: planning van alle teamleden, Agenda, Personeelsplanning, Beschikbaarheid, Projectdetails, Dashboard, projectperiode, Openstaande projecten, planningsstatus en badges.
+
+## 3b. Vaste synchronisatievolgorde
+
+Elke wijziging (planning, status, teamverplaatsing, kleurwijziging) volgt dezelfde volgorde: opslaan in de database → bevestiging → centrale data opnieuw laden → alle schermen tegelijk verversen vanuit diezelfde dataset. Zo kunnen Personeelsplanning, Agenda, Dashboard, Projectdetails en Openstaande projecten nooit uiteenlopen.
+
 
 ## 4. Ziek wordt grijs
 
