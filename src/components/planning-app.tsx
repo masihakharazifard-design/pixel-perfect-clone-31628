@@ -3147,13 +3147,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,a,"date");}} onOpen={()=>setPeriodModal(a)}/>}
                 </div>)}
-                {ps.map(({row,proj},bi)=><div key={row.id} className="group relative">
+                {ps.map(({row,proj},bi)=>{const seg=segInfo(row);return<div key={row.id} className="group relative"
+                  style={seg.prev||seg.next?{marginLeft:seg.prev?-3:0,marginRight:seg.next?-3:0}:undefined}>
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
-                    {row.isFirstOfDay&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
-                    <span className="truncate">{proj.projectnaam.slice(0,4)+".."}</span>
+                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                    {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
+                    <span className="truncate">{seg.prev?"\u00A0":proj.projectnaam.slice(0,4)+".."}</span>
                   </button>
+
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
                     <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
                     <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,1);}} disabled={bi===ps.length-1} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omlaag">▼</button>
