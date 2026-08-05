@@ -2676,7 +2676,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const [projMenu,setProjMenu]=useState<Project|null>(null);
   const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
   const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
-  const [showPlanned,setShowPlanned]=useState(false);
+  
   const [cellMenu,setCellMenu]=useState<{empId:string;date:string;x:number;y:number;startTime?:string;endTime?:string;block?:AvailEntry}|null>(null);
   const menuRef=useRef<HTMLDivElement|null>(null);
   const [menuH,setMenuH]=useState(260);
