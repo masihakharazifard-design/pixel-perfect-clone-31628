@@ -16,7 +16,7 @@ import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 
 
 // ===== TYPES =====
-type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"facturatie"|"instellingen";
+type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen";
 type Afdeling = "Stoffering"|"Schilderwerk"|"Zonwering";
 type ProjectStatus = "Offerte"|"Bevestigd"|"In uitvoering"|"Afgerond"|"Gefactureerd";
 type AvailStatus = "Beschikbaar"|"Ingepland"|"Bezet"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
