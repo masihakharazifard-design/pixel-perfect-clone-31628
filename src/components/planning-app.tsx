@@ -1003,6 +1003,23 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
   });
   const [assignAfd,setAssignAfd]=useState<Afdeling>(f.afdeling);
   const [assignComps,setAssignComps]=useState<string[]>([]);
+  // Losse datum-/tijdvelden; ze schrijven altijd naar dezelfde projectvelden
+  // (startdatum / afloopdatum) die de agenda gebruikt.
+  const [sDate,setSDate]=useState(()=>datePart(f.startdatum));
+  const [sTime,setSTime]=useState(()=>timePart(f.startdatum)||"08:00");
+  const [eDate,setEDate]=useState(()=>datePart(f.afloopdatum));
+  const [eTime,setETime]=useState(()=>timePart(f.afloopdatum)||"17:00");
+  const applyDates=(sd:string,st:string,ed:string,et:string)=>{
+    const startISO=combineLocalDT(sd,st,8,0);
+    const endISO=combineLocalDT(ed||sd,et,17,0);
+    setF(prev=>({...prev,startdatum:startISO,afloopdatum:endISO}));
+  };
+  const setStart=(d:string,t:string)=>{
+    setSDate(d);setSTime(t);
+    const ed=eDate&&combineLocalDT(ed0(eDate,t||sTime),"",0,0)?eDate:eDate;
+    applyDates(d,t,ed,eTime);
+  };
+  const setEnd=(d:string,t:string)=>{setEDate(d);setETime(t);applyDates(sDate,sTime,d,t);};
   const set=(k:keyof Project,v:unknown)=>setF(prev=>({...prev,[k]:v}));
 
   const toggleAfdeling=(afd:Afdeling)=>{
