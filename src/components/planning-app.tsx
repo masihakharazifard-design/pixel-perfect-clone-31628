@@ -2991,6 +2991,24 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
+  // ===== Doorlopende meerdaagse balken =====
+  // Alleen regels met hetzelfde reeksId (of aantoonbaar dezelfde doortrekactie) worden
+  // visueel aan elkaar geplakt. Zonder reeksId blijft elke regel een los blok.
+  const visDates=new Set(dates.map(toDateStr));
+  const shiftDay=(ds:string,n:number)=>{const d=new Date(ds+"T12:00");d.setDate(d.getDate()+n);return toDateStr(d);};
+  const linkedOn=(row:AvailEntry,ds:string)=>{
+    if(!row.reeksId||!row.projectId)return false;
+    return availability.some(a=>a.date===ds&&a.employeeId===row.employeeId&&a.projectId===row.projectId
+      &&a.reeksId===row.reeksId&&(a.teamId||"")===(row.teamId||"")
+      &&a.startTime===row.startTime&&a.endTime===row.endTime);
+  };
+  // Elk blok weet of het links/rechts doorloopt naar een aansluitende dag in beeld
+  const segInfo=(row:AvailEntry)=>{
+    if(!row.reeksId)return{prev:false,next:false};
+    const pd=shiftDay(row.date,-1),nd=shiftDay(row.date,1);
+    return{prev:visDates.has(pd)&&linkedOn(row,pd),next:visDates.has(nd)&&linkedOn(row,nd)};
+  };
+
   // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
   // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
   const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
