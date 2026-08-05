@@ -2492,21 +2492,28 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
 
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
-function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onOpenProject,onVacImport}:{
+function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
-  onSavePlanning:(e:AvailEntry)=>Promise<void>;onDeletePlanning:(id:string)=>Promise<void>;
+  onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onDeletePlanning:(id:string)=>Promise<void>;
+  onSaveAbsence:(d:AbsenceDraft)=>Promise<void>;onDeleteAbsence:(periodeId:string)=>Promise<void>;
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
   const dc=useDC();
   const [view,setView]=useState<PlanView>("week");
   const [refDate,setRefDate]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
   const [showFilters,setShowFilters]=useState(false);
+  const [showColors,setShowColors]=useState(false);
   const [dragProject,setDragProject]=useState<string|null>(null);
+  const [dragBlock,setDragBlock]=useState<AvailEntry|null>(null);
   const [planModal,setPlanModal]=useState<{empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string}|null>(null);
   const [projMenu,setProjMenu]=useState<Project|null>(null);
+  const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
+  const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
   const teamColors=settings.teamColors||{};
+  const statusColors=settings.statusColors||{};
+  const projectColors=settings.projectColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
@@ -2529,16 +2536,49 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     });
     return out;
   };
-  const rowColor=(a:AvailEntry)=>teamColor(teamKey(a.projectId||"",a.date,teamForDay(availability,a.projectId||"",a.date)),teamColors);
+  // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
+  const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const rowColor=(a:AvailEntry)=>{
+    const ids=teamForDay(availability,a.projectId||"",a.date);
+    if(ids.length>1)return teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
+    return projectColors[a.projectId||""]||teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
+  };
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});
+  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:"08:00",endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
+  const openEditAbsence=(a:AvailEntry)=>{
+    const rows=a.periodeId?availability.filter(x=>x.periodeId===a.periodeId):[a];
+    const dates=rows.map(r=>r.date).sort();
+    setAbsModal({periodeId:a.periodeId,employeeId:a.employeeId,startDate:dates[0],endDate:dates[dates.length-1],
+      startTime:a.startTime,endTime:a.endTime,status:a.status,note:a.note||"",wholeDay:a.startTime==="00:00"&&a.endTime==="23:59"});
+  };
+  // Cel aanklikken: normaal inplannen, met Shift een periode selecteren
+  const cellClick=(empId:string,ds:string,ev:React.MouseEvent)=>{
+    if(ev.shiftKey||rangeStart){
+      if(rangeStart&&rangeStart.empId===empId){
+        const [a,b]=[rangeStart.date,ds].sort();
+        setRangeStart(null);openAbsence(empId,a,b);
+      }else setRangeStart({empId,date:ds});
+      return;
+    }
+    openPlan(empId,ds);
+  };
   const dropOnCell=async(empId:string,ds:string)=>{
-    const pid=dragProject;setDragProject(null);
+    const block=dragBlock;const pid=dragProject;
+    setDragProject(null);setDragBlock(null);
+    if(block){
+      if(block.employeeId===empId&&block.date===ds)return;
+      const conflicts=findConflicts(availability,employees,projects,empId,ds,block.startTime,block.endTime,block.id);
+      if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
+      const ok=await onSavePlanning({...block,employeeId:empId,date:ds});
+      if(!ok)toast.error("Verplaatsen mislukt — het blok blijft op de oorspronkelijke plek.");
+      return;
+    }
     if(!pid)return;
     const p=projects.find(x=>x.id===pid);if(!p)return;
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
     const conflicts=findConflicts(availability,employees,projects,empId,ds,st,et<=st?"17:00":et);
-    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].label} · ${conflicts[0].time}`);return;}
+    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
     await onSavePlanning({id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id});
   };
 
