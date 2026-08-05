@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import {
   LayoutDashboard, FolderOpen, CalendarDays, Users, Clock3,
   Receipt, Settings, ChevronLeft, ChevronRight, Plus, Pencil,
@@ -30,7 +30,7 @@ interface Project {
   projectleider:string;
   werkzaamheden:string; startdatum:string; afloopdatum:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
-  uurprijs:number; uren:number; region?:string;
+  uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
@@ -41,6 +41,8 @@ interface AppSettings {
   bedrijfsnaam:string; adres:string; postcode:string; plaats:string;
   telefoon:string; email:string; primaryColor:string; accentColor:string;
   deptColors:Record<Afdeling,{bg:string;light:string;border:string}>;
+  planFilters?:PlanFilter[];
+  teamColors?:Record<string,string>;
 }
 
 // ===== DEPT COLOR CONTEXT =====
@@ -190,12 +192,76 @@ function isOfferte(p:Project){return (p.status||"").trim().toLowerCase()==="offe
 function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:string}>):React.CSSProperties{
   const afds=getAllAfds(p);
   // Offertes blijven zichtbaar in de agenda, maar met een grijze, gestippelde stijl
+  if(p.teamKleur&&!isOfferte(p))return{backgroundColor:p.teamKleur};
   if(isOfferte(p))return{backgroundColor:"#9AA5B8",backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)",border:"1px dashed #6B7A99",opacity:0.9};
   if(afds.length===1)return{backgroundColor:dc[afds[0]].bg};
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
   return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
 }
 function primaryAfd(p:Project):Afdeling{return getAllAfds(p)[0];}
+
+// ===== PLANNINGREGELS (enige bron van waarheid) =====
+// Een planningregel = availability-rij met projectId en status "Ingepland".
+function planRows(av:AvailEntry[]):AvailEntry[]{return av.filter(a=>!!a.projectId&&a.status==="Ingepland");}
+function projectPlans(av:AvailEntry[],projectId:string):AvailEntry[]{return planRows(av).filter(a=>a.projectId===projectId);}
+function assignedEmpIds(av:AvailEntry[],projectId:string):string[]{return [...new Set(projectPlans(av,projectId).map(a=>a.employeeId))];}
+function planPeriod(rows:AvailEntry[]):{start:string;end:string}|null{
+  if(!rows.length)return null;
+  let start="",end="";
+  rows.forEach(r=>{
+    const s=combineLocalDT(r.date,r.startTime||"08:00",8,0);
+    const e=combineLocalDT(r.date,r.endTime||"17:00",17,0);
+    if(!start||new Date(s)<new Date(start))start=s;
+    if(!end||new Date(e)>new Date(end))end=e;
+  });
+  return start&&end?{start,end}:null;
+}
+function benodigd(p:Project):number{return Math.max(1,Number(p.benodigdeMedewerkers)||1);}
+type PlanStatus="Niet ingepland"|"Gedeeltelijk ingepland"|"Ingepland";
+function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
+  const n=assignedEmpIds(av,p.id).length;
+  if(n===0)return "Niet ingepland";
+  return n>=benodigd(p)?"Ingepland":"Gedeeltelijk ingepland";
+}
+const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
+  "Niet ingepland":"bg-slate-100 text-slate-600",
+  "Gedeeltelijk ingepland":"bg-amber-100 text-amber-700",
+  "Ingepland":"bg-emerald-100 text-emerald-700",
+};
+function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
+interface PlanConflict{employee:string;label:string;time:string;}
+function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
+  const emp=employees.find(e=>e.id===empId);
+  const naam=emp?emp.naam:"Medewerker";
+  const out:PlanConflict[]=[];
+  av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
+    if(!overlaps(start,end,a.startTime,a.endTime))return;
+    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij"];
+    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`});return;}
+    if(a.status==="Ingepland"){
+      const p=projects.find(x=>x.id===a.projectId);
+      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`});
+    }
+  });
+  return out;
+}
+// ===== TEAMKLEUREN =====
+const TEAM_PALETTE=["#3B82F6","#10B981","#8B5CF6","#F59E0B","#EC4899","#14B8A6","#6366F1","#EF4444","#84CC16","#0EA5E9","#D946EF","#F97316"];
+function teamKey(projectId:string,date:string,empIds:string[]):string{return `${projectId}|${date}|${[...empIds].sort().join(",")}`;}
+function teamColor(key:string,overrides:Record<string,string>={}):string{
+  if(overrides[key])return overrides[key];
+  let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))>>>0;
+  return TEAM_PALETTE[h%TEAM_PALETTE.length];
+}
+// Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
+function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
+  return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
+}
+// ===== FILTERS =====
+interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
+const DEFAULT_PLAN_FILTERS:PlanFilter[]=AFDS.map((a,i)=>({id:"pf"+(i+1),naam:a,kleur:DEFAULT_DC[a].bg,afdeling:a,actief:true}));
+
+
 
 function getMonthWeeks(year:number,month:number):Date[][]{
   const first=new Date(year,month,1),last=new Date(year,month+1,0);
@@ -1003,6 +1069,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     afloopdatum:initial.afloopdatum||combineLocalDT(toDateStr(new Date()),"17:00",17,0),
     medewerkers:initial.medewerkers||[],status:initial.status||"Offerte",
     notities:initial.notities||"",uurprijs:initial.uurprijs||65,uren:initial.uren||8,
+    benodigdeMedewerkers:initial.benodigdeMedewerkers??1,
     region:initial.region||"",
   });
   const [assignAfd,setAssignAfd]=useState<Afdeling>(f.afdeling);
@@ -1093,8 +1160,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <Textarea label="Werkzaamheden" value={f.werkzaamheden} onChange={v=>set("werkzaamheden",v)} rows={3} placeholder="Omschrijving van de werkzaamheden..."/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Input label="Uurprijs (€)" value={String(f.uurprijs)} onChange={v=>set("uurprijs",parseFloat(v)||0)} type="number"/>
-      <Input label="Geschatte uren" value={String(f.uren)} onChange={v=>set("uren",parseFloat(v)||0)} type="number"/>
+      <Input label="Benodigde medewerkers" value={String(f.benodigdeMedewerkers??1)} onChange={v=>set("benodigdeMedewerkers",Math.max(1,parseInt(v)||1))} type="number"/>
     </div>
     <div className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
       <div className="bg-[#F0F3F8] px-4 py-2.5 border-b border-[rgba(26,39,68,0.1)]">
@@ -1147,8 +1213,9 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
 // ===== PROJECT DETAIL =====
 type ProjTab="overzicht"|"werkzaamheden"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
+function ProjectDetail({project,employees,availability=[],teamColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;
+  onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
   const [tab,setTab]=useState<ProjTab>("overzicht");
@@ -1180,7 +1247,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
 
   const plNaam=plName(project,employees);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
-  const totaal=project.uurprijs*project.uren;
+  // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",werkzaamheden:"Werkzaamheden",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
@@ -1206,7 +1273,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 md:gap-3">
-          {[["Opdrachtgever",project.opdrachtgever],["Adres",project.adres||project.plaats],["Startdatum",fmtDate(project.startdatum)+" "+fmtTime(project.startdatum)],["Afloopdatum",fmtDate(project.afloopdatum)+" "+fmtTime(project.afloopdatum)],["Duur",`${dur} dag${dur!==1?"en":""}`],["Totaal",`€ ${totaal.toLocaleString("nl-NL")}`]].map(([k,v])=>
+          {[["Opdrachtgever",project.opdrachtgever],["Adres",project.adres||project.plaats],["Startdatum",fmtDate(project.startdatum)+" "+fmtTime(project.startdatum)],["Afloopdatum",fmtDate(project.afloopdatum)+" "+fmtTime(project.afloopdatum)],["Duur",`${dur} dag${dur!==1?"en":""}`],["Benodigde medewerkers",`${project.benodigdeMedewerkers??1}`]].map(([k,v])=>
             <div key={k} className="bg-[#F0F3F8] rounded-xl p-3">
               <p className="text-xs text-[#6B7A99] mb-0.5">{k}</p>
               <p className="font-semibold text-[#1A2744] text-sm">{v}</p>
@@ -1246,12 +1313,26 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
         </div>
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${PLAN_STATUS_STYLE[planStatusOf(project,availability)]}`}>{planStatusOf(project,availability)}</span>
+          <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
+        </div>
         {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
-        {meds.map(e=><div key={e.id} className="flex items-center gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-          <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
-          <DeptBadge afd={e.afdeling}/>
-        </div>)}
+        {meds.map(e=>{
+          const rows=projectPlans(availability,project.id).filter(a=>a.employeeId===e.id).sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
+          const kleur=rows.length?teamColor(teamKey(project.id,rows[0].date,teamForDay(availability,project.id,rows[0].date)),teamColors):dc[e.afdeling].bg;
+          return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p>
+              <p className="text-xs text-[#6B7A99]">{e.functie}</p>
+              {rows.length>0&&<div className="mt-1 space-y-0.5">
+                {rows.map(r=><p key={r.id} className="text-xs text-[#6B7A99] font-mono">{fmtDate(r.date)} · {r.startTime}–{r.endTime}</p>)}
+              </div>}
+            </div>
+            <DeptBadge afd={e.afdeling}/>
+          </div>;
+        })}
       </div>}
       {tab==="documenten"&&<div>
         <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center mb-4 hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
@@ -2088,8 +2169,9 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProject}:{
-  projects:Project[];employees:Employee[];updateProject:(id:string,u:Partial<Project>)=>void;
+function AgendaView({projects,employees,availability,teamColors={},updateProject,onOpenProject,onCreateProject}:{
+  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;
+  updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
 }){
   const dc=useDC();
@@ -2119,19 +2201,36 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
+  // Projecten met planningregels worden per tijdvak getoond: zelfde tijd = één blok, andere tijd = apart blok
+  const agendaProjects:Project[]=[];
+  filteredProjects.forEach(p=>{
+    const rows=projectPlans(availability,p.id);
+    if(!rows.length){agendaProjects.push(p);return;}
+    const groups=new Map<string,AvailEntry[]>();
+    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}`;groups.set(k,[...(groups.get(k)||[]),r]);});
+    [...groups.entries()].forEach(([k,rs])=>{
+      const [date,st,et]=k.split("|");
+      const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
+      agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
+        startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
+        teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
+    });
+  });
+  const realId=(id:string)=>id.split("::")[0];
+  const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   const handleDropProject=(id:string,newStart:Date)=>{
-    const p=projects.find(x=>x.id===id);if(!p)return;
+    const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
     newStart.setHours(origStart.getHours(),origStart.getMinutes(),0,0);
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
   const handleDropProjectTime=(id:string,newStart:Date)=>{
-    const p=projects.find(x=>x.id===id);if(!p)return;
+    const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
-  const handleResize=(id:string,newEnd:Date)=>{updateProject(id,{afloopdatum:newEnd.toISOString()});};
+  const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
@@ -2161,59 +2260,186 @@ function AgendaView({projects,employees,updateProject,onOpenProject,onCreateProj
     </div>
     <div className="flex-1 overflow-hidden bg-white">
       {view==="month"&&<div className="h-full overflow-y-auto">
-        <MonthView year={year} month={month} projects={filteredProjects} employees={employees} schoolRegions={schoolRegions}
-          onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
+        <MonthView year={year} month={month} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
+          onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
-      {view==="week"&&<WeekView weekDays={weekDays} projects={filteredProjects} employees={employees}
-        onClickProject={onOpenProject} onClickDateTime={handleClickDateTime}
+      {view==="week"&&<WeekView weekDays={weekDays} projects={agendaProjects} employees={employees}
+        onClickProject={openReal} onClickDateTime={handleClickDateTime}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
-      {view==="day"&&<DayView date={date} projects={filteredProjects} employees={employees}
-        onClickProject={onOpenProject} onClickTime={h=>handleClickDateTime(date,h)}
+      {view==="day"&&<DayView date={date} projects={agendaProjects} employees={employees}
+        onClickProject={openReal} onClickTime={h=>handleClickDateTime(date,h)}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="kwartaal"&&<div className="h-full overflow-y-auto">
-        <KwartaalView year={year} quarter={quarter} projects={filteredProjects} employees={employees} schoolRegions={schoolRegions}
-          onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
+        <KwartaalView year={year} quarter={quarter} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
+          onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
     </div>
   </div>;
 }
 
+// ===== MEDEWERKER INPLANNEN =====
+function PlanEmployeeModal({employees,projects,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+  employees:Employee[];projects:Project[];availability:AvailEntry[];
+  empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
+  onSave:(entry:AvailEntry)=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [emp,setEmp]=useState(empId);
+  const [d,setD]=useState(date);
+  const [st,setSt]=useState(startTime);
+  const [et,setEt]=useState(endTime);
+  const [q,setQ]=useState("");
+  const [sel,setSel]=useState<Project|null>(projectId?projects.find(p=>p.id===projectId)||null:null);
+  const [busy,setBusy]=useState(false);
+  const results=q.trim().length===0?[]:projects.filter(p=>{
+    const s=q.trim().toLowerCase();
+    return (p.werknummer||"").toLowerCase().includes(s)||(p.projectnr||"").toLowerCase().includes(s)||
+      (p.projectnaam||"").toLowerCase().includes(s)||(p.werkzaamheden||"").toLowerCase().includes(s);
+  }).slice(0,20);
+  const conflicts=sel?findConflicts(availability,employees,projects,emp,d,st,et,editId):[];
+  const canSave=!!sel&&!!emp&&!!d&&st<et&&conflicts.length===0&&!busy;
+  const save=async()=>{
+    if(!sel||busy)return;
+    setBusy(true);
+    await onSave({
+      id:editId||("plan-"+nid()),employeeId:emp,date:d,startTime:st,endTime:et,
+      status:"Ingepland",note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
+    });
+    setBusy(false);
+  };
+  return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        <Input label="Datum" value={d} onChange={setD} type="date"/>
+        <div className="grid grid-cols-2 gap-2">
+          <Input label="Begintijd" value={st} onChange={setSt} type="time"/>
+          <Input label="Eindtijd" value={et} onChange={setEt} type="time"/>
+        </div>
+      </div>
+      {!sel?<div>
+        <Input label="Project zoeken" value={q} onChange={setQ} placeholder="Werknummer, projectnaam of werkzaamheden..."/>
+        {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
+          {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
+          {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
+            <p className="text-sm font-semibold text-[#1A2744]">{p.werknummer} – {p.projectnaam}</p>
+            <p className="text-xs text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"}</p>
+          </button>)}
+        </div>}
+      </div>:<div className="border border-[rgba(26,39,68,0.1)] rounded-xl p-4 space-y-2 bg-[#F8F9FC]">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
+            <p className="text-xs text-[#6B7A99]">{sel.werkzaamheden||"Geen omschrijving"}</p>
+          </div>
+          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <div><span className="text-[#6B7A99]">Afdeling</span><p className="font-semibold text-[#1A2744]">{getAllAfds(sel).join(", ")}</p></div>
+          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{plName(sel,employees)||"—"}</p></div>
+          <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
+        </div>
+      </div>}
+      {conflicts.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
+        <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — dubbele planning is niet mogelijk</p>
+        {conflicts.map((c,i)=><p key={i} className="text-xs text-red-700">{c.employee} · {c.label} · {c.time}</p>)}
+      </div>}
+      {st>=et&&<p className="text-xs text-red-600">Eindtijd moet na de begintijd liggen.</p>}
+      <div className="flex justify-between gap-2 pt-1">
+        <div>{editId&&onDelete&&<Btn variant="danger" onClick={async()=>{setBusy(true);await onDelete(editId);setBusy(false);}} disabled={busy}><Trash2 className="w-3.5 h-3.5"/>Planning verwijderen</Btn>}</div>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+          <Btn onClick={save} disabled={!canSave}>{busy?"Opslaan…":"Inplannen"}</Btn>
+        </div>
+      </div>
+    </div>
+  </Modal>;
+}
+
+// ===== FILTERBEHEER =====
+function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSave:(f:PlanFilter[])=>void;onClose:()=>void}){
+  const [list,setList]=useState<PlanFilter[]>(filters.length?filters:DEFAULT_PLAN_FILTERS);
+  const upd=(id:string,u:Partial<PlanFilter>)=>setList(prev=>prev.map(f=>f.id===id?{...f,...u}:f));
+  const move=(i:number,dir:number)=>setList(prev=>{const n=[...prev];const j=i+dir;if(j<0||j>=n.length)return prev;[n[i],n[j]]=[n[j],n[i]];return n;});
+  return <Modal title="Filters beheren" onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-3">
+      {list.map((f,i)=><div key={f.id} className="flex items-center gap-2 border border-[rgba(26,39,68,0.1)] rounded-xl p-2">
+        <input type="color" value={f.kleur} onChange={e=>upd(f.id,{kleur:e.target.value})} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Filterkleur"/>
+        <input value={f.naam} onChange={e=>upd(f.id,{naam:e.target.value})} className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744]"/>
+        <select value={f.afdeling} onChange={e=>upd(f.id,{afdeling:e.target.value})} className="px-2 py-1.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#6B7A99]">
+          <option value="">Alle afdelingen</option>
+          {AFDS.map(a=><option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-lg text-xs font-semibold ${f.actief?"bg-[#E0F7F6] text-[#0ABFB8]":"bg-[#F0F3F8] text-[#B8C3D9]"}`}>{f.actief?"Actief":"Uit"}</button>
+        <button onClick={()=>move(i,-1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omhoog">↑</button>
+        <button onClick={()=>move(i,1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omlaag">↓</button>
+        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#B8C3D9] hover:text-[#FF6B5B]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
+      </div>)}
+      <Btn variant="secondary" size="sm" onClick={()=>setList(prev=>[...prev,{id:"pf"+nid(),naam:"Nieuw filter",kleur:"#0ABFB8",afdeling:"",actief:true}])}><Plus className="w-3.5 h-3.5"/>Filter toevoegen</Btn>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn onClick={()=>{onSave(list);onClose();}}>Opslaan</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
-function PersoneelsplanningView({projects,employees,availability,updateProject,onOpenProject,onVacImport}:{
+function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onOpenProject,onVacImport}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
-  updateProject:(id:string,u:Partial<Project>)=>void;
+  settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
+  onSavePlanning:(e:AvailEntry)=>Promise<void>;onDeletePlanning:(id:string)=>Promise<void>;
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
   const dc=useDC();
   const [view,setView]=useState<PlanView>("week");
   const [refDate,setRefDate]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
-  const [afdFilter,setAfdFilter]=useState<string>("");
-  const visEmp=employees.filter(e=>!afdFilter||e.afdeling===afdFilter);
+  const [showFilters,setShowFilters]=useState(false);
+  const [dragProject,setDragProject]=useState<string|null>(null);
+  const [planModal,setPlanModal]=useState<{empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string}|null>(null);
+  const [projMenu,setProjMenu]=useState<Project|null>(null);
+  const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
+  const teamColors=settings.teamColors||{};
+  const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
+  const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
+  const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
+  const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
-  const getEmpProjsDate=(empId:string,date:Date)=>projects.filter(p=>{const s=new Date(p.startdatum);s.setHours(0,0,0,0);const e=new Date(p.afloopdatum);e.setHours(23,59,59,999);return p.medewerkers.includes(empId)&&s<=date&&e>=date;});
-  const getEmpProjsWeek=(empId:string,wk:Date)=>{const we=new Date(wk);we.setDate(wk.getDate()+6);we.setHours(23,59,59,999);const ws=new Date(wk);ws.setHours(0,0,0,0);return projects.filter(p=>{const s=new Date(p.startdatum);const e=new Date(p.afloopdatum);return p.medewerkers.includes(empId)&&s<=we&&e>=ws;});};
+
+  // Alles komt uit dezelfde planningregels (availability met projectId)
+  const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const getEmpProjsDate=(empId:string,date:Date)=>{
+    const ds=toDateStr(date);
+    return rowsFor(empId,ds).map(a=>({row:a,proj:projects.find(p=>p.id===a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
+  };
+  const getEmpProjsWeek=(empId:string,wk:Date)=>{
+    const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
+    const seen=new Set<string>();const out:Project[]=[];
+    planRows(availability).filter(a=>a.employeeId===empId&&days.includes(a.date)).forEach(a=>{
+      const p=projects.find(x=>x.id===a.projectId);
+      if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
+    });
+    return out;
+  };
+  const rowColor=(a:AvailEntry)=>teamColor(teamKey(a.projectId||"",a.date,teamForDay(availability,a.projectId||"",a.date)),teamColors);
+  const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
+  const openEditPlan=(a:AvailEntry)=>setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});
+  const dropOnCell=async(empId:string,ds:string)=>{
+    const pid=dragProject;setDragProject(null);
+    if(!pid)return;
+    const p=projects.find(x=>x.id===pid);if(!p)return;
+    const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
+    const conflicts=findConflicts(availability,employees,projects,empId,ds,st,et<=st?"17:00":et);
+    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].label} · ${conflicts[0].time}`);return;}
+    await onSavePlanning({id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id});
+  };
 
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    type Block={startTime:string;endTime:string;status:AvailStatus;label:string;proj?:Project};
-    const blocks:Block[]=[];
-    availability.filter(a=>a.employeeId===empId&&a.date===ds).forEach(av=>{
-      const proj=av.projectId?projects.find(p=>p.id===av.projectId):undefined;
-      blocks.push({startTime:av.startTime,endTime:av.endTime,status:av.status,label:proj?`${proj.werknummer} – ${proj.projectnaam}`:av.note||av.status,proj});
-    });
-    projects.forEach(p=>{
-      if(!p.medewerkers.includes(empId))return;
-      const ps=new Date(p.startdatum);ps.setHours(0,0,0,0);const pe=new Date(p.afloopdatum);pe.setHours(23,59,59,999);
-      if(ps>date||pe<date)return;
-      if(blocks.some(b=>b.proj?.id===p.id))return;
-      const psd=new Date(p.startdatum);const ped=new Date(p.afloopdatum);
-      const isFirst=toDateStr(psd)===ds;const isLast=toDateStr(ped)===ds;
-      const st=isFirst?fmtHM(psd.getHours(),psd.getMinutes()):"08:00";
-      const et=isLast?fmtHM(ped.getHours(),ped.getMinutes()):"17:00";
-      blocks.push({startTime:st,endTime:et,status:"Ingepland",label:`${p.werknummer} – ${p.projectnaam}`,proj:p});
-    });
-    return blocks.sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    return availability.filter(a=>a.employeeId===empId&&a.date===ds)
+      .map(av=>({av,proj:av.projectId?projects.find(p=>p.id===av.projectId):undefined}))
+      .sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
   };
 
   const year=refDate.getFullYear(),month=refDate.getMonth();
@@ -2225,6 +2451,30 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
   else{const qStart=new Date(year,quarter*3,1);const qEnd=new Date(year,quarter*3+3,0);const wk=new Date(getWeekDays(qStart)[0]);while(wk<=qEnd){weeks.push(new Date(wk));wk.setDate(wk.getDate()+7);}}
   const wd7=getWeekDays(refDate);
   const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
+
+  // ===== Projecten in deze periode =====
+  const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
+  const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
+  const periodProjects=projects.filter(p=>{
+    if(!validDate(p.startdatum))return false;
+    const s=new Date(p.startdatum);s.setHours(0,0,0,0);
+    const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
+    const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
+    if(activeAfds.length&&!getAllAfds(p).some(a=>activeAfds.includes(a)))return false;
+    return s<=pe&&e>=ps;
+  }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
+  // Teams (unieke combinaties) in deze periode, voor de legenda
+  const teams:{key:string;kleur:string;label:string}[]=[];
+  planRows(availability).forEach(a=>{
+    const d=new Date(a.date);const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
+    if(d<ps||d>pe)return;
+    const ids=teamForDay(availability,a.projectId||"",a.date);
+    if(ids.length<2)return;
+    const key=teamKey(a.projectId||"",a.date,ids);
+    if(teams.some(t=>t.key===key))return;
+    teams.push({key,kleur:teamColor(key,teamColors),label:ids.map(id=>employees.find(e=>e.id===id)?.naam||"?").map(abbrevName).join(" + ")});
+  });
+
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -2240,28 +2490,37 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
       <div className="flex rounded-lg border border-[rgba(26,39,68,0.12)] overflow-hidden">
         {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
       </div>
-      <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-36 md:w-40"/>
+      <div className="flex gap-1.5 items-center flex-wrap">
+        {filters.map(f=><button key={f.id} onClick={()=>toggleFilter(f.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-opacity ${f.actief?"border-transparent text-white":"border-[rgba(26,39,68,0.12)] text-[#B8C3D9] bg-white"}`} style={f.actief?{backgroundColor:f.kleur}:undefined}>
+          <span className="w-2 h-2 rounded-full" style={{backgroundColor:f.actief?"rgba(255,255,255,0.9)":f.kleur}}/>{f.naam}
+        </button>)}
+        <Btn variant="secondary" size="sm" onClick={()=>setShowFilters(true)}><Settings className="w-3.5 h-3.5"/>Filters</Btn>
+      </div>
     </div>
 
     {view==="dag"&&<div className="space-y-3">
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
+        const ds=toDateStr(refDate);
         return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-            <div><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
           </div>
           {blocks.length===0
-            ?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen tijdblokken voor deze dag</p>
+            ?<button onClick={()=>openPlan(e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
             :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
-              {blocks.map((b,bi)=>(
-                <div key={bi} className={`flex items-center gap-3 px-4 py-2.5 ${b.proj?"cursor-pointer hover:bg-[#F8F9FC]":""}`} onClick={()=>b.proj&&onOpenProject(b.proj)}>
+              {blocks.map(({av:b,proj})=>(
+                <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):openPlan(e.id,ds)}>
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{b.endTime}</span>
+                  {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:AS[b.status].bg,color:AS[b.status].text}}>
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:AS[b.status].dot}}/>
                     {b.status}
                   </span>
-                  {b.label!==b.status&&<span className="text-xs text-[#1A2744] truncate">{b.label}</span>}
+                  <span className="text-xs text-[#1A2744] truncate flex-1">{proj?`${proj.werknummer} – ${proj.projectnaam}`:(b.note||"")}</span>
+                  {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                 </div>
               ))}
             </div>
@@ -2291,14 +2550,15 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
                 <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
               </div>
             </td>
-            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const conflict=ps.length>1;const isWE=d.getDay()===0||d.getDay()===6;const avDay=availability.filter(a=>a.employeeId===e.id&&a.date===ds);const dom=getDominantStatus(avDay);
-            return<td key={ds} className={`py-1 px-0.5 text-center align-middle ${isWE?"bg-[#F8F8FB]":""} ${conflict?"bg-red-50":""}`}>
+            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const avDay=availability.filter(a=>a.employeeId===e.id&&a.date===ds&&!a.projectId);const dom=avDay.length?getDominantStatus(avDay):null;
+            return<td key={ds} onClick={()=>ps.length===0&&openPlan(e.id,ds)} onDragOver={ev=>{if(dragProject)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
+              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${dragProject?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik om in te plannen">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.map(p=><button key={p.id} onClick={()=>onOpenProject(p)} className="rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
-                  {p.projectnaam.slice(0,4)+".."}
+                {ps.map(({row,proj})=><button key={row.id} onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className="rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                  {proj.projectnaam.slice(0,4)+".."}
                 </button>)}
-                {conflict&&<div className="text-[9px] text-red-500 font-bold">⚠</div>}
-              </div>:avDay.length>0?<div className="w-6 h-6 rounded-full mx-auto" style={{backgroundColor:AS[dom].bg}} title={dom}/>:null}
+                <button onClick={ev=>{ev.stopPropagation();openPlan(e.id,ds);}} className="text-[9px] text-[#B8C3D9] hover:text-[#0ABFB8] w-full">+</button>
+              </div>:dom?<div className="w-6 h-6 rounded-full mx-auto" style={{backgroundColor:AS[dom].bg}} title={dom}/>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
         </tbody>
@@ -2312,7 +2572,7 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {weeks.map((wk,i)=>{const we=new Date(wk);we.setDate(wk.getDate()+6);const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
+            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
               <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
             </th>;})}
@@ -2326,13 +2586,13 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
                 <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
               </div>
             </td>
-            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} className="py-1.5 px-1 text-center align-middle">
+            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={()=>onOpenProject(p)} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
                   {p.projectnaam.slice(0,7)}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
-              </div>:null}
+              </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
         </tbody>
@@ -2340,10 +2600,57 @@ function PersoneelsplanningView({projects,employees,availability,updateProject,o
     </div>
     )}
 
+    {/* ===== Projecten in deze periode ===== */}
+    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
+        <h2 className="font-bold text-[#1A2744] text-sm">Projecten in deze periode</h2>
+        <span className="text-xs text-[#6B7A99]">{periodProjects.length} project{periodProjects.length!==1?"en":""} · sleep naar een cel om in te plannen</span>
+      </div>
+      {periodProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen projecten in deze periode.</p>
+      :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
+        {periodProjects.map(p=>{
+          const st=planStatusOf(p,availability);
+          const n=assignedEmpIds(availability,p.id).length;
+          return<div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
+            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
+              <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
+            </div>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${PLAN_STATUS_STYLE[st]}`}>{st} {n}/{benodigd(p)}</span>
+            <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
+            <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
+          </div>;
+        })}
+      </div>}
+    </div>
+
     <div className="flex items-center gap-4 flex-wrap">
-      {AFDS.map(a=><div key={a} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:dc[a].bg}}/><span className="text-xs text-[#6B7A99]">{a}</span></div>)}
+      {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
       {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:AS[s].dot}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
     </div>
+    {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
+      <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
+      <div className="flex flex-wrap gap-3">
+        {teams.map(t=><div key={t.key} className="flex items-center gap-1.5">
+          <input type="color" value={t.kleur} onChange={ev=>setTeamColor(t.key,ev.target.value)} className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0" title="Teamkleur aanpassen"/>
+          <span className="text-xs text-[#6B7A99]">{t.label}</span>
+        </div>)}
+      </div>
+    </div>}
+
+    {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
+    {projMenu&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+      empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
+      startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
+      onSave={async e=>{await onSavePlanning(e);setProjMenu(null);}} onClose={()=>setProjMenu(null)}/>}
+    {planModal&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+      empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
+      projectId={planModal.projectId} editId={planModal.editId}
+      onSave={async e=>{await onSavePlanning(e);setPlanModal(null);}}
+      onDelete={async id=>{await onDeletePlanning(id);setPlanModal(null);}}
+      onClose={()=>setPlanModal(null)}/>}
   </div>;
 }
 
@@ -2769,24 +3076,50 @@ export default function PlanningApp(){
   const deleteProject=(id:string)=>{setProjects(prev=>prev.filter(p=>p.id!==id));setAvail(prev=>prev.filter(a=>a.projectId!==id));if(detailProject?.id===id)setDetailProject(null);};
   const saveProject=(p:Project)=>{
     if(projects.find(x=>x.id===p.id))updateProject(p.id,p);else addProject(p);
-    setAvail(prev=>{
-      const withoutAuto=prev.filter(a=>a.projectId!==p.id);
-      const newBlocks:AvailEntry[]=[];
-      const projStartD=new Date(p.startdatum);const projEndD=new Date(p.afloopdatum);
-      const startH=projStartD.getHours();const startM=projStartD.getMinutes();
-      const endH=projEndD.getHours();const endM=projEndD.getMinutes();
-      p.medewerkers.forEach(empId=>{
-        const dates=getDatesInRange(projStartD,projEndD);
-        dates.forEach((ds,i)=>{
-          const st=i===0?fmtHM(startH||8,startM):"08:00";
-          const et=i===dates.length-1?fmtHM(endH||17,endM):"17:00";
-          newBlocks.push({id:`auto-${p.id}-${empId}-${ds}`,employeeId:empId,date:ds,startTime:st,endTime:et,status:"Ingepland",note:p.projectnaam,projectId:p.id});
-        });
-      });
-      return [...withoutAuto,...newBlocks];
-    });
     setEditProject(null);setIsNewProject(false);
   };
+
+  // ===== PLANNINGREGELS = enige bron van waarheid =====
+  // Projecten krijgen hun medewerkers en periode uit de planningregels.
+  const viewProjects=useMemo(()=>projects.map(p=>{
+    const rows=projectPlans(avail,p.id);
+    if(!rows.length)return p;
+    const per=planPeriod(rows);
+    return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
+  }),[projects,avail]);
+
+  const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
+    const rows=projectPlans(nextAvail,projectId);
+    const per=planPeriod(rows);
+    if(!per)return projects; // laatste planning verwijderd: datums bewust behouden
+    return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end,medewerkers:assignedEmpIds(nextAvail,projectId)}:p);
+  };
+
+  const savePlanning=async(entry:AvailEntry)=>{
+    const exists=avail.some(a=>a.id===entry.id);
+    const nextAvail=exists?avail.map(a=>a.id===entry.id?entry:a):[...avail,entry];
+    const nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
+      toast.success("Planning opgeslagen.");
+    }catch{toast.error("Planning kon niet worden opgeslagen.");}
+  };
+
+  const deletePlanning=async(id:string)=>{
+    const row=avail.find(a=>a.id===id);
+    const nextAvail=avail.filter(a=>a.id!==id);
+    const pid=row?.projectId;
+    const rest=pid?projectPlans(nextAvail,pid):[];
+    const nextProjects=pid?applyDerivedDates(nextAvail,pid):projects;
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
+      if(pid&&rest.length===0)toast.info("Laatste planning verwijderd — de projectdatums blijven staan tot je ze zelf aanpast.");
+      else toast.success("Planning verwijderd.");
+    }catch{toast.error("Planning kon niet worden verwijderd.");}
+  };
+
 
   const handleImport=async(rows:ImportRow[])=>{
     const createProjectFromImportRow=(r:ImportRow):Project=>{
@@ -2883,13 +3216,13 @@ export default function PlanningApp(){
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
-          {nav==="dashboard"&&<Dashboard projects={projects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={projects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={projects} employees={employees} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
-          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={projects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
+          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
-          {nav==="facturatie"&&<FacturatieView projects={projects}/>}
+          {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
         </div>
       </div>
@@ -2898,7 +3231,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={projects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
