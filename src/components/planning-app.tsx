@@ -31,6 +31,8 @@ interface Project {
   werkzaamheden:string; startdatum:string; afloopdatum:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
+  /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
+  eersteVanDag?:boolean;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
