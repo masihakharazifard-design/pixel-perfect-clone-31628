@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -16,10 +16,10 @@ import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 
 
 // ===== TYPES =====
-type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"beschikbaarheid"|"medewerkers"|"facturatie"|"instellingen";
+type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"facturatie"|"instellingen";
 type Afdeling = "Stoffering"|"Schilderwerk"|"Zonwering";
 type ProjectStatus = "Offerte"|"Bevestigd"|"In uitvoering"|"Afgerond"|"Gefactureerd";
-type AvailStatus = "Beschikbaar"|"Ingepland"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
+type AvailStatus = "Beschikbaar"|"Ingepland"|"Bezet"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
 type Functie = "Stoffeerder"|"Schilder"|"Monteur zonwering"|"Allround"|"Projectleider";
 type CalView = "month"|"week"|"day"|"kwartaal";
 
@@ -36,13 +36,15 @@ interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
   telefoon:string; email:string; competenties:string[];
 }
-interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; }
+interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; }
 interface AppSettings {
   bedrijfsnaam:string; adres:string; postcode:string; plaats:string;
   telefoon:string; email:string; primaryColor:string; accentColor:string;
   deptColors:Record<Afdeling,{bg:string;light:string;border:string}>;
   planFilters?:PlanFilter[];
   teamColors?:Record<string,string>;
+  statusColors?:Record<string,string>;
+  projectColors?:Record<string,string>;
 }
 
 // ===== DEPT COLOR CONTEXT =====
@@ -73,6 +75,7 @@ const SB:Record<ProjectStatus,string> = {
 const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
   Beschikbaar:        {bg:"#D1FAE5",text:"#065F46",dot:"#10B981"},
   Ingepland:          {bg:"#DBEAFE",text:"#1E40AF",dot:"#3B82F6"},
+  Bezet:              {bg:"#FFE4E6",text:"#9F1239",dot:"#F43F5E"},
   "Niet beschikbaar": {bg:"#FEE2E2",text:"#991B1B",dot:"#EF4444"},
   Vakantie:           {bg:"#EDE9FE",text:"#5B21B6",dot:"#8B5CF6"},
   Ziek:               {bg:"#FEF3C7",text:"#92400E",dot:"#F59E0B"},
@@ -108,7 +111,8 @@ const MONTHS_NL = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Aug
 const AFDS:Afdeling[] = ["Stoffering","Schilderwerk","Zonwering"];
 const FUNCS:Functie[] = ["Stoffeerder","Schilder","Monteur zonwering","Allround","Projectleider"];
 const STATS:ProjectStatus[] = ["Offerte","Bevestigd","In uitvoering","Afgerond","Gefactureerd"];
-const AVAIL_STATS:AvailStatus[] = ["Beschikbaar","Ingepland","Niet beschikbaar","Vakantie","Ziek","Vrij"];
+const AVAIL_STATS:AvailStatus[] = ["Beschikbaar","Ingepland","Bezet","Vakantie","Ziek","Vrij"];
+const ABSENCE_STATS:AvailStatus[] = ["Vakantie","Ziek","Vrij","Bezet"];
 const HOUR_HEIGHT = 56;
 const BASE_HOUR = 7;
 const HOURS = Array.from({length:13},(_,i)=>i+BASE_HOUR);
@@ -183,7 +187,7 @@ function normalizeProjectnr(v:unknown):string{return String(v??"").trim();}
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
-function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
+function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
 function fmtHM(h:number,m:number){return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
 function getWeekNumber(d:Date):number{const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dayNum=date.getUTCDay()||7;date.setUTCDate(date.getUTCDate()+4-dayNum);const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));return Math.ceil((((date.getTime()-yearStart.getTime())/86400000)+1)/7);}
 
@@ -229,18 +233,18 @@ const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
   "Ingepland":"bg-emerald-100 text-emerald-700",
 };
 function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
-interface PlanConflict{employee:string;label:string;time:string;}
+interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;}
 function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
   const emp=employees.find(e=>e.id===empId);
   const naam=emp?emp.naam:"Medewerker";
   const out:PlanConflict[]=[];
   av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
     if(!overlaps(start,end,a.startTime,a.endTime))return;
-    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij"];
-    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`});return;}
+    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij","Bezet"];
+    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});return;}
     if(a.status==="Ingepland"){
       const p=projects.find(x=>x.id===a.projectId);
-      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`});
+      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});
     }
   });
   return out;
@@ -256,6 +260,14 @@ function teamColor(key:string,overrides:Record<string,string>={}):string{
 // Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
 function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
   return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
+}
+// ===== KLEURBEHEER =====
+// Alle kleuren komen uit app_settings; zonder override geldt de standaardkleur.
+function statusColorOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[s]||AS[s].dot;}
+function statusBgOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[s]?ov[s]+"33":AS[s].bg;}
+function absenceStyle(s:AvailStatus,ov:Record<string,string>={}):React.CSSProperties{
+  const c=statusColorOf(s,ov);
+  return{backgroundColor:c,backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 5px, transparent 5px 10px)",color:"#fff"};
 }
 // ===== FILTERS =====
 interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
@@ -1415,7 +1427,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
 const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Projecten"],
   ["agenda",CalendarDays,"Agenda"],["personeelsplanning",Users,"Personeelsplanning"],
-  ["beschikbaarheid",Clock3,"Beschikbaarheid"],["medewerkers",UserCircle,"Medewerkers"],
+  ["medewerkers",UserCircle,"Medewerkers"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
 function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
@@ -1480,7 +1492,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",beschikbaarheid:"Beschikbaarheid",medewerkers:"Medewerkers",facturatie:"Facturatie",instellingen:"Instellingen"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",facturatie:"Facturatie",instellingen:"Instellingen"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
     <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -1506,7 +1518,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
   const stats=[
     {label:"Actieve projecten",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
     {label:"Projecten deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
-    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"beschikbaarheid" as Nav},
+    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"personeelsplanning" as Nav},
     {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#F5A623",bg:"#FEF0D3",nav:"personeelsplanning" as Nav},
     {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#FF6B5B",bg:"#FFE8E5",nav:"facturatie" as Nav},
   ];
@@ -1549,7 +1561,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
           <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Medewerkers vandaag</h3>
-          <button onClick={()=>onNav("beschikbaarheid")} className="text-xs text-[#0ABFB8] hover:underline">Beschikbaarheid</button>
+          <button onClick={()=>onNav("personeelsplanning")} className="text-xs text-[#0ABFB8] hover:underline">Personeelsplanning</button>
         </div>
         <div className="divide-y divide-[rgba(26,39,68,0.05)]">
           {employees.slice(0,6).map(e=>{
@@ -2169,8 +2181,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
 }
 
 // ===== AGENDA VIEW =====
-function AgendaView({projects,employees,availability,teamColors={},updateProject,onOpenProject,onCreateProject}:{
-  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;
+function AgendaView({projects,employees,availability,teamColors={},statusColors={},updateProject,onOpenProject,onCreateProject}:{
+  projects:Project[];employees:Employee[];availability:AvailEntry[];teamColors?:Record<string,string>;statusColors?:Record<string,string>;
   updateProject:(id:string,u:Partial<Project>)=>void;
   onOpenProject:(p:Project)=>void;onCreateProject:(prefill:Partial<Project>)=>void;
 }){
@@ -2216,9 +2228,22 @@ function AgendaView({projects,employees,availability,teamColors={},updateProject
         teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
     });
   });
+  // Afwezigheid (vakantie/ziek/vrij/bezet) uit dezelfde planningbron tonen in de agenda
+  availability.filter(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)).forEach(a=>{
+    const emp=employees.find(e=>e.id===a.employeeId);
+    if(!emp)return;
+    if(afdFilter&&emp.afdeling!==afdFilter)return;
+    agendaProjects.push({
+      id:`abs::${a.id}`,werknummer:a.status,projectnaam:`${abbrevName(emp.naam)} – ${a.status}`,
+      opdrachtgever:"",plaats:"",projectleider:"",werkzaamheden:a.note||"",notities:"",uurprijs:0,uren:0,
+      status:"Bevestigd",afdeling:emp.afdeling,afdelingen:[emp.afdeling],medewerkers:[emp.id],
+      startdatum:combineLocalDT(a.date,a.startTime,8,0),afloopdatum:combineLocalDT(a.date,a.endTime,17,0),
+      teamKleur:statusColorOf(a.status,statusColors)});
+  });
   const realId=(id:string)=>id.split("::")[0];
-  const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
+  const openReal=(vp:Project)=>{if(vp.id.startsWith("abs::"))return;const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   const handleDropProject=(id:string,newStart:Date)=>{
+    if(id.startsWith("abs::"))return;
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
@@ -2226,11 +2251,12 @@ function AgendaView({projects,employees,availability,teamColors={},updateProject
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
   const handleDropProjectTime=(id:string,newStart:Date)=>{
+    if(id.startsWith("abs::"))return;
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
-  const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
+  const handleResize=(id:string,newEnd:Date)=>{if(id.startsWith("abs::"))return;updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
@@ -2383,23 +2409,125 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
   </Modal>;
 }
 
+// ===== AFWEZIGHEID (vakantie, ziek, vrij, bezet) =====
+interface AbsenceDraft{periodeId?:string;employeeId:string;startDate:string;endDate:string;startTime:string;endTime:string;status:AvailStatus;note:string;wholeDay:boolean;}
+function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];projects:Project[];draft:AbsenceDraft;
+  onSave:(d:AbsenceDraft)=>Promise<void>;onDelete?:(periodeId:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [f,setF]=useState<AbsenceDraft>(draft);
+  const [busy,setBusy]=useState(false);
+  const upd=(u:Partial<AbsenceDraft>)=>setF(p=>({...p,...u}));
+  const st=f.wholeDay?"00:00":f.startTime,et=f.wholeDay?"23:59":f.endTime;
+  const days=(f.startDate&&f.endDate&&f.startDate<=f.endDate)?getDatesInRange(new Date(f.startDate),new Date(f.endDate)):[];
+  const own=f.periodeId?availability.filter(a=>a.periodeId===f.periodeId).map(a=>a.id):[];
+  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,projects,f.employeeId,d,st,et,own));
+  const canSave=!!f.employeeId&&days.length>0&&st<et&&!busy;
+  return <Modal title={f.periodeId?"Afwezigheid bewerken":"Afwezigheid toevoegen"} onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Medewerker" value={f.employeeId} onChange={v=>upd({employeeId:v})} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        <Select label="Status" value={f.status} onChange={v=>upd({status:v as AvailStatus})} options={ABSENCE_STATS.map(s=>({value:s,label:s}))}/>
+        <Input label="Startdatum" value={f.startDate} onChange={v=>upd({startDate:v})} type="date"/>
+        <Input label="Einddatum" value={f.endDate} onChange={v=>upd({endDate:v})} type="date"/>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-[#6B7A99]">
+        <input type="checkbox" checked={f.wholeDay} onChange={e=>upd({wholeDay:e.target.checked})}/>
+        Hele dagen (geen tijden — de volledige geselecteerde periode geldt)
+      </label>
+      {!f.wholeDay&&<div className="grid grid-cols-2 gap-3">
+        <Input label="Starttijd" value={f.startTime} onChange={v=>upd({startTime:v})} type="time"/>
+        <Input label="Eindtijd" value={f.endTime} onChange={v=>upd({endTime:v})} type="time"/>
+      </div>}
+      <Input label="Notitie" value={f.note} onChange={v=>upd({note:v})} placeholder="Optioneel"/>
+      <p className="text-xs text-[#6B7A99]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
+      {conflicts.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
+        <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
+        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
+      </div>}
+      <div className="flex justify-between gap-2 pt-1">
+        <div>{f.periodeId&&onDelete&&<Btn variant="danger" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(f.periodeId!);setBusy(false);}}><Trash2 className="w-3.5 h-3.5"/>Periode verwijderen</Btn>}</div>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+          <Btn disabled={!canSave} onClick={async()=>{setBusy(true);await onSave({...f,startTime:st,endTime:et});setBusy(false);}}>{busy?"Opslaan…":"Opslaan"}</Btn>
+        </div>
+      </div>
+    </div>
+  </Modal>;
+}
+// Conflicten voor een dag, meerdere eigen records uitgesloten (bij het bewerken van een periode)
+function findConflictsMulti(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
+  return findConflicts(av.filter(a=>!ignoreIds.includes(a.id)),employees,projects,empId,date,start,end);
+}
+
+// ===== KLEUREN BEHEREN =====
+function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
+  settings:AppSettings;projects:Project[];teams:{key:string;label:string}[];
+  onSave:(s:AppSettings)=>void;onClose:()=>void;
+}){
+  const [s,setS]=useState<AppSettings>(settings);
+  const statusColors=s.statusColors||{};
+  const projectColors=s.projectColors||{};
+  const teamColors=s.teamColors||{};
+  const filters=s.planFilters?.length?s.planFilters:DEFAULT_PLAN_FILTERS;
+  const row=(key:string,naam:string,kleur:string,onChange:(c:string)=>void,onReset:()=>void)=>
+    <div key={key} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-2 py-1.5">
+      <input type="color" value={kleur} onChange={e=>onChange(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0"/>
+      <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744] font-medium">{naam}</span>
+      <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{backgroundColor:kleur}}>Voorbeeld</span>
+      <button onClick={onReset} className="text-[10px] text-[#6B7A99] hover:text-[#1A2744] font-semibold">Standaard</button>
+    </div>;
+  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold uppercase tracking-wide text-[#6B7A99]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
+  return <Modal title="Kleuren beheren" onClose={onClose} width="max-w-2xl">
+    <div className="p-4 md:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+      {section("Statussen",AVAIL_STATS.map(st=>row("st-"+st,st,statusColorOf(st,statusColors),
+        c=>setS(p=>({...p,statusColors:{...(p.statusColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.statusColors||{})};delete n[st];return{...p,statusColors:n};}))))}
+      {section("Afdelingen",AFDS.map(a=>row("af-"+a,a,s.deptColors[a].bg,
+        c=>setS(p=>({...p,deptColors:{...p.deptColors,[a]:{...p.deptColors[a],bg:c,border:c}}})),
+        ()=>setS(p=>({...p,deptColors:{...p.deptColors,[a]:DEFAULT_DC[a]}})))))}
+      {section("Filters",filters.map(f=>row("fl-"+f.id,f.naam,f.kleur,
+        c=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:c}:x)})),
+        ()=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:DEFAULT_DC[(x.afdeling as Afdeling)]?.bg||"#0ABFB8"}:x)})))))}
+      {teams.length>0&&section("Teams",teams.map(t=>row("tm-"+t.key,t.label,teamColor(t.key,teamColors),
+        c=>setS(p=>({...p,teamColors:{...(p.teamColors||{}),[t.key]:c}})),
+        ()=>setS(p=>{const n={...(p.teamColors||{})};delete n[t.key];return{...p,teamColors:n};}))))}
+      {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+        c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
+        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
+    </div>
+    <div className="flex justify-end gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
+      <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+      <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+    </div>
+  </Modal>;
+}
+
+
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
-function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onOpenProject,onVacImport}:{
+function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
-  onSavePlanning:(e:AvailEntry)=>Promise<void>;onDeletePlanning:(id:string)=>Promise<void>;
+  onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onDeletePlanning:(id:string)=>Promise<void>;
+  onSaveAbsence:(d:AbsenceDraft)=>Promise<void>;onDeleteAbsence:(periodeId:string)=>Promise<void>;
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
   const dc=useDC();
   const [view,setView]=useState<PlanView>("week");
   const [refDate,setRefDate]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
   const [showFilters,setShowFilters]=useState(false);
+  const [showColors,setShowColors]=useState(false);
   const [dragProject,setDragProject]=useState<string|null>(null);
+  const [dragBlock,setDragBlock]=useState<AvailEntry|null>(null);
   const [planModal,setPlanModal]=useState<{empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string}|null>(null);
   const [projMenu,setProjMenu]=useState<Project|null>(null);
+  const [absModal,setAbsModal]=useState<AbsenceDraft|null>(null);
+  const [rangeStart,setRangeStart]=useState<{empId:string;date:string}|null>(null);
   const filters=settings.planFilters?.length?settings.planFilters:DEFAULT_PLAN_FILTERS;
   const teamColors=settings.teamColors||{};
+  const statusColors=settings.statusColors||{};
+  const projectColors=settings.projectColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
@@ -2422,16 +2550,49 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     });
     return out;
   };
-  const rowColor=(a:AvailEntry)=>teamColor(teamKey(a.projectId||"",a.date,teamForDay(availability,a.projectId||"",a.date)),teamColors);
+  // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
+  const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const rowColor=(a:AvailEntry)=>{
+    const ids=teamForDay(availability,a.projectId||"",a.date);
+    if(ids.length>1)return teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
+    return projectColors[a.projectId||""]||teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
+  };
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});
+  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:"08:00",endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
+  const openEditAbsence=(a:AvailEntry)=>{
+    const rows=a.periodeId?availability.filter(x=>x.periodeId===a.periodeId):[a];
+    const dates=rows.map(r=>r.date).sort();
+    setAbsModal({periodeId:a.periodeId,employeeId:a.employeeId,startDate:dates[0],endDate:dates[dates.length-1],
+      startTime:a.startTime,endTime:a.endTime,status:a.status,note:a.note||"",wholeDay:a.startTime==="00:00"&&a.endTime==="23:59"});
+  };
+  // Cel aanklikken: normaal inplannen, met Shift een periode selecteren
+  const cellClick=(empId:string,ds:string,ev:React.MouseEvent)=>{
+    if(ev.shiftKey||rangeStart){
+      if(rangeStart&&rangeStart.empId===empId){
+        const [a,b]=[rangeStart.date,ds].sort();
+        setRangeStart(null);openAbsence(empId,a,b);
+      }else setRangeStart({empId,date:ds});
+      return;
+    }
+    openPlan(empId,ds);
+  };
   const dropOnCell=async(empId:string,ds:string)=>{
-    const pid=dragProject;setDragProject(null);
+    const block=dragBlock;const pid=dragProject;
+    setDragProject(null);setDragBlock(null);
+    if(block){
+      if(block.employeeId===empId&&block.date===ds)return;
+      const conflicts=findConflicts(availability,employees,projects,empId,ds,block.startTime,block.endTime,block.id);
+      if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
+      const ok=await onSavePlanning({...block,employeeId:empId,date:ds});
+      if(!ok)toast.error("Verplaatsen mislukt — het blok blijft op de oorspronkelijke plek.");
+      return;
+    }
     if(!pid)return;
     const p=projects.find(x=>x.id===pid);if(!p)return;
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
     const conflicts=findConflicts(availability,employees,projects,empId,ds,st,et<=st?"17:00":et);
-    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].label} · ${conflicts[0].time}`);return;}
+    if(conflicts.length){toast.error(`Conflict: ${conflicts[0].employee} · ${conflicts[0].status} · ${fmtDate(conflicts[0].date)} · ${conflicts[0].time} · ${conflicts[0].label}`);return;}
     await onSavePlanning({id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id});
   };
 
@@ -2478,8 +2639,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Personeelsplanning</h1><p className="text-[#6B7A99] text-xs md:text-sm">Bezetting per medewerker</p></div>
-      <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
+      <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Personeelsplanning</h1><p className="text-[#6B7A99] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
+      <div className="flex gap-2 flex-wrap">
+        <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>setShowColors(true)}><Palette className="w-3.5 h-3.5"/>Kleuren beheren</Btn>
+      </div>
     </div>
     <div className="flex gap-2 items-center flex-wrap">
       <div className="flex items-center gap-1 border border-[rgba(26,39,68,0.12)] rounded-lg overflow-hidden">
@@ -2512,11 +2677,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             ?<button onClick={()=>openPlan(e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
             :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
               {blocks.map(({av:b,proj})=>(
-                <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):openPlan(e.id,ds)}>
+                <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?openEditAbsence(b):openPlan(e.id,ds)}>
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:AS[b.status].bg,color:AS[b.status].text}}>
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:AS[b.status].dot}}/>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
                   <span className="text-xs text-[#1A2744] truncate flex-1">{proj?`${proj.werknummer} – ${proj.projectnaam}`:(b.note||"")}</span>
@@ -2550,15 +2716,19 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
                 <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
               </div>
             </td>
-            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const avDay=availability.filter(a=>a.employeeId===e.id&&a.date===ds&&!a.projectId);const dom=avDay.length?getDominantStatus(avDay):null;
-            return<td key={ds} onClick={()=>ps.length===0&&openPlan(e.id,ds)} onDragOver={ev=>{if(dragProject)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
-              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${dragProject?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik om in te plannen">
-              {ps.length>0?<div className="space-y-0.5">
-                {ps.map(({row,proj})=><button key={row.id} onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className="rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+            {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
+            return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
+              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid">
+              <div className="space-y-0.5">
+                {abs.map(a=><button key={a.id} onClick={ev=>{ev.stopPropagation();openEditAbsence(a);}}
+                  className="rounded px-1 py-0.5 text-[10px] font-semibold truncate block w-full text-left hover:opacity-90"
+                  style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>{a.status.slice(0,4)}</button>)}
+                {ps.map(({row,proj})=><button key={row.id} draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
+                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
                   {proj.projectnaam.slice(0,4)+".."}
                 </button>)}
-                <button onClick={ev=>{ev.stopPropagation();openPlan(e.id,ds);}} className="text-[9px] text-[#B8C3D9] hover:text-[#0ABFB8] w-full">+</button>
-              </div>:dom?<div className="w-6 h-6 rounded-full mx-auto" style={{backgroundColor:AS[dom].bg}} title={dom}/>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
+                {abs.length===0&&ps.length===0&&<span className="text-[10px] text-[#E2E7F0]">+</span>}
+              </div>
             </td>;})}
           </tr>)}
         </tbody>
@@ -2628,7 +2798,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
     <div className="flex items-center gap-4 flex-wrap">
       {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
-      {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:AS[s].dot}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
+      {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
     </div>
     {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
       <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
@@ -2651,186 +2821,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       onSave={async e=>{await onSavePlanning(e);setPlanModal(null);}}
       onDelete={async id=>{await onDeletePlanning(id);setPlanModal(null);}}
       onClose={()=>setPlanModal(null)}/>}
-  </div>;
-}
-
-// ===== BESCHIKBAARHEID =====
-interface AvailForm { id?:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note:string; }
-function BeschikbaarheidView({employees,availability,setAvailability,onVacImport}:{
-  employees:Employee[];availability:AvailEntry[];
-  setAvailability:(fn:(prev:AvailEntry[])=>AvailEntry[])=>void;
-  onVacImport:()=>void;
-}){
-
-  const dc=useDC();
-  const [weekStart,setWeekStart]=useState(()=>{const d=new Date();d.setDate(d.getDate()-(d.getDay()||7)+1);d.setHours(0,0,0,0);return d;});
-  const [afdFilter,setAfdFilter]=useState<string>("");
-  const [modal,setModal]=useState<AvailForm|null>(null);
-  const weekDays=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
-  const visEmp=employees.filter(e=>!afdFilter||e.afdeling===afdFilter);
-  const getBlocks=(empId:string,ds:string)=>availability.filter(a=>a.employeeId===empId&&a.date===ds&&!a.projectId).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-  const getProjBlocks=(empId:string,ds:string)=>availability.filter(a=>a.employeeId===empId&&a.date===ds&&!!a.projectId).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-  const openAdd=(empId:string,ds:string)=>setModal({employeeId:empId,date:ds,startTime:"08:00",endTime:"17:00",status:"Beschikbaar",note:""});
-  const openEdit=(av:AvailEntry)=>setModal({id:av.id,employeeId:av.employeeId,date:av.date,startTime:av.startTime,endTime:av.endTime,status:av.status,note:av.note||""});
-  const deleteBlock=(id:string)=>setAvailability(prev=>prev.filter(a=>a.id!==id));
-  const saveBlock=()=>{
-    if(!modal)return;
-    setAvailability(prev=>{
-      const filtered=modal.id?prev.filter(a=>a.id!==modal.id):prev;
-      return [...filtered,{id:modal.id||("av"+Date.now()),employeeId:modal.employeeId,date:modal.date,startTime:modal.startTime,endTime:modal.endTime,status:modal.status,note:modal.note}];
-    });
-    setModal(null);
-  };
-  const [mobileDay,setMobileDay]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
-  const mobileDayStr=toDateStr(mobileDay);
-  return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-    <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Beschikbaarheid</h1><p className="text-[#6B7A99] text-xs md:text-sm">Tijdblokken per medewerker per dag</p></div>
-      <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
-    </div>
-
-    <div className="flex items-center gap-3 flex-wrap">
-      <div className="flex items-center gap-1">
-        <button onClick={()=>{const d=new Date(weekStart);d.setDate(d.getDate()-7);setWeekStart(d);}} className="p-1.5 rounded-lg hover:bg-[#E8EDF5] text-[#6B7A99]"><ChevronLeft className="w-4 h-4"/></button>
-        <span className="text-xs md:text-sm font-semibold text-[#1A2744] min-w-40 md:min-w-52 text-center">{weekDays[0].getDate()} {MONTHS_NL[weekDays[0].getMonth()].slice(0,3)} – {weekDays[6].getDate()} {MONTHS_NL[weekDays[6].getMonth()].slice(0,3)} {weekDays[0].getFullYear()}</span>
-        <button onClick={()=>{const d=new Date(weekStart);d.setDate(d.getDate()+7);setWeekStart(d);}} className="p-1.5 rounded-lg hover:bg-[#E8EDF5] text-[#6B7A99]"><ChevronRight className="w-4 h-4"/></button>
-      </div>
-      <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-36 md:w-40"/>
-    </div>
-    {/* Mobile: day picker + cards */}
-    <div className="md:hidden">
-      <div className="flex gap-1 overflow-x-auto pb-1 mb-3">
-        {weekDays.map(d=>{const ds=toDateStr(d);const isT=ds===TODAY_STR;const isSel=ds===mobileDayStr;const isWE=d.getDay()===0||d.getDay()===6;
-          return<button key={ds} onClick={()=>setMobileDay(d)} className={`flex-shrink-0 flex flex-col items-center px-2.5 py-2 rounded-xl text-xs font-medium transition-all ${isSel?"bg-[#1A2744] text-white":isT?"bg-[#E0F7F6] text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>
-            <span className="text-[10px] uppercase">{DAYS_NL[(d.getDay()+6)%7]}</span>
-            <span className="text-sm font-bold">{d.getDate()}</span>
-          </button>;})}
-      </div>
-      <div className="space-y-3">
-        {visEmp.map(e=>{
-          const manualBlocks=getBlocks(e.id,mobileDayStr);
-          const projBlocks=getProjBlocks(e.id,mobileDayStr);
-          const allBlocks=[...projBlocks,...manualBlocks];
-          return<div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:3}}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-              <div className="flex-1 min-w-0"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.afdeling}</p></div>
-              <button onClick={()=>openAdd(e.id,mobileDayStr)} className="p-1.5 rounded-lg bg-[#E0F7F6] text-[#0ABFB8] hover:bg-[#0ABFB8] hover:text-white transition-colors flex-shrink-0"><Plus className="w-3.5 h-3.5"/></button>
-            </div>
-            {allBlocks.length===0
-              ?<p className="px-4 py-2.5 text-xs text-[#B8C3D9]">Geen tijdblokken — tik + om toe te voegen</p>
-              :<div className="divide-y divide-[rgba(26,39,68,0.04)]">
-                {allBlocks.map(av=><div key={av.id} className="flex items-center gap-2 px-4 py-2.5">
-                  <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap flex-shrink-0">{av.startTime}–{av.endTime}</span>
-                  <span className="flex-1 text-xs font-medium truncate" style={{color:AS[av.status].text}}>{av.note||av.status}</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0" style={{backgroundColor:AS[av.status].bg,color:AS[av.status].text}}>{av.status}</span>
-                  {!av.projectId&&<div className="flex gap-1 flex-shrink-0">
-                    <button onClick={()=>openEdit(av)} className="p-1 text-[#B8C3D9] hover:text-[#6B7A99]"><Pencil className="w-3 h-3"/></button>
-                    <button onClick={()=>deleteBlock(av.id)} className="p-1 text-[#B8C3D9] hover:text-[#FF6B5B]"><X className="w-3 h-3"/></button>
-                  </div>}
-                </div>)}
-              </div>
-            }
-          </div>;
-        })}
-      </div>
-    </div>
-    {/* Desktop: table view */}
-    <div className="hidden md:block bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
-      <table className="w-full text-sm" style={{minWidth:"900px"}}>
-        <thead className="bg-[#F0F3F8]">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-[#6B7A99] uppercase min-w-44 sticky left-0 bg-[#F0F3F8] z-10">Medewerker</th>
-            {weekDays.map(d=>{const ds=toDateStr(d);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds} className={`px-2 py-3 text-center text-xs font-semibold ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} uppercase min-w-32 ${isWE?"bg-[#F8F8FB]":""}`}>{DAYS_NL[(d.getDay()+6)%7]} {d.getDate()}</th>;})}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {visEmp.map(e=><tr key={e.id} className="align-top">
-            <td className="px-4 py-3 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.afdeling}</p></div>
-              </div>
-            </td>
-            {weekDays.map(d=>{
-              const ds=toDateStr(d);const isWE=d.getDay()===0||d.getDay()===6;
-              const manualBlocks=getBlocks(e.id,ds);
-              const projBlocks=getProjBlocks(e.id,ds);
-              return<td key={ds} className={`px-1.5 py-1.5 ${isWE?"bg-[#F8F8FB]":""}`}>
-                <div className="space-y-0.5">
-                  {projBlocks.map(av=><div key={av.id} className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{backgroundColor:AS[av.status].bg,color:AS[av.status].text}}>
-                    <span className="whitespace-nowrap opacity-75">{av.startTime}–{av.endTime}</span>
-                    <span className="truncate flex-1">{av.note||av.status}</span>
-                    <span className="text-[8px] opacity-50 flex-shrink-0">auto</span>
-                  </div>)}
-                  {manualBlocks.map(av=><div key={av.id} className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium group" style={{backgroundColor:AS[av.status].bg,color:AS[av.status].text}}>
-                    <span className="whitespace-nowrap opacity-75">{av.startTime}–{av.endTime}</span>
-                    <span className="truncate flex-1">{av.note||av.status}</span>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button onClick={()=>openEdit(av)} className="hover:opacity-70 p-0.5" title="Bewerken"><Pencil className="w-2.5 h-2.5"/></button>
-                      <button onClick={()=>deleteBlock(av.id)} className="hover:opacity-70 p-0.5" title="Verwijderen"><X className="w-2.5 h-2.5"/></button>
-                    </div>
-                  </div>)}
-                  {!isWE&&<button onClick={()=>openAdd(e.id,ds)} className="w-full text-[10px] text-[#B8C3D9] hover:text-[#0ABFB8] hover:bg-[#E0F7F6] rounded py-0.5 transition-colors text-center leading-4">+ tijdblok</button>}
-                </div>
-              </td>;
-            })}
-          </tr>)}
-        </tbody>
-      </table>
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {AVAIL_STATS.map(s=><div key={s} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{backgroundColor:AS[s].bg}}>
-        <div className="w-2 h-2 rounded-full" style={{backgroundColor:AS[s].dot}}/>
-        <span className="text-xs font-medium" style={{color:AS[s].text}}>{s}</span>
-      </div>)}
-    </div>
-    {modal&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e=>{if(e.target===e.currentTarget)setModal(null);}}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(26,39,68,0.08)]">
-          <h2 className="font-bold text-lg text-[#1A2744]">{modal.id?"Tijdblok bewerken":"Tijdblok toevoegen"}</h2>
-          <button onClick={()=>setModal(null)} className="p-1.5 rounded-lg hover:bg-[#F0F3F8] text-[#6B7A99]"><X className="w-4 h-4"/></button>
-        </div>
-        <div className="p-4 md:p-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Medewerker</label>
-              <select value={modal.employeeId} onChange={e=>setModal(p=>p?{...p,employeeId:e.target.value}:p)} className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40">
-                {employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Datum</label>
-              <input type="date" value={modal.date} onChange={e=>setModal(p=>p?{...p,date:e.target.value}:p)} className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Starttijd</label>
-              <input type="time" value={modal.startTime} onChange={e=>setModal(p=>p?{...p,startTime:e.target.value}:p)} className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Eindtijd</label>
-              <input type="time" value={modal.endTime} onChange={e=>setModal(p=>p?{...p,endTime:e.target.value}:p)} className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Status</label>
-            <select value={modal.status} onChange={e=>setModal(p=>p?{...p,status:e.target.value as AvailStatus}:p)} className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40">
-              {AVAIL_STATS.map(s=><option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Notitie (optioneel)</label>
-            <input type="text" value={modal.note} onChange={e=>setModal(p=>p?{...p,note:e.target.value}:p)} placeholder="bijv. Vergadering, Doktersafspraak..." className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.08)]">
-            <button onClick={()=>setModal(null)} className="px-4 py-2 text-sm font-medium text-[#6B7A99] hover:bg-[#F0F3F8] rounded-lg transition-colors">Annuleren</button>
-            <button onClick={saveBlock} className="px-4 py-2 text-sm font-semibold text-white bg-[#0ABFB8] hover:bg-[#09ABA4] rounded-lg transition-colors">{modal.id?"Opslaan":"Toevoegen"}</button>
-          </div>
-        </div>
-      </div>
+    {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
+      onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
+      onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
+      onClose={()=>setAbsModal(null)}/>}
+    {showColors&&<ColorManagerModal settings={settings} projects={projects} teams={teams.map(t=>({key:t.key,label:t.label}))}
+      onSave={s=>onSaveSettings(s)} onClose={()=>setShowColors(false)}/>}
+    {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#1A2744] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
+      Kies de einddag voor de afwezigheid
+      <button className="underline" onClick={()=>setRangeStart(null)}>Annuleren</button>
     </div>}
   </div>;
 }
@@ -3097,13 +3096,45 @@ export default function PlanningApp(){
 
   const savePlanning=async(entry:AvailEntry)=>{
     const exists=avail.some(a=>a.id===entry.id);
+    const prevAvail=avail,prevProjects=projects;
     const nextAvail=exists?avail.map(a=>a.id===entry.id?entry:a):[...avail,entry];
-    const nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    const oldPid=exists?avail.find(a=>a.id===entry.id)?.projectId:undefined;
+    let nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
+    if(oldPid&&oldPid!==entry.projectId){
+      const tmp=applyDerivedDates(nextAvail,oldPid);
+      nextProjects=nextProjects.map(p=>p.id===oldPid?tmp.find(x=>x.id===oldPid)!:p);
+    }
     setAvail(nextAvail);setProjects(nextProjects);
     try{
       await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
       toast.success("Planning opgeslagen.");
-    }catch{toast.error("Planning kon niet worden opgeslagen.");}
+      return true;
+    }catch{
+      setAvail(prevAvail);setProjects(prevProjects);
+      toast.error("Planning kon niet worden opgeslagen.");
+      return false;
+    }
+  };
+
+  // Afwezigheid als één periode: elke dag krijgt een regel met hetzelfde periodeId
+  const saveAbsence=async(d:AbsenceDraft)=>{
+    const dates=getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00"));
+    const pid=d.periodeId||"per-"+nid();
+    const kept=avail.filter(a=>a.periodeId!==pid);
+    // geen dubbele regels: bestaande regel voor dezelfde medewerker/dag/status vervangen
+    const base=kept.filter(a=>!(a.employeeId===d.employeeId&&!a.projectId&&dates.includes(a.date)&&a.status===d.status));
+    const rows:AvailEntry[]=dates.map(date=>({id:"av-"+nid(),employeeId:d.employeeId,date,startTime:d.startTime,endTime:d.endTime,status:d.status,note:d.note||undefined,periodeId:pid}));
+    const nextAvail=[...base,...rows];
+    setAvail(nextAvail);
+    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid opgeslagen.");}
+    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden opgeslagen.");}
+  };
+
+  const deleteAbsence=async(periodeId:string)=>{
+    const nextAvail=avail.filter(a=>a.periodeId!==periodeId);
+    setAvail(nextAvail);
+    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid verwijderd.");}
+    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden verwijderd.");}
   };
 
   const deletePlanning=async(id:string)=>{
@@ -3218,9 +3249,8 @@ export default function PlanningApp(){
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
-          {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
-          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
-          {nav==="beschikbaarheid"&&<BeschikbaarheidView employees={employees} availability={avail} setAvailability={setAvail} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="agenda"&&<AgendaView projects={viewProjects} statusColors={settings.statusColors||{}} employees={employees} availability={avail} teamColors={settings.teamColors||{}} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject}/>}
+          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={setSettings} onSavePlanning={savePlanning} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
