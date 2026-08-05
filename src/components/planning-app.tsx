@@ -2211,24 +2211,26 @@ function AgendaView({projects,employees,availability,teamColors={},updateProject
     [...groups.entries()].forEach(([k,rs])=>{
       const [date,st,et]=k.split("|");
       const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
-      agendaProjects.push({...p,id:p.id,medewerkers:ids,
+      agendaProjects.push({...p,id:`${p.id}::${date}::${st}`,medewerkers:ids,
         startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
         teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
     });
   });
+  const realId=(id:string)=>id.split("::")[0];
+  const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   const handleDropProject=(id:string,newStart:Date)=>{
-    const p=projects.find(x=>x.id===id);if(!p)return;
+    const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
     newStart.setHours(origStart.getHours(),origStart.getMinutes(),0,0);
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
   const handleDropProjectTime=(id:string,newStart:Date)=>{
-    const p=projects.find(x=>x.id===id);if(!p)return;
+    const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
-  const handleResize=(id:string,newEnd:Date)=>{updateProject(id,{afloopdatum:newEnd.toISOString()});};
+  const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
@@ -2259,17 +2261,17 @@ function AgendaView({projects,employees,availability,teamColors={},updateProject
     <div className="flex-1 overflow-hidden bg-white">
       {view==="month"&&<div className="h-full overflow-y-auto">
         <MonthView year={year} month={month} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
-          onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
+          onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
       {view==="week"&&<WeekView weekDays={weekDays} projects={agendaProjects} employees={employees}
-        onClickProject={onOpenProject} onClickDateTime={handleClickDateTime}
+        onClickProject={openReal} onClickDateTime={handleClickDateTime}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="day"&&<DayView date={date} projects={agendaProjects} employees={employees}
-        onClickProject={onOpenProject} onClickTime={h=>handleClickDateTime(date,h)}
+        onClickProject={openReal} onClickTime={h=>handleClickDateTime(date,h)}
         onDropProject={handleDropProjectTime} onResizeProject={handleResize}/>}
       {view==="kwartaal"&&<div className="h-full overflow-y-auto">
         <KwartaalView year={year} quarter={quarter} projects={agendaProjects} employees={employees} schoolRegions={schoolRegions}
-          onClickProject={onOpenProject} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
+          onClickProject={openReal} onClickDate={handleClickDate} onDropProject={handleDropProject} showWeekNumbers={showWeekNumbers}/>
       </div>}
     </div>
   </div>;
