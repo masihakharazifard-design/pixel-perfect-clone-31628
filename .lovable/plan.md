@@ -41,3 +41,28 @@ De ster is onderdeel van de normale opmaak, zodat hij bij afdrukken en exportere
 - Bij verwijderen van een planningregel (contextmenu en `onDeletePlanning`-pad in Personeelsplanning) wordt de dag hernummerd en promoveert het volgende blok.
 - Sortering: `byVolgorde` krijgt `isFirstOfDay` als eerste sleutel bij gelijke volgorde.
 - Iconen via lucide-react `Star` (gevuld), in het bestaande kleurenpalet.
+
+## Bewaking, automatiek en synchronisatie
+
+**Altijd maximaal één markering**
+Een normalisatiestap draait bij het inlezen van de planning én vóór iedere opslag: bestaan er binnen dezelfde medewerker en dag meerdere gemarkeerde blokken (door import, synchronisatie of oude gegevens), dan blijft alleen het blok met de laagste volgorde gemarkeerd en vervallen de overige markeringen automatisch.
+
+**Automatische markering bij één project**
+Heeft een medewerker op een dag precies één projectblok, dan wordt dat blok automatisch als eerste gemarkeerd. Komt er later een tweede project bij, dan blijft de bestaande markering staan tot de gebruiker die zelf wijzigt.
+
+**Kopiëren**
+Bij het kopiëren van een planning naar een andere dag gaat de markering niet mee. Op de nieuwe dag bepaalt de normalisatie of het blok daar de eerste is (bijvoorbeeld als het het enige project van die dag is).
+
+**Excel-import**
+De import en synchronisatie vanuit Excel laten `isFirstOfDay` ongemoeid; bestaande waarden worden niet overschreven. De markering wordt uitsluitend beheerd vanuit Personeelsplanning.
+
+**Doorwerken in alle schermen**
+Personeelsplanning, Agenda, Projectdetails en het dashboard lezen dezelfde planningregels, dus de markering verschijnt overal tegelijk. Elke wijziging wordt eerst naar de database geschreven en daarna teruggelezen, zodat elk scherm exact dezelfde volgorde toont.
+
+### Technisch
+
+- `normalizeFirstOfDay(rows)`: groepeert projectregels op medewerker + datum, houdt de markering met de laagste `volgorde` aan, wist de rest en zet de markering automatisch wanneer de groep één regel bevat. Toegepast in `planning-store` bij het laden en in `commitPlanning`/`tryCommit` vóór het wegschrijven.
+- Kopieeracties strippen `isFirstOfDay` op de nieuwe regel; daarna draait `normalizeFirstOfDay` op de doeldag.
+- Bij Excel-import wordt bij het samenvoegen van bestaande availability-regels `isFirstOfDay` uit de bestaande regel behouden.
+- Na een geslaagde opslag wordt de bestaande herlaad-/sync-flow gebruikt, zodat alle weergaven op dezelfde serverstatus draaien.
+
