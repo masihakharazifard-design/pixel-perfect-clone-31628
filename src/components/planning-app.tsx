@@ -3012,12 +3012,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
   // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
+  // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
+  // inplannen op exact dezelfde positie blijft staan.
   const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
-
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  }).sort((a,b)=>(b.rest-a.rest)||((a.p.startdatum||"9999").localeCompare(b.p.startdatum||"9999")));
+  });
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
