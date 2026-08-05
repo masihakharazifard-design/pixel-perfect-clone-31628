@@ -2673,7 +2673,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
+  const afdKey=activeAfds.join("|");
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  // Eén projectbron voor de hele pagina: alles volgt activeAfds
+  const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
+  const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
+  const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
+  const FILTER_MSG="Dit project valt niet meer binnen de actieve afdelingsfilter.";
+  // Guard: geen projectactie op een project of medewerker die buiten de filter valt
+  const canAct=(projectId?:string|null,empId?:string|null)=>{
+    if(!projectId)return true; // afwezigheid is niet projectgebonden
+    if(!visProj(projectId)){toast.error(FILTER_MSG);return false;}
+    if(empId&&!visEmpIds.has(empId)){toast.error(FILTER_MSG);return false;}
+    return true;
+  };
+  const rowsAllowed=(rows:{projectId?:string;employeeId:string}[])=>rows.every(r=>canActSilent(r.projectId,r.employeeId));
+  const canActSilent=(projectId?:string|null,empId?:string|null)=>!projectId||(!!visProj(projectId)&&(!empId||visEmpIds.has(empId)));
+
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
   const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
   const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
@@ -2683,17 +2699,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort(byVolgorde);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    return rowsFor(empId,ds).map(a=>({row:a,proj:projects.find(p=>p.id===a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
+    return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
   };
   const getEmpProjsWeek=(empId:string,wk:Date)=>{
     const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
     const seen=new Set<string>();const out:Project[]=[];
     planRows(availability).filter(a=>a.employeeId===empId&&days.includes(a.date)).forEach(a=>{
-      const p=projects.find(x=>x.id===a.projectId);
+      const p=visProj(a.projectId);
       if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
     });
     return out;
   };
+
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   const rowColor=(a:AvailEntry)=>{
@@ -2702,7 +2719,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return projectColors[a.projectId||""]||teamColor(teamKey(a.projectId||"",a.date,ids),teamColors);
   };
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
-  const openEditPlan=(a:AvailEntry)=>setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});
+  const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
   const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:"08:00",endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
   const openEditAbsence=(a:AvailEntry)=>{
     const rows=a.periodeId?availability.filter(x=>x.periodeId===a.periodeId):[a];
@@ -2729,8 +2746,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
   };
   const commitPlanning=async(entries:AvailEntry[],removeIds?:string[],checkFirst=false)=>{
+    // Laatste controle: nooit opslaan voor een project buiten de actieve filter
+    if(!rowsAllowed(entries)){toast.error(FILTER_MSG);return false;}
     const rem=removeIds||[];
     const list=normalizeFirstOfDay(availability,entries,rem);
+
     const ok=rem.length?await onResizePlanning(list,rem):await onSaveManyPlanning(list);
     if(!ok){toast.error("Opslaan mislukt — de planning blijft ongewijzigd.");return ok;}
     if(checkFirst){
@@ -2740,6 +2760,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return ok;
   };
   const tryCommit=async(entries:AvailEntry[],removeIds:string[]=[],checkFirst=false)=>{
+    if(!rowsAllowed(entries)){toast.error(FILTER_MSG);return;}
     const c=evaluate(entries,removeIds);
     const b=blockingOnly(c);
     if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return;}
@@ -2750,9 +2771,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // "Als eerste uitvoeren" markeren of juist weghalen
   const [firstAsk,setFirstAsk]=useState<{kind:"start"|"reorder";rows:AvailEntry[];target:AvailEntry;fallback?:AvailEntry[]}|null>(null);
   const markFirstOfDay=async(row:AvailEntry,on:boolean)=>{
+    if(!canAct(row.projectId,row.employeeId))return;
     const rows=dayPlanRows(availability,row.employeeId,row.date);
     await commitPlanning(applyFirstOfDay(rows,on?row.id:null));
   };
+
 
   // ===== Blokken doortrekken (resize) =====
   const seriesRows=(b:AvailEntry)=>{
@@ -2801,10 +2824,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         status:block.status,note:block.note||"",wholeDay:block.startTime==="00:00"&&endTime==="23:59"});
       return;
     }
+    if(!canAct(block.projectId,block.employeeId))return;
     const teamRows=teamRowsForDay(availability,block.projectId,block.date);
     if(teamRows.length>1){setResizeTeam({patch,teamRows,block});return;}
     await commitResize([block],patch);
   };
+
 
   const resizeRef=useRef<{block:AvailEntry;mode:"time"|"date";x:number;y:number;preview:string;raw:string}|null>(null);
   const [resizePv,setResizePv]=useState<{id:string;label:string}|null>(null);
@@ -2852,6 +2877,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Volgorde binnen één dag handmatig aanpassen
   const reorderDayPlans=async(row:AvailEntry,dir:number)=>{
+    if(!canAct(row.projectId,row.employeeId))return;
     const list=rowsFor(row.employeeId,row.date);
     const i=list.findIndex(x=>x.id===row.id);
     const j=i+dir;
@@ -2867,6 +2893,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   };
 
   const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
+    if(!visEmpIds.has(empId)||rows.some(r=>!canActSilent(r.projectId,r.employeeId))){toast.error(FILTER_MSG);return;}
     // Bij verplaatsen naar een andere dag/medewerker vervalt de markering; de nieuwe dag wordt genormaliseerd.
     await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true);
   };
@@ -2877,19 +2904,21 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     setDragProject(null);setDragBlock(null);
     if(block){
       if(block.employeeId===empId&&block.date===ds)return;
+      if(!canAct(block.projectId,block.employeeId)||!visEmpIds.has(empId)){if(block.projectId)toast.error(FILTER_MSG);return;}
       const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
       if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
       await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true);
       return;
     }
     if(!pid)return;
-    const p=projects.find(x=>x.id===pid);if(!p)return;
+    const p=visProj(pid);if(!p||!visEmpIds.has(empId)){toast.error(FILTER_MSG);return;}
     const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
     await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
   };
 
   // Planning verwijderen: de dag hernummeren en zo nodig het volgende project promoveren
   const deletePlanRow=async(b:AvailEntry)=>{
+    if(!canAct(b.projectId,b.employeeId))return;
     const rest=b.projectId?dayPlanRows(availability,b.employeeId,b.date).filter(r=>r.id!==b.id):[];
     await onDeletePlanning(b.id);
     if(!rest.length)return;
@@ -2897,6 +2926,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const target=keep?keep.id:((b.isFirstOfDay||rest.length===1)?rest[0].id:null);
     await onSaveManyPlanning(applyFirstOfDay(rest,target));
   };
+
 
 
   // Snelmenu op een cel: direct een afwezigheidsstatus zetten of inplannen
@@ -2909,7 +2939,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const ds=toDateStr(date);
     const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
       .map(av=>({av,proj:undefined as Project|undefined})).sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
-    const plans=rowsFor(empId,ds).map(av=>({av,proj:projects.find(p=>p.id===av.projectId)}));
+    const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!!x.proj);
     return [...abs,...plans];
   };
 
@@ -2927,14 +2957,14 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // ===== Projecten in deze periode =====
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
-  const periodProjects=projects.filter(p=>{
+  const periodProjects=visProjects.filter(p=>{
     if(!validDate(p.startdatum))return false;
     const s=new Date(p.startdatum);s.setHours(0,0,0,0);
     const e=validDate(p.afloopdatum)?new Date(p.afloopdatum):new Date(p.startdatum);e.setHours(23,59,59,999);
     const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
-    if(activeAfds.length&&!getAllAfds(p).some(a=>activeAfds.includes(a)))return false;
     return s<=pe&&e>=ps;
   }).sort((a,b)=>a.startdatum.localeCompare(b.startdatum));
+
   // Openstaande projecten: prioriteit op startdatum, met "nog in te plannen" per project
   const openProjects=periodProjects.map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
@@ -2953,6 +2983,22 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     if(teams.some(t=>t.key===key))return;
     teams.push({key,kleur:teamColor(key,teamColors),label:ids.map(id=>employees.find(e=>e.id===id)?.naam||"?").map(abbrevName).join(" + ")});
   });
+
+  // Bij een filterwijziging: tijdelijke state die naar een verborgen project verwijst opruimen
+  useEffect(()=>{
+    setDragProject(d=>d&&!visProj(d)?null:d);
+    setDragBlock(b=>b&&!canActSilent(b.projectId,b.employeeId)?null:b);
+    setCellMenu(m=>m&&(!visEmpIds.has(m.empId)||(m.block&&!canActSilent(m.block.projectId,m.block.employeeId)))?null:m);
+    setProjMenu(p=>p&&!visProj(p.id)?null:p);
+    setPlanModal(m=>m&&(!visEmpIds.has(m.empId)||(m.projectId&&!visProj(m.projectId)))?null:m);
+    setTeamChoice(t=>t&&!canActSilent(t.block.projectId,t.block.employeeId)?null:t);
+    setResizeTeam(r=>r&&!canActSilent(r.block.projectId,r.block.employeeId)?null:r);
+    setPeriodModal(p=>p&&!canActSilent(p.projectId,p.employeeId)?null:p);
+    setLateAsk(l=>l&&!canActSilent(l.block.projectId,l.block.employeeId)?null:l);
+    setOverlapAsk(o=>o&&o.entries.some(e=>!canActSilent(e.projectId,e.employeeId))?null:o);
+    setFirstAsk(f=>f&&!canActSilent(f.target.projectId,f.target.employeeId)?null:f);
+    if(resizeRef.current&&!canActSilent(resizeRef.current.block.projectId,resizeRef.current.block.employeeId)){resizeRef.current=null;setResizePv(null);}
+  },[afdKey]);
 
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
@@ -3165,11 +3211,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>}
 
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
-    {projMenu&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
       onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
-    {planModal&&<PlanEmployeeModal employees={employees} projects={projects} availability={availability}
+    {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
       projectId={planModal.projectId} editId={planModal.editId}
       onSave={async e=>{
