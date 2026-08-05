@@ -2984,6 +2984,22 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     teams.push({key,kleur:teamColor(key,teamColors),label:ids.map(id=>employees.find(e=>e.id===id)?.naam||"?").map(abbrevName).join(" + ")});
   });
 
+  // Bij een filterwijziging: tijdelijke state die naar een verborgen project verwijst opruimen
+  useEffect(()=>{
+    setDragProject(d=>d&&!visProj(d)?null:d);
+    setDragBlock(b=>b&&!canActSilent(b.projectId,b.employeeId)?null:b);
+    setCellMenu(m=>m&&(!visEmpIds.has(m.empId)||(m.block&&!canActSilent(m.block.projectId,m.block.employeeId)))?null:m);
+    setProjMenu(p=>p&&!visProj(p.id)?null:p);
+    setPlanModal(m=>m&&(!visEmpIds.has(m.empId)||(m.projectId&&!visProj(m.projectId)))?null:m);
+    setTeamChoice(t=>t&&!canActSilent(t.block.projectId,t.block.employeeId)?null:t);
+    setResizeTeam(r=>r&&!canActSilent(r.block.projectId,r.block.employeeId)?null:r);
+    setPeriodModal(p=>p&&!canActSilent(p.projectId,p.employeeId)?null:p);
+    setLateAsk(l=>l&&!canActSilent(l.block.projectId,l.block.employeeId)?null:l);
+    setOverlapAsk(o=>o&&o.entries.some(e=>!canActSilent(e.projectId,e.employeeId))?null:o);
+    setFirstAsk(f=>f&&!canActSilent(f.target.projectId,f.target.employeeId)?null:f);
+    if(resizeRef.current&&!canActSilent(resizeRef.current.block.projectId,resizeRef.current.block.employeeId)){resizeRef.current=null;setResizePv(null);}
+  },[afdKey]);
+
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
