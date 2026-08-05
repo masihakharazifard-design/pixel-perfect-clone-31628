@@ -1016,8 +1016,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
   };
   const setStart=(d:string,t:string)=>{
     setSDate(d);setSTime(t);
-    const ed=eDate&&combineLocalDT(ed0(eDate,t||sTime),"",0,0)?eDate:eDate;
-    applyDates(d,t,ed,eTime);
+    applyDates(d,t,eDate,eTime);
   };
   const setEnd=(d:string,t:string)=>{setEDate(d);setETime(t);applyDates(sDate,sTime,d,t);};
   const set=(k:keyof Project,v:unknown)=>setF(prev=>({...prev,[k]:v}));
