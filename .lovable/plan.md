@@ -20,6 +20,7 @@ Geen prioriteitensysteem. Alleen een eigen uitvoervolgorde per medewerker per da
 - Een conflict ontstaat alleen wanneer de medewerker op dat tijdstip Bezet, Vakantie, Ziek of Vrij is.
 - In dat geval wordt de planning geblokkeerd en verschijnt een duidelijke melding met: de reden, welke status het blokkeert, en de datum en tijd van dat blok. Bijvoorbeeld: "Kan niet inplannen: Jan de Vries is Vakantie op 12-08-2026, 08:00–17:00."
 - Beschikbaar veroorzaakt nooit een conflict. De conflictcontrole slaat altijd het record over dat op dat moment bewerkt wordt.
+- Staat de medewerker op datzelfde tijdstip al op een ander project, dan is dat geen blokkade maar een waarschuwing: "Deze medewerker is op dit tijdstip al aan een ander project gekoppeld", met de keuze **Planning toch opslaan** of **Annuleren**. Bewust dubbel plannen blijft dus mogelijk, maar nooit ongemerkt.
 
 ## 3. Hele dag geblokkeerd zichtbaar maken
 
