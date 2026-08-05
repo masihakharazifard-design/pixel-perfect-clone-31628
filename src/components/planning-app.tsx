@@ -2327,22 +2327,10 @@ function AgendaView({projects,employees,availability,teamColors={},statusColors=
         teamKleur:ids.length>1?teamColor(teamKey(p.id,date,teamForDay(availability,p.id,date)),teamColors):undefined});
     });
   });
-  // Afwezigheid (vakantie/ziek/vrij/bezet) uit dezelfde planningbron tonen in de agenda
-  availability.filter(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)).forEach(a=>{
-    const emp=employees.find(e=>e.id===a.employeeId);
-    if(!emp)return;
-    if(afdFilter&&emp.afdeling!==afdFilter)return;
-    agendaProjects.push({
-      id:`abs::${a.id}`,werknummer:a.status,projectnaam:`${abbrevName(emp.naam)} – ${a.status}`,
-      opdrachtgever:"",plaats:"",projectleider:"",werkzaamheden:a.note||"",notities:"",uurprijs:0,uren:0,
-      status:"Bevestigd",afdeling:emp.afdeling,afdelingen:[emp.afdeling],medewerkers:[emp.id],
-      startdatum:combineLocalDT(a.date,a.startTime,8,0),afloopdatum:combineLocalDT(a.date,a.endTime,17,0),
-      teamKleur:statusColorOf(a.status,statusColors)});
-  });
+  // Agenda toont uitsluitend projecten/projectplanningen; persoonlijke afwezigheid blijft in Personeelsplanning.
   const realId=(id:string)=>id.split("::")[0];
-  const openReal=(vp:Project)=>{if(vp.id.startsWith("abs::"))return;const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
+  const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   const handleDropProject=(id:string,newStart:Date)=>{
-    if(id.startsWith("abs::"))return;
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
@@ -2350,12 +2338,11 @@ function AgendaView({projects,employees,availability,teamColors={},statusColors=
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
   const handleDropProjectTime=(id:string,newStart:Date)=>{
-    if(id.startsWith("abs::"))return;
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
-  const handleResize=(id:string,newEnd:Date)=>{if(id.startsWith("abs::"))return;updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
+  const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
