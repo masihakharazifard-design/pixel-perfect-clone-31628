@@ -187,7 +187,7 @@ function normalizeProjectnr(v:unknown):string{return String(v??"").trim();}
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";return pn?`${p.werknummer} – ${p.projectnaam} – ${pn}`:`${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
-function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
+function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
 function fmtHM(h:number,m:number){return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
 function getWeekNumber(d:Date):number{const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dayNum=date.getUTCDay()||7;date.setUTCDate(date.getUTCDate()+4-dayNum);const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));return Math.ceil((((date.getTime()-yearStart.getTime())/86400000)+1)/7);}
 
@@ -233,18 +233,18 @@ const PLAN_STATUS_STYLE:Record<PlanStatus,string>={
   "Ingepland":"bg-emerald-100 text-emerald-700",
 };
 function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
-interface PlanConflict{employee:string;label:string;time:string;}
+interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;}
 function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
   const emp=employees.find(e=>e.id===empId);
   const naam=emp?emp.naam:"Medewerker";
   const out:PlanConflict[]=[];
   av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
     if(!overlaps(start,end,a.startTime,a.endTime))return;
-    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij"];
-    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`});return;}
+    const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij","Bezet"];
+    if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});return;}
     if(a.status==="Ingepland"){
       const p=projects.find(x=>x.id===a.projectId);
-      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`});
+      out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date});
     }
   });
   return out;
@@ -260,6 +260,14 @@ function teamColor(key:string,overrides:Record<string,string>={}):string{
 // Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
 function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
   return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
+}
+// ===== KLEURBEHEER =====
+// Alle kleuren komen uit app_settings; zonder override geldt de standaardkleur.
+function statusColorOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[s]||AS[s].dot;}
+function statusBgOf(s:AvailStatus,ov:Record<string,string>={}):string{return ov[s]?ov[s]+"33":AS[s].bg;}
+function absenceStyle(s:AvailStatus,ov:Record<string,string>={}):React.CSSProperties{
+  const c=statusColorOf(s,ov);
+  return{backgroundColor:c,backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 5px, transparent 5px 10px)",color:"#fff"};
 }
 // ===== FILTERS =====
 interface PlanFilter{id:string;naam:string;kleur:string;afdeling:string;actief:boolean;}
