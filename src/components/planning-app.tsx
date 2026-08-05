@@ -3194,6 +3194,31 @@ export default function PlanningApp(){
     }
   };
 
+  // Meerdere planningregels in één keer (teamverplaatsing, volgorde wijzigen)
+  const savePlanningMany=async(entries:AvailEntry[])=>{
+    if(entries.length===0)return true;
+    if(entries.length===1)return savePlanning(entries[0]);
+    const prevAvail=avail,prevProjects=projects;
+    const map=new Map(entries.map(e=>[e.id,e]));
+    const nextAvail=[...avail.map(a=>map.get(a.id)||a),...entries.filter(e=>!avail.some(a=>a.id===e.id))];
+    const pids=[...new Set([...entries.map(e=>e.projectId),...avail.filter(a=>map.has(a.id)).map(a=>a.projectId)])].filter(Boolean) as string[];
+    let nextProjects=projects;
+    pids.forEach(pid=>{
+      const tmp=applyDerivedDates(nextAvail,pid);
+      nextProjects=nextProjects.map(p=>p.id===pid?(tmp.find(x=>x.id===pid)||p):p);
+    });
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
+      toast.success("Planning opgeslagen.");
+      return true;
+    }catch{
+      setAvail(prevAvail);setProjects(prevProjects);
+      toast.error("Planning kon niet worden opgeslagen.");
+      return false;
+    }
+  };
+
   // Afwezigheid als één periode: elke dag krijgt een regel met hetzelfde periodeId
   const saveAbsence=async(d:AbsenceDraft)=>{
     const dates=getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00"));
