@@ -1245,7 +1245,7 @@ function ProjectDetail({project,employees,onEdit,onDelete,onClose}:{
 
   const plNaam=plName(project,employees);
   const meds=employees.filter(e=>project.medewerkers.includes(e.id));
-  const totaal=project.uurprijs*project.uren;
+  // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",werkzaamheden:"Werkzaamheden",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
