@@ -47,6 +47,19 @@ Het venster krijgt alle kleurgroepen op één plek, elk met kleurkiezer en live 
 
 Per kleurgroep: kleurkiezer, live voorbeeld en **Standaard herstellen**. Onderin **Opslaan** en **Alles standaard herstellen**. Opslaan schrijft naar de bestaande instellingen in de database; na opslaan zijn de kleuren direct zichtbaar in Personeelsplanning, Agenda, Projectdetails, Openstaande projecten, Dashboard, legenda, dagranden, badges, teamkleuren en afwezigheidsblokken, en blijven ze na een refresh behouden. Resterende hardcoded statuskleuren in componenten worden vervangen door lezingen uit de centrale instellingen.
 
+## 6. Controle na oplevering
+
+- Volledig ingepland project blijft zichtbaar in Openstaande projecten zolang de status niet Afgerond of Gefactureerd is.
+- Badge loopt direct door van Niet ingepland → Gedeeltelijk ingepland → Volledig ingepland bij het inplannen van medewerkers.
+- Status op Afgerond zetten: project verdwijnt direct uit de lijst.
+- Status terug op In uitvoering: project verschijnt direct opnieuw.
+- Team van twee medewerkers verplaatsen: beide planningen verhuizen mee, met behoud van `teamId`, `reeksId` en teamkleur.
+- Ziek is overal grijs (blok, dagrand, agenda, legenda, kleurbeheer).
+- Kleur van Ziek handmatig wijzigen, opslaan, refreshen: aangepaste kleur blijft behouden.
+- Badgekleuren en dagrandkleuren wijzigen: alle schermen tonen dezelfde centrale kleuren.
+- "Alles standaard herstellen": alle standaardkleuren komen terug.
+
+
 ## Technische details
 
 - `openProjects` in `PersoneelsplanningView` filtert voortaan op `p.status !== "Afgerond" && p.status !== "Gefactureerd"`; `showPlanned` en de bijbehorende checkbox vervallen. `planStatusOf` levert de badgetekst.
