@@ -75,6 +75,7 @@ const SB:Record<ProjectStatus,string> = {
 const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
   Beschikbaar:        {bg:"#D1FAE5",text:"#065F46",dot:"#10B981"},
   Ingepland:          {bg:"#DBEAFE",text:"#1E40AF",dot:"#3B82F6"},
+  Bezet:              {bg:"#FFE4E6",text:"#9F1239",dot:"#F43F5E"},
   "Niet beschikbaar": {bg:"#FEE2E2",text:"#991B1B",dot:"#EF4444"},
   Vakantie:           {bg:"#EDE9FE",text:"#5B21B6",dot:"#8B5CF6"},
   Ziek:               {bg:"#FEF3C7",text:"#92400E",dot:"#F59E0B"},
