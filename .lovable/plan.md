@@ -59,10 +59,16 @@ De import en synchronisatie vanuit Excel laten `isFirstOfDay` ongemoeid; bestaan
 **Doorwerken in alle schermen**
 Personeelsplanning, Agenda, Projectdetails en het dashboard lezen dezelfde planningregels, dus de markering verschijnt overal tegelijk. Elke wijziging wordt eerst naar de database geschreven en daarna teruggelezen, zodat elk scherm exact dezelfde volgorde toont.
 
+**Automatische controle bij tijdswijzigingen**
+Zodra een begintijd of eindtijd verandert (bewerken, slepen of doortrekken), controleert de app of het gemarkeerde project nog steeds als eerste begint. Begint een ander project op die dag nu eerder, dan verschijnt de melding: "Er is nu een project dat eerder begint. Wilt u dit project automatisch als eerste uitvoeren markeren?" — Ja verplaatst de markering naar het vroegst startende project, Nee laat de bestaande markering staan. De vraag verschijnt alleen als er daadwerkelijk een eerder startend project is.
+
+
 ### Technisch
 
 - `normalizeFirstOfDay(rows)`: groepeert projectregels op medewerker + datum, houdt de markering met de laagste `volgorde` aan, wist de rest en zet de markering automatisch wanneer de groep één regel bevat. Toegepast in `planning-store` bij het laden en in `commitPlanning`/`tryCommit` vóór het wegschrijven.
 - Kopieeracties strippen `isFirstOfDay` op de nieuwe regel; daarna draait `normalizeFirstOfDay` op de doeldag.
 - Bij Excel-import wordt bij het samenvoegen van bestaande availability-regels `isFirstOfDay` uit de bestaande regel behouden.
 - Na een geslaagde opslag wordt de bestaande herlaad-/sync-flow gebruikt, zodat alle weergaven op dezelfde serverstatus draaien.
+- `checkFirstStartConflict(empId, date)`: draait na elke tijdswijziging (`AbsenceModal`-opslag, drag-and-drop en `applyResize`) en vergelijkt de starttijd van het gemarkeerde blok met de vroegste starttijd van die dag. Bij een eerder startend project wordt een bevestigingsmodal (Ja/Nee) getoond; "Ja" roept `markFirstOfDay(vroegsteRij, true)` aan, "Nee" doet niets. Zonder markering op die dag gebeurt er niets extra's, buiten de bestaande `normalizeFirstOfDay`.
+
 
