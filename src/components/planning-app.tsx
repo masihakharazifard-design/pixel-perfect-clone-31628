@@ -2795,16 +2795,25 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
               </div>
             </td>
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
-            return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
-              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid">
+            const blockState=dayBlockState(availability,e.id,ds);
+            return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onContextMenu={ev=>{ev.preventDefault();setCellMenu({empId:e.id,date:ds,x:ev.clientX,y:ev.clientY});}}
+              onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
+              style={blockState?{boxShadow:`inset 0 0 0 2px ${statusColorOf(blockState,statusColors)}`}:undefined}
+              className={`py-1 px-0.5 text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
               <div className="space-y-0.5">
                 {abs.map(a=><button key={a.id} onClick={ev=>{ev.stopPropagation();openEditAbsence(a);}}
                   className="rounded px-1 py-0.5 text-[10px] font-semibold truncate block w-full text-left hover:opacity-90"
                   style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>{a.status.slice(0,4)}</button>)}
-                {ps.map(({row,proj})=><button key={row.id} draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
+                {ps.map(({row,proj},bi)=><div key={row.id} className="group relative">
+                  <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`rounded text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row)}} title={`${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
-                  {proj.projectnaam.slice(0,4)+".."}
-                </button>)}
+                    {proj.projectnaam.slice(0,4)+".."}
+                  </button>
+                  {ps.length>1&&<span className="hidden group-hover:flex absolute -right-0.5 top-0 h-full flex-col justify-center">
+                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
+                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,1);}} disabled={bi===ps.length-1} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omlaag">▼</button>
+                  </span>}
+                </div>)}
                 {abs.length===0&&ps.length===0&&<span className="text-[10px] text-[#E2E7F0]">+</span>}
               </div>
             </td>;})}
