@@ -3907,7 +3907,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
