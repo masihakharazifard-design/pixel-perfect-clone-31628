@@ -2544,6 +2544,29 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
 // Greep rechts op een blok: slepen (week) of het venster "Periode aanpassen" (kleine cellen)
+// Periode/tijd van een blok aanpassen via een venster (kleine cellen of mobiel)
+function PeriodResizeModal({block,start,end,onClose,onSave}:{block:AvailEntry;start:string;end:string;onClose:()=>void;onSave:(p:{endTime?:string;endDate?:string})=>Promise<void>;}){
+  const [endDate,setEndDate]=useState(end);
+  const [endTime,setEndTime]=useState(block.endTime);
+  return <Modal title="Periode aanpassen" onClose={onClose} width="max-w-md">
+    <div className="p-4 md:p-6 space-y-4">
+      <p className="text-sm text-[#6B7A99]">Startdatum <b>{fmtDate(start)}</b> · begintijd <b>{block.startTime}</b></p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Einddatum"><Input type="date" value={endDate} min={start} onChange={e=>setEndDate(e.target.value)}/></Field>
+        <Field label="Eindtijd"><Input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}/></Field>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn onClick={async()=>{
+          if(toMin(endTime)<toMin(block.startTime)+15){toast.error("De eindtijd moet minimaal 15 minuten na de begintijd liggen.");return;}
+          if(endDate<start){toast.error("De einddatum mag niet vóór de startdatum liggen.");return;}
+          await onSave({endDate,endTime});
+        }}>Opslaan</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
 function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:boolean;label?:string;onStart:(ev:React.PointerEvent)=>void;onOpen:()=>void;}){
   return <>
     <span title={small?"Periode aanpassen":"Sleep om de einddatum aan te passen"}
