@@ -2395,6 +2395,101 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
   </Modal>;
 }
 
+// ===== AFWEZIGHEID (vakantie, ziek, vrij, bezet) =====
+interface AbsenceDraft{periodeId?:string;employeeId:string;startDate:string;endDate:string;startTime:string;endTime:string;status:AvailStatus;note:string;wholeDay:boolean;}
+function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];projects:Project[];draft:AbsenceDraft;
+  onSave:(d:AbsenceDraft)=>Promise<void>;onDelete?:(periodeId:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [f,setF]=useState<AbsenceDraft>(draft);
+  const [busy,setBusy]=useState(false);
+  const upd=(u:Partial<AbsenceDraft>)=>setF(p=>({...p,...u}));
+  const st=f.wholeDay?"00:00":f.startTime,et=f.wholeDay?"23:59":f.endTime;
+  const days=(f.startDate&&f.endDate&&f.startDate<=f.endDate)?getDatesInRange(new Date(f.startDate),new Date(f.endDate)):[];
+  const own=f.periodeId?availability.filter(a=>a.periodeId===f.periodeId).map(a=>a.id):[];
+  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,projects,f.employeeId,d,st,et,own));
+  const canSave=!!f.employeeId&&days.length>0&&st<et&&!busy;
+  return <Modal title={f.periodeId?"Afwezigheid bewerken":"Afwezigheid toevoegen"} onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Medewerker" value={f.employeeId} onChange={v=>upd({employeeId:v})} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        <Select label="Status" value={f.status} onChange={v=>upd({status:v as AvailStatus})} options={ABSENCE_STATS.map(s=>({value:s,label:s}))}/>
+        <Input label="Startdatum" value={f.startDate} onChange={v=>upd({startDate:v})} type="date"/>
+        <Input label="Einddatum" value={f.endDate} onChange={v=>upd({endDate:v})} type="date"/>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-[#6B7A99]">
+        <input type="checkbox" checked={f.wholeDay} onChange={e=>upd({wholeDay:e.target.checked})}/>
+        Hele dagen (geen tijden — de volledige geselecteerde periode geldt)
+      </label>
+      {!f.wholeDay&&<div className="grid grid-cols-2 gap-3">
+        <Input label="Starttijd" value={f.startTime} onChange={v=>upd({startTime:v})} type="time"/>
+        <Input label="Eindtijd" value={f.endTime} onChange={v=>upd({endTime:v})} type="time"/>
+      </div>}
+      <Input label="Notitie" value={f.note} onChange={v=>upd({note:v})} placeholder="Optioneel"/>
+      <p className="text-xs text-[#6B7A99]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
+      {conflicts.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
+        <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
+        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
+      </div>}
+      <div className="flex justify-between gap-2 pt-1">
+        <div>{f.periodeId&&onDelete&&<Btn variant="danger" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(f.periodeId!);setBusy(false);}}><Trash2 className="w-3.5 h-3.5"/>Periode verwijderen</Btn>}</div>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+          <Btn disabled={!canSave} onClick={async()=>{setBusy(true);await onSave({...f,startTime:st,endTime:et});setBusy(false);}}>{busy?"Opslaan…":"Opslaan"}</Btn>
+        </div>
+      </div>
+    </div>
+  </Modal>;
+}
+// Conflicten voor een dag, meerdere eigen records uitgesloten (bij het bewerken van een periode)
+function findConflictsMulti(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
+  return findConflicts(av.filter(a=>!ignoreIds.includes(a.id)),employees,projects,empId,date,start,end);
+}
+
+// ===== KLEUREN BEHEREN =====
+function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
+  settings:AppSettings;projects:Project[];teams:{key:string;label:string}[];
+  onSave:(s:AppSettings)=>void;onClose:()=>void;
+}){
+  const [s,setS]=useState<AppSettings>(settings);
+  const statusColors=s.statusColors||{};
+  const projectColors=s.projectColors||{};
+  const teamColors=s.teamColors||{};
+  const filters=s.planFilters?.length?s.planFilters:DEFAULT_PLAN_FILTERS;
+  const row=(key:string,naam:string,kleur:string,onChange:(c:string)=>void,onReset:()=>void)=>
+    <div key={key} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-2 py-1.5">
+      <input type="color" value={kleur} onChange={e=>onChange(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0"/>
+      <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744] font-medium">{naam}</span>
+      <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{backgroundColor:kleur}}>Voorbeeld</span>
+      <button onClick={onReset} className="text-[10px] text-[#6B7A99] hover:text-[#1A2744] font-semibold">Standaard</button>
+    </div>;
+  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold uppercase tracking-wide text-[#6B7A99]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
+  return <Modal title="Kleuren beheren" onClose={onClose} width="max-w-2xl">
+    <div className="p-4 md:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+      {section("Statussen",AVAIL_STATS.map(st=>row("st-"+st,st,statusColorOf(st,statusColors),
+        c=>setS(p=>({...p,statusColors:{...(p.statusColors||{}),[st]:c}})),
+        ()=>setS(p=>{const n={...(p.statusColors||{})};delete n[st];return{...p,statusColors:n};}))))}
+      {section("Afdelingen",AFDS.map(a=>row("af-"+a,a,s.deptColors[a].bg,
+        c=>setS(p=>({...p,deptColors:{...p.deptColors,[a]:{...p.deptColors[a],bg:c,border:c}}})),
+        ()=>setS(p=>({...p,deptColors:{...p.deptColors,[a]:DEFAULT_DC[a]}})))))}
+      {section("Filters",filters.map(f=>row("fl-"+f.id,f.naam,f.kleur,
+        c=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:c}:x)})),
+        ()=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:DEFAULT_DC[(x.afdeling as Afdeling)]?.bg||"#0ABFB8"}:x)})))))}
+      {teams.length>0&&section("Teams",teams.map(t=>row("tm-"+t.key,t.label,teamColor(t.key,teamColors),
+        c=>setS(p=>({...p,teamColors:{...(p.teamColors||{}),[t.key]:c}})),
+        ()=>setS(p=>{const n={...(p.teamColors||{})};delete n[t.key];return{...p,teamColors:n};}))))}
+      {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+        c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
+        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
+    </div>
+    <div className="flex justify-end gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
+      <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+      <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
+    </div>
+  </Modal>;
+}
+
+
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
 function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onDeletePlanning,onOpenProject,onVacImport}:{
