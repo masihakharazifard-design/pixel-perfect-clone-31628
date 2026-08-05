@@ -20,6 +20,7 @@ Geen prioriteitensysteem. Alleen een eigen uitvoervolgorde per medewerker per da
 - Een conflict ontstaat alleen wanneer de medewerker op dat tijdstip Bezet, Vakantie, Ziek of Vrij is.
 - In dat geval wordt de planning geblokkeerd en verschijnt een duidelijke melding met: de reden, welke status het blokkeert, en de datum en tijd van dat blok. Bijvoorbeeld: "Kan niet inplannen: Jan de Vries is Vakantie op 12-08-2026, 08:00–17:00."
 - Beschikbaar veroorzaakt nooit een conflict. De conflictcontrole slaat altijd het record over dat op dat moment bewerkt wordt.
+- Staat de medewerker op datzelfde tijdstip al op een ander project, dan is dat geen blokkade maar een waarschuwing: "Deze medewerker is op dit tijdstip al aan een ander project gekoppeld", met de keuze **Planning toch opslaan** of **Annuleren**. Bewust dubbel plannen blijft dus mogelijk, maar nooit ongemerkt.
 
 ## 3. Hele dag geblokkeerd zichtbaar maken
 
@@ -34,9 +35,13 @@ Vast blok onderaan Personeelsplanning, los van de zichtbare dag/week/maand/kwart
 
 - Toont alles wat nog gepland moet worden, ook zonder startdatum, zonder medewerker, met status Offerte of buiten de huidige periode.
 - Toont niet: Afgerond, Geannuleerd en volledig ingeplande projecten.
+- Een volledig ingepland project krijgt automatisch de badge "Volledig ingepland" en verdwijnt standaard uit de lijst.
+- Boven de lijst komt een schakelaar: ☐ Toon ook volledig ingeplande projecten. Aangezet blijven die projecten zichtbaar, met hun badge, zodat ze later terug te vinden zijn.
 - Per regel: werknummer, projectnaam, werkzaamheden, calculator, afdeling, status, startdatum, benodigde medewerkers, ingeplande medewerkers en planningsstatus (Niet ingepland / Gedeeltelijk ingepland / Volledig ingepland).
 - Zoeken op werknummer, projectnaam, werkzaamheden en calculator. Sorteren op werknummer, afdeling, status en startdatum.
-- Een regel is klikbaar (opent projectdetails), heeft een knop "Inplannen" en kan naar een medewerkerscel in de planning gesleept worden. Direct na plannen verandert de planningsstatus.
+- Een regel is klikbaar (opent projectdetails), heeft een knop "Inplannen" en kan naar een medewerkerscel in de planning gesleept worden. Direct na plannen verandert de planningsstatus en de badge.
+
+
 
 ## 5. Meerdere projecten op één dag
 
