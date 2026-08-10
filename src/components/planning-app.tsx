@@ -1621,7 +1621,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
   const toFact=projects.filter(p=>p.status==="Afgerond");
   const stats=[
-    {label:"Actieve projecten",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
+    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
     {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
     {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"personeelsplanning" as Nav},
     {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#F5A623",bg:"#FEF0D3",nav:"personeelsplanning" as Nav},
@@ -1645,8 +1645,8 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
-          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve projecten</h3>
-          <button onClick={()=>onNav("projecten")} className="text-xs text-[#0ABFB8] hover:underline">Alle projecten</button>
+          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve werken</h3>
+          <button onClick={()=>onNav("projecten")} className="text-xs text-[#0ABFB8] hover:underline">Alle werken</button>
         </div>
         <div className="divide-y divide-[rgba(26,39,68,0.05)]">
           {active.slice(0,6).map(p=>{
@@ -1660,7 +1660,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
               <StatusBadge status={p.status}/>
             </button>;
           })}
-          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#6B7A99]">Geen actieve projecten</p>}
+          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#6B7A99]">Geen actieve werken</p>}
         </div>
       </div>
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
@@ -1800,14 +1800,14 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     <div className="flex items-center justify-between gap-3">
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
-        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} projecten{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
+        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
         <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.15)] text-[#6B7A99] text-sm font-medium">
           <Filter className="w-3.5 h-3.5"/>{activeCount>0&&<span className="w-4 h-4 rounded-full bg-[#0ABFB8] text-white text-xs flex items-center justify-center">{activeCount}</span>}
         </button>
         <Btn variant="secondary" onClick={()=>setShowImport(true)} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
-        <Btn onClick={()=>onAdd()}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuw project</span></Btn>
+        <Btn onClick={()=>onAdd()}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuw werk</span></Btn>
       </div>
     </div>
     {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
