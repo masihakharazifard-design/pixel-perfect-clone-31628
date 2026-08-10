@@ -1246,7 +1246,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
   return <div className="p-4 md:p-6 space-y-4">
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Input label="Projectnaam" value={f.projectnaam} onChange={v=>set("projectnaam",v)} required placeholder="Naam van het project"/>
+      <Input label="Werknaam" value={f.projectnaam} onChange={v=>set("projectnaam",v)} required placeholder="Naam van het werk"/>
       <Input label="Werknummer" value={f.werknummer} onChange={v=>set("werknummer",v)} placeholder="2025-001"/>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -1323,7 +1323,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     <Textarea label="Notities" value={f.notities} onChange={v=>set("notities",v)} rows={2} placeholder="Interne notities..."/>
     <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.08)]">
       <Btn variant="secondary" onClick={onCancel}>Annuleren</Btn>
-      <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{isEdit?"Opslaan":"Project aanmaken"}</Btn>
+      <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{isEdit?"Opslaan":"Werk aanmaken"}</Btn>
     </div>
   </div>;
 }
@@ -1530,7 +1530,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
 
 // ===== SIDEBAR =====
 const NAV_ITEMS:[Nav,React.ElementType,string][]=[
-  ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Projecten"],
+  ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Werken"],
   ["agenda",CalendarDays,"Agenda"],["personeelsplanning",Users,"Personeelsplanning"],
   ["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
@@ -1597,7 +1597,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
     <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -1621,8 +1621,8 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
   const toFact=projects.filter(p=>p.status==="Afgerond");
   const stats=[
-    {label:"Actieve projecten",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
-    {label:"Projecten deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
+    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
+    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
     {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"personeelsplanning" as Nav},
     {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#F5A623",bg:"#FEF0D3",nav:"personeelsplanning" as Nav},
     {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#FF6B5B",bg:"#FFE8E5",nav:"facturatie" as Nav},
@@ -1645,8 +1645,8 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
-          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve projecten</h3>
-          <button onClick={()=>onNav("projecten")} className="text-xs text-[#0ABFB8] hover:underline">Alle projecten</button>
+          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve werken</h3>
+          <button onClick={()=>onNav("projecten")} className="text-xs text-[#0ABFB8] hover:underline">Alle werken</button>
         </div>
         <div className="divide-y divide-[rgba(26,39,68,0.05)]">
           {active.slice(0,6).map(p=>{
@@ -1660,7 +1660,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
               <StatusBadge status={p.status}/>
             </button>;
           })}
-          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#6B7A99]">Geen actieve projecten</p>}
+          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#6B7A99]">Geen actieve werken</p>}
         </div>
       </div>
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
@@ -1685,7 +1685,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
       </div>
     </div>
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)]"><h3 className="font-semibold text-[#1A2744]">Projecten per afdeling</h3></div>
+      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)]"><h3 className="font-semibold text-[#1A2744]">Werken per afdeling</h3></div>
       <div className="px-4 md:px-5 py-4 grid grid-cols-3 gap-3 md:gap-4">
         {AFDS.map(afd=>{
           const ps=projects.filter(p=>getAllAfds(p).includes(afd));
@@ -1799,15 +1799,15 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Projecten</h1>
-        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} projecten{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
+        <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
+        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
         <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.15)] text-[#6B7A99] text-sm font-medium">
           <Filter className="w-3.5 h-3.5"/>{activeCount>0&&<span className="w-4 h-4 rounded-full bg-[#0ABFB8] text-white text-xs flex items-center justify-center">{activeCount}</span>}
         </button>
         <Btn variant="secondary" onClick={()=>setShowImport(true)} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
-        <Btn onClick={()=>onAdd()}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuw project</span></Btn>
+        <Btn onClick={()=>onAdd()}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuw werk</span></Btn>
       </div>
     </div>
     {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
@@ -1829,7 +1829,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           </select>
         </div>
       </div>
-      <ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek projectnaam..."/>
+      <ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werknaam..."/>
       <ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/>
     </div>}
     {/* Mobile card view */}
@@ -1863,7 +1863,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <thead className="bg-[#F0F3F8]">
           <tr>
             <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknummer..."/></ColHeader>
-            <ColHeader label="Project" active={!!filters.projectnaam}><ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek project..."/></ColHeader>
+            <ColHeader label="Werk" active={!!filters.projectnaam}><ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werk..."/></ColHeader>
             <ColHeader label="Opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
             <ColHeader label="Plaats" active={!!filters.plaats}><ColSelect value={filters.plaats} onChange={set("plaats")} options={uniquePlaatsen}/></ColHeader>
             <ColHeader label="Afdeling" active={!!filters.afdeling}><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></ColHeader>
@@ -1927,7 +1927,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       </table>
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
     </div>
-    {del&&<ConfirmModal message="Weet je zeker dat je dit project wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
+    {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
     {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={rows=>{onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
   </div>;
 }
@@ -2398,7 +2398,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
         <div className="flex rounded-lg border border-[rgba(26,39,68,0.12)] overflow-hidden">
           {([["month","Maand"],["week","Week"],["day","Dag"],["kwartaal","Kw."]] as [CalView,string][]).map(([v,l])=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{l}</button>)}
         </div>
-        <Btn size="sm" onClick={()=>onCreateProject({})}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Nieuw project</span></Btn>
+        <Btn size="sm" onClick={()=>onCreateProject({})}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Nieuw werk</span></Btn>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
@@ -2469,7 +2469,7 @@ function PlanEmployeeModal({employees,projects,availability,empId,date,startTime
         </div>
       </div>
       {!sel?<div>
-        <Input label="Project zoeken" value={q} onChange={setQ} placeholder="Werknummer, projectnaam of werkzaamheden..."/>
+        <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer, werknaam of werkzaamheden..."/>
         {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
           {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
           {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
@@ -2633,7 +2633,7 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
         c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
         ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
-      {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+      {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
     </div>
@@ -2732,7 +2732,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
   const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
   const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
-  const FILTER_MSG="Dit project valt niet meer binnen de actieve afdelingsfilter.";
+  const FILTER_MSG="Dit werk valt niet meer binnen de actieve afdelingsfilter.";
   // Guard: geen projectactie op een project of medewerker die buiten de filter valt
   const canAct=(projectId?:string|null,empId?:string|null)=>{
     if(!projectId)return true; // afwezigheid is niet projectgebonden
@@ -3238,12 +3238,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {/* ===== Openstaande projecten ===== */}
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
       <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande projecten</h2>
+        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
+          <span className="text-xs text-[#6B7A99]">{openProjects.length} werk{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
-      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten.</p>
+      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
       :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
@@ -3359,10 +3359,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {firstAsk&&<Modal title="Als eerste uitvoeren" onClose={()=>setFirstAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6B7A99]">{firstAsk.kind==="start"
-          ?"Er is nu een project dat eerder begint. Wilt u dit project automatisch als eerste uitvoeren markeren?"
+          ?"Er is nu een werk dat eerder begint. Wilt u dit werk automatisch als eerste uitvoeren markeren?"
           :"Dit project als eerste uitvoeren?"}</p>
         <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
-          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Project"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
+          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const f=firstAsk;setFirstAsk(null);if(f.kind==="reorder"&&f.fallback)await commitPlanning(f.fallback);}}>Nee</Btn>
@@ -3523,7 +3523,7 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
         </div>}
       </div>)}
     </div>
-    {del&&<ConfirmModal message="Weet je zeker dat je deze medewerker wilt verwijderen? De medewerker wordt verwijderd uit alle projecten en tijdblokken." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
+    {del&&<ConfirmModal message="Weet je zeker dat je deze medewerker wilt verwijderen? De medewerker wordt verwijderd uit alle werken en tijdblokken." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
   </div>;
 }
 
@@ -3958,7 +3958,7 @@ export default function PlanningApp(){
         </div>
       </div>
       {(isNewProject||editProject)&&editProject!==null&&(
-        <Modal title={isNewProject?"Nieuw project aanmaken":"Project bewerken"} onClose={()=>{setEditProject(null);setIsNewProject(false);}}>
+        <Modal title={isNewProject?"Nieuw werk aanmaken":"Werk bewerken"} onClose={()=>{setEditProject(null);setIsNewProject(false);}}>
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
