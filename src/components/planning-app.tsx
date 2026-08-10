@@ -1246,7 +1246,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
   return <div className="p-4 md:p-6 space-y-4">
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Input label="Projectnaam" value={f.projectnaam} onChange={v=>set("projectnaam",v)} required placeholder="Naam van het project"/>
+      <Input label="Werknaam" value={f.projectnaam} onChange={v=>set("projectnaam",v)} required placeholder="Naam van het werk"/>
       <Input label="Werknummer" value={f.werknummer} onChange={v=>set("werknummer",v)} placeholder="2025-001"/>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
