@@ -2633,7 +2633,7 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
         c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
         ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
-      {projects.length>0&&section("Projecten",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+      {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
     </div>
@@ -2732,7 +2732,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
   const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
   const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
-  const FILTER_MSG="Dit project valt niet meer binnen de actieve afdelingsfilter.";
+  const FILTER_MSG="Dit werk valt niet meer binnen de actieve afdelingsfilter.";
   // Guard: geen projectactie op een project of medewerker die buiten de filter valt
   const canAct=(projectId?:string|null,empId?:string|null)=>{
     if(!projectId)return true; // afwezigheid is niet projectgebonden
@@ -3359,10 +3359,10 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {firstAsk&&<Modal title="Als eerste uitvoeren" onClose={()=>setFirstAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6B7A99]">{firstAsk.kind==="start"
-          ?"Er is nu een project dat eerder begint. Wilt u dit project automatisch als eerste uitvoeren markeren?"
+          ?"Er is nu een werk dat eerder begint. Wilt u dit werk automatisch als eerste uitvoeren markeren?"
           :"Dit project als eerste uitvoeren?"}</p>
         <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
-          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Project"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
+          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const f=firstAsk;setFirstAsk(null);if(f.kind==="reorder"&&f.fallback)await commitPlanning(f.fallback);}}>Nee</Btn>
@@ -3523,7 +3523,7 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
         </div>}
       </div>)}
     </div>
-    {del&&<ConfirmModal message="Weet je zeker dat je deze medewerker wilt verwijderen? De medewerker wordt verwijderd uit alle projecten en tijdblokken." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
+    {del&&<ConfirmModal message="Weet je zeker dat je deze medewerker wilt verwijderen? De medewerker wordt verwijderd uit alle werken en tijdblokken." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
   </div>;
 }
 
@@ -3958,7 +3958,7 @@ export default function PlanningApp(){
         </div>
       </div>
       {(isNewProject||editProject)&&editProject!==null&&(
-        <Modal title={isNewProject?"Nieuw project aanmaken":"Project bewerken"} onClose={()=>{setEditProject(null);setIsNewProject(false);}}>
+        <Modal title={isNewProject?"Nieuw werk aanmaken":"Werk bewerken"} onClose={()=>{setEditProject(null);setIsNewProject(false);}}>
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
