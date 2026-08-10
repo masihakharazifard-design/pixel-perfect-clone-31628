@@ -3238,12 +3238,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     {/* ===== Openstaande projecten ===== */}
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
       <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande projecten</h2>
+        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#6B7A99]">{openProjects.length} project{openProjects.length!==1?"en":""} · sleep naar een cel</span>
+          <span className="text-xs text-[#6B7A99]">{openProjects.length} werk{openProjects.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
-      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande projecten.</p>
+      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
       :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
