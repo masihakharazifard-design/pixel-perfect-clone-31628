@@ -1323,7 +1323,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     <Textarea label="Notities" value={f.notities} onChange={v=>set("notities",v)} rows={2} placeholder="Interne notities..."/>
     <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.08)]">
       <Btn variant="secondary" onClick={onCancel}>Annuleren</Btn>
-      <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{isEdit?"Opslaan":"Project aanmaken"}</Btn>
+      <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{isEdit?"Opslaan":"Werk aanmaken"}</Btn>
     </div>
   </div>;
 }
