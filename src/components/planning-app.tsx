@@ -1530,7 +1530,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
 
 // ===== SIDEBAR =====
 const NAV_ITEMS:[Nav,React.ElementType,string][]=[
-  ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Projecten"],
+  ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Werken"],
   ["agenda",CalendarDays,"Agenda"],["personeelsplanning",Users,"Personeelsplanning"],
   ["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
@@ -1597,7 +1597,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Projecten",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
     <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -1622,7 +1622,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
   const toFact=projects.filter(p=>p.status==="Afgerond");
   const stats=[
     {label:"Actieve projecten",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
-    {label:"Projecten deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
+    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
     {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"personeelsplanning" as Nav},
     {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#F5A623",bg:"#FEF0D3",nav:"personeelsplanning" as Nav},
     {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#FF6B5B",bg:"#FFE8E5",nav:"facturatie" as Nav},
@@ -1685,7 +1685,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
       </div>
     </div>
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)]"><h3 className="font-semibold text-[#1A2744]">Projecten per afdeling</h3></div>
+      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)]"><h3 className="font-semibold text-[#1A2744]">Werken per afdeling</h3></div>
       <div className="px-4 md:px-5 py-4 grid grid-cols-3 gap-3 md:gap-4">
         {AFDS.map(afd=>{
           const ps=projects.filter(p=>getAllAfds(p).includes(afd));
@@ -1799,7 +1799,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Projecten</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
         <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} projecten{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
