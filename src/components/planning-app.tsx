@@ -190,6 +190,19 @@ function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):s
 }
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
+// ===== Feestdagkleur (instelbaar, standaard fuchsia) =====
+const HOLIDAY_COLOR="#D946EF";
+function holidayColorOf(s?:{holidayColor?:string}){return s?.holidayColor||HOLIDAY_COLOR;}
+function withAlpha(hex:string,alpha:number){
+  const h=hex.replace("#","");
+  if(h.length!==6)return hex;
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+// Maandag = 0 … zondag = 6
+const WD_LABELS=["Ma","Di","Wo","Do","Vr","Za","Zo"];
+const WD_FULL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
+function weekdayIdx(ds:string){return (new Date(ds+"T12:00").getDay()+6)%7;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
 function nid(){return Math.random().toString(36).slice(2,9);}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
