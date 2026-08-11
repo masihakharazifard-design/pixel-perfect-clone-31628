@@ -3324,7 +3324,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
               className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
-                  <button onClick={ev=>{ev.stopPropagation();openEditAbsence(a);}}
+                  <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
                     className="rounded px-1 py-0.5 text-[10px] font-semibold truncate block w-full text-left hover:opacity-90"
                     style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>{a.status.slice(0,4)}</button>
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
