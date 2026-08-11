@@ -51,8 +51,8 @@ Alle plekken die nog `project.medewerkers` lezen gaan over op `getProjectAssigne
 **Stap 12 — Werkperiode los van planning**
 Slepen, resizen, medewerkers toevoegen of planning verwijderen wijzigt de oorspronkelijke start- en afloopdatum van een werk niet meer. Werkdetails toont twee regels: "Werkperiode" (ingevoerd/Excel) en "Geplande uitvoering" (berekend uit de planning), met "Nog niet ingepland" als er niemand staat. Agenda toont geen dubbele blokken.
 
-**Stap 11 — Echte documentopslag**
-Opslagmap `project-documents` per werk, plus een documententabel met bestandsnaam, pad, type, grootte, uploader en tijdstip. Uploaden, openen, downloaden en verwijderen werken echt. Mislukt de registratie na een upload, dan wordt het bestand weer opgeruimd.
+**Stap 13 — Echte documentopslag**
+Opslagmap `project-documents` per werk, plus een documententabel met bestandsnaam, pad, type, grootte, uploader en tijdstip. De uploader wordt server-side uit `auth.uid()` bepaald. Uploaden, openen, downloaden en verwijderen werken echt, alleen voor ingelogde gebruikers. Mislukt de registratie na een upload, dan wordt het bestand weer opgeruimd.
 
 **Stap 12 — Feestdagen toekomstbestendig**
 Eén centrale `getDutchHolidays(jaar)` die ook de van Pasen afgeleide dagen berekent, gebruikt door Agenda en Personeelsplanning. Werkt dus ook na 2026. Bestaande feestdagkleur blijft.
