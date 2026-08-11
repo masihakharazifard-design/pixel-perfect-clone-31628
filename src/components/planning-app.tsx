@@ -2801,7 +2801,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const holColor=holidayColorOf(settings);
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
-  const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  // employees → employeePlanningOrder → filters → render
+  const orderedEmployees=useMemo(()=>sortEmployeesByPlanningOrder(employees,settings.employeePlanningOrder||[]),[employees,settings.employeePlanningOrder]);
+  const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   // Eén projectbron voor de hele pagina: alles volgt activeAfds
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
   const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
