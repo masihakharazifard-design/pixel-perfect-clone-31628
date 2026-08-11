@@ -3268,7 +3268,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
-                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?openEditAbsence(b):openPlan(e.id,ds)}>
+                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
