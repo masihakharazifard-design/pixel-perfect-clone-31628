@@ -311,6 +311,65 @@ function teamColor(key:string,overrides:Record<string,string>={}):string{
   let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))>>>0;
   return TEAM_PALETTE[h%TEAM_PALETTE.length];
 }
+// ===== PROJECTKLEUREN (Personeelsplanning) =====
+// De kleur hoort uitsluitend bij projectId en wordt centraal bewaard in settings.projectColors.
+// Nooit afhankelijk van medewerker, datum, team, status, tijd, rijpositie of actieve filter.
+function hslToHex(h:number,s:number,l:number):string{ // s,l in 0..1
+  const a=s*Math.min(l,1-l);
+  const f=(n:number)=>{
+    const k=(n+h/30)%12;
+    const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));
+    return Math.round(255*c).toString(16).padStart(2,"0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+// Ruime, goed onderscheidbare kleurreeks (gulden hoek + wisselende verzadiging/helderheid)
+function generatedProjectColor(i:number):string{
+  const h=(i*137.508)%360;
+  const s=0.55+((i%3)*0.14);
+  const l=0.40+((i%2)*0.10);
+  return hslToHex(h,s,l);
+}
+function stableIdx(s:string):number{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%997;}
+const FALLBACK_PROJECT_COLOR="#64748B";
+// Centrale helper voor alle Personeelsplanning-weergaven
+function projectPlanningColorOf(projectId:string|undefined|null,projectColors:Record<string,string>={}):string{
+  if(!projectId)return FALLBACK_PROJECT_COLOR;
+  return projectColors[projectId]||generatedProjectColor(stableIdx(projectId));
+}
+// Vult ontbrekende kleuren aan en lost duplicaten op over de VOLLEDIGE projectenlijst.
+// Een bestaande unieke kleur blijft altijd staan; bij een botsing houdt het eerste project (stabiele volgorde) zijn kleur.
+function ensureProjectColors(projects:{id:string}[],current:Record<string,string>):Record<string,string>{
+  const next:Record<string,string>={...current};
+  const used=new Set<string>();
+  let changed=false;let i=0;
+  const freeColor=()=>{
+    let c=generatedProjectColor(i++);let guard=0;
+    while(used.has(c.toLowerCase())&&guard++<5000)c=generatedProjectColor(i++);
+    return c;
+  };
+  projects.forEach(p=>{
+    const cur=(next[p.id]||"").toLowerCase();
+    if(cur&&!used.has(cur)){used.add(cur);return;}
+    const c=freeColor();
+    next[p.id]=c;used.add(c.toLowerCase());changed=true;
+  });
+  return changed?next:current;
+}
+// Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
+function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
+  const out:{employee:E;rows:AvailEntry[]}[]=[];
+  const seen=new Map<string,number>();
+  projectPlans(av,projectId).forEach(r=>{
+    const emp=employees.find(e=>e.id===r.employeeId);
+    if(!emp)return;
+    const idx=seen.get(emp.id);
+    if(idx===undefined){seen.set(emp.id,out.length);out.push({employee:emp,rows:[r]});}
+    else out[idx].rows.push(r);
+  });
+  out.forEach(o=>o.rows.sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime)));
+  return out;
+}
 // Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
 function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
   return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
@@ -1358,8 +1417,8 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
 // ===== PROJECT DETAIL =====
 type ProjTab="overzicht"|"werkzaamheden"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;
+function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
@@ -1391,7 +1450,8 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
   },[docs,notities,metaLoaded,project.id]);
 
   const plNaam=plName(project,employees);
-  const meds=employees.filter(e=>project.medewerkers.includes(e.id));
+  // Ingeplande medewerkers komen altijd uit de planningregels (availability), nooit uit het projectrecord
+  const assigned=getProjectAssignedEmployees(project.id,availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
@@ -1460,12 +1520,11 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
       {tab==="medewerkers"&&<div className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
-          <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
+          <span className="text-xs text-[#6B7A99]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
         </div>
-        {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
-        {meds.map(e=>{
-          const rows=projectPlans(availability,project.id).filter(a=>a.employeeId===e.id).sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
-          const kleur=rows.length?teamColor(teamKey(project.id,rows[0].date,teamForDay(availability,project.id,rows[0].date)),teamColors):dc[e.afdeling].bg;
+        {assigned.length===0&&<p className="text-[#6B7A99] text-sm">Nog geen medewerkers ingepland.</p>}
+        {assigned.map(({employee:e,rows})=>{
+          const kleur=projectPlanningColorOf(project.id,projectColors);
           return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1 min-w-0">
@@ -2796,6 +2855,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
+  // Kleurbeheer over de VOLLEDIGE projectenlijst (nooit afhankelijk van filters/weergave).
+  // Alleen ontbrekende kleuren en duplicaten worden aangevuld; in één gebundelde save.
+  const savingColorsRef=useRef("");
+  useEffect(()=>{
+    const next=ensureProjectColors(projects,projectColors);
+    if(next===projectColors)return;
+    const sig=JSON.stringify(next);
+    if(savingColorsRef.current===sig)return;
+    savingColorsRef.current=sig;
+    onSaveSettings({...settings,projectColors:next});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[projects,settings.projectColors]);
   const borderColors=settings.borderColors||{};
   const badgeColors=settings.badgeColors||{};
   const holColor=holidayColorOf(settings);
@@ -2908,14 +2979,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-  // Kleur van een planningregel: nooit afhankelijk van datum, rij-index of record-id.
-  // Volgorde: opgeslagen teamkleur (teamId) → opgeslagen projectkleur → stabiele kleur op projectId.
-  const rowColor=(a:AvailEntry)=>{
-    if(a.teamId&&teamColors[a.teamId])return teamColors[a.teamId];
-    if(a.projectId&&projectColors[a.projectId])return projectColors[a.projectId];
-    if(a.teamId)return teamColor(a.teamId,teamColors);
-    return teamColor(a.projectId||"",teamColors);
-  };
+  // Kleur van een planningregel: uitsluitend op projectId (teamkleur telt hier niet mee).
+  const rowColor=(a:AvailEntry)=>projectPlanningColorOf(a.projectId,projectColors);
 
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
@@ -3479,7 +3544,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer} – ${p.projectnaam}`}>
                   {p.projectnaam.slice(0,7)}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
@@ -3504,7 +3569,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
             className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={projStyle(p,dc)}/>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}}/>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
               <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
@@ -4263,7 +4328,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
