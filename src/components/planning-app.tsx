@@ -2967,14 +2967,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-  // Kleur van een planningregel: nooit afhankelijk van datum, rij-index of record-id.
-  // Volgorde: opgeslagen teamkleur (teamId) → opgeslagen projectkleur → stabiele kleur op projectId.
-  const rowColor=(a:AvailEntry)=>{
-    if(a.teamId&&teamColors[a.teamId])return teamColors[a.teamId];
-    if(a.projectId&&projectColors[a.projectId])return projectColors[a.projectId];
-    if(a.teamId)return teamColor(a.teamId,teamColors);
-    return teamColor(a.projectId||"",teamColors);
-  };
+  // Kleur van een planningregel: uitsluitend op projectId (teamkleur telt hier niet mee).
+  const rowColor=(a:AvailEntry)=>projectPlanningColorOf(a.projectId,projectColors);
 
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
