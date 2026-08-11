@@ -3297,14 +3297,17 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
     {(view==="week"||view==="maand")&&(
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
-      <table className="text-xs" style={{minWidth:`${180+dates.length*(view==="week"?80:44)}px`}}>
+      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{minWidth:`${180+dates.length*(view==="week"?90:44)}px`}}>
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds} className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":hol?"text-red-400":"text-[#6B7A99]"} ${isWE||hol?"bg-[#F8F8FB]":""}`}>
+            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 w-44 min-w-44">Medewerker</th>
+            {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
+              style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`,minWidth:90}:null),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
+              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
               <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1A2744] text-white":""}`}>{d.getDate()}</div>
-              {hol&&view!=="maand"&&<div className="text-[8px] truncate max-w-16 mx-auto text-red-400">{hol}</div>}
+              {hol&&view!=="maand"&&<div className="text-[8px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
+              {hol&&view==="maand"&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
