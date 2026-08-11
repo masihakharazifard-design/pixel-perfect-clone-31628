@@ -3345,8 +3345,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
-        return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
+        return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
+            <EmpOrderControls empId={e.id}/>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
             <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
