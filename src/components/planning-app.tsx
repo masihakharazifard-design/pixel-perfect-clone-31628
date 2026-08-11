@@ -2665,6 +2665,48 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
 }
 
 
+// ===== VASTE VRIJE DAGEN =====
+interface FixedFreeDraft{periodeId?:string;employeeId:string;weekdays:number[];startDate:string;endDate:string;}
+function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];series:FixedFreeSeries[];draft:FixedFreeDraft;
+  onSave:(d:FixedFreeDraft)=>Promise<void>;onDelete:(periodeId:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [f,setF]=useState<FixedFreeDraft>(draft);
+  const [busy,setBusy]=useState(false);
+  const own=series.filter(s=>s.employeeId===f.employeeId);
+  const toggleWd=(i:number)=>setF(p=>({...p,weekdays:p.weekdays.includes(i)?p.weekdays.filter(x=>x!==i):[...p.weekdays,i].sort((a,b)=>a-b)}));
+  const canSave=!!f.employeeId&&f.weekdays.length>0&&!!f.startDate&&!!f.endDate&&f.startDate<=f.endDate&&!busy;
+  return <Modal title={f.periodeId?"Vaste vrije dagen wijzigen":"Vaste vrije dagen"} onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <Select label="Medewerker" value={f.employeeId} onChange={v=>setF(p=>({...p,employeeId:v,periodeId:undefined}))} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+      <div>
+        <p className="text-xs font-semibold text-[#6B7A99] mb-1.5">Vaste vrije weekdagen</p>
+        <div className="flex flex-wrap gap-1.5">
+          {WD_LABELS.map((l,i)=><button key={l} type="button" onClick={()=>toggleWd(i)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${f.weekdays.includes(i)?"bg-[#1A2744] text-white border-transparent":"bg-white text-[#6B7A99] border-[rgba(26,39,68,0.12)]"}`}>{l}</button>)}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Vanaf datum" type="date" value={f.startDate} onChange={v=>setF(p=>({...p,startDate:v}))}/>
+        <Input label="Tot en met datum" type="date" value={f.endDate} onChange={v=>setF(p=>({...p,endDate:v}))}/>
+      </div>
+      <p className="text-xs text-[#6B7A99]">Op deze dagen wordt de medewerker automatisch als hele dag <b>Vrij</b> gezet. Bestaande projectplanning en losse uitzonderingen blijven altijd staan.</p>
+      {own.length>0&&<div className="space-y-1.5">
+        <p className="text-xs font-semibold text-[#6B7A99]">Bestaande reeksen</p>
+        {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-3 py-2">
+          <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
+          <button className="text-[11px] font-semibold text-[#0ABFB8]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
+          <button className="text-[11px] font-semibold text-red-600" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
+        </div>)}
+      </div>}
+      <div className="flex justify-end gap-2 pt-1">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn disabled={!canSave} onClick={async()=>{setBusy(true);await onSave(f);setBusy(false);}}>{busy?"Opslaan…":"Opslaan"}</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
 // Greep rechts op een blok: slepen (week) of het venster "Periode aanpassen" (kleine cellen)
