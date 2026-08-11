@@ -35,7 +35,12 @@ Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten:
 De vier automatische opslag-effecten verdwijnen. Elke gebruikersactie krijgt één vaste route: controleren → opslaan in database → bevestiging → state bijwerken → scherm verversen. Bij fout: terugdraaien en melding.
 
 **Stap 6 — Rijgerichte opslaglaag en atomair patchen van instellingen**
-Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". De teruggegeven databaserij bepaalt de state. Instellingen worden niet meer als geheel opgehaald, lokaal samengevoegd en teruggeschreven: de browser stuurt alleen de gewijzigde instellingen (bijvoorbeeld alleen de feestdagkleur, of alleen de monteursvolgorde) naar een databasefunctie die ze server-side samenvoegt met de huidige instellingen. Twee gebruikers die tegelijk een andere instelling wijzigen overschrijven elkaar zo niet. Alle instellingenwijzigingen lopen via die functie.
+Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". De teruggegeven databaserij bepaalt de state. Instellingen worden niet meer als geheel opgehaald, lokaal samengevoegd en teruggeschreven: de browser stuurt alleen de gewijzigde instellingen naar een databasefunctie die ze server-side samenvoegt. Daarbij geldt onderscheid naar soort instelling:
+- Losse instellingen (bijvoorbeeld de feestdagkleur) worden als hele key samengevoegd.
+- Geneste maps zoals de kleuren per werk en de kleuren per afdeling worden per onderdeel gewijzigd, via een pad. Wijzigt gebruiker A de kleur van werk A en gebruiker B tegelijk de kleur van werk B, dan blijven beide kleuren behouden en overschrijft niemand de hele kleurenlijst van de ander.
+- Lijsten zoals de monteursvolgorde en de vaste vrije reeksen mogen als hele key worden vervangen wanneer de actie bewust de hele lijst wijzigt; bij twee gelijktijdige wijzigingen van dezelfde lijst grijpt de bestaande gelijktijdigheidscontrole in en krijgt de tweede gebruiker een melding met de actuele stand in plaats van een stille overschrijving.
+
+Alle instellingenwijzigingen lopen via deze functie.
 
 **Stap 7 — Alle bestaande opslagfuncties omzetten**
 Inplannen, wijzigen, verplaatsen, verwijderen, team verplaatsen, resize, vaste vrije reeksen, statuswijziging, Excel-import: allemaal op de nieuwe laag, met per actie alleen de echt gewijzigde regels.
