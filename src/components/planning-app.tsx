@@ -3257,6 +3257,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>
 
     {view==="dag"&&<div className="space-y-3">
+      {getDHol(toDateStr(refDate))&&<div className="rounded-2xl px-4 py-2.5 text-sm font-semibold" style={{backgroundColor:withAlpha(holColor,0.1),borderLeft:`4px solid ${holColor}`,color:holColor}}>
+        Landelijke feestdag — {getDHol(toDateStr(refDate))}
+      </div>}
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
