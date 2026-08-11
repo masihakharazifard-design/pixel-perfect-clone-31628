@@ -12,12 +12,14 @@ Alles blijft binnen `src/components/planning-app.tsx`. Geen nieuwe tabel, geen m
 ## 1. Vaste, unieke kleur per werk
 
 - Eén centrale helper bepaalt de kleur van een werk in Personeelsplanning, uitsluitend op basis van het werk-ID. Medewerker, datum, rijpositie, team, status en tijd spelen geen rol meer.
-- Werken zonder opgeslagen kleur krijgen automatisch een nieuwe kleur uit een breed, fijnverdeeld kleurenspectrum, zodat ook bij tientallen werken geen kleuren herhalen.
-- Voordat een kleur wordt vastgelegd, wordt gecontroleerd of een ander werk die kleur al heeft. Botsingen — ook uit oude gegevens — worden automatisch opgelost door één van beide werken een nieuwe, vrije kleur te geven.
+- Kleuren worden beheerd over de volledige werkenlijst, niet over wat op dat moment zichtbaar is. Filters, periode en weergave hebben geen invloed op de kleurverdeling.
+- Een bestaande, unieke opgeslagen kleur wordt nooit gewijzigd. Een nieuwe kleur wordt alleen toegekend als een werk nog geen kleur heeft, of als twee werken exact dezelfde kleur hebben. Bij zo'n botsing houdt het werk dat in de stabiele werkvolgorde als eerste komt zijn kleur; alleen het andere werk krijgt een nieuwe.
+- Nieuwe kleuren komen uit een breed, fijnverdeeld spectrum met bewust ruime onderlinge afstand, zodat opeenvolgende werken ook visueel duidelijk verschillen en kleuren niet herhalen.
 - Nieuwe of gecorrigeerde kleuren worden centraal opgeslagen, zodat ze na verversen identiek blijven.
-- Slepen, verlengen, korter maken, teamverplaatsing en wisselen tussen Dag, Week, Maand en Kwartaal veranderen de kleur nooit.
+- Slepen, verlengen, korter maken, teamverplaatsing, inplannen, planning verwijderen, filteren en wisselen tussen Dag, Week, Maand en Kwartaal veranderen de kleur nooit en verdelen kleuren nooit opnieuw.
+- Openstaande projecten en planningblokken met hetzelfde werk-ID tonen altijd exact dezelfde kleur.
 - Teamkleuren bepalen in Personeelsplanning niet langer de kleur van een projectblok; teams blijven verder gewoon werken (o.a. samen verplaatsen). Kleuren beheren houdt de mogelijkheid om per werk handmatig een kleur te kiezen.
-- Agenda blijft ongewijzigd: daar bepaalt de afdeling de kleur.
+- Agenda blijft volledig uitgesloten: daar bepaalt de afdeling de kleur.
 
 ## 2. Ingeplande medewerkers overal uit de planning
 
