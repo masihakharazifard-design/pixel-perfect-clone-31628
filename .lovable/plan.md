@@ -66,8 +66,8 @@ Werken en medewerkers worden gearchiveerd, met een weergave "Gearchiveerd" en he
 **Stap 17 — Auditlog**
 Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en nieuwe waarde. De gebruiker wordt altijd server-side uit `auth.uid()` gehaald en nooit uit gegevens die de browser meestuurt. Alleen wegschrijven ná een geslaagde wijziging. Een regel zonder gebruiker mag alleen ontstaan bij aantoonbaar systeemgegenereerde processen en krijgt dan `actor_type: "system"`; gewone gebruikersacties worden nooit anoniem vastgelegd. Beheerscherm "Recente wijzigingen".
 
-**Stap 16 — Tests uitbreiden**
-De volledige testlijst uit de opdracht afmaken: planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
+**Stap 18 — Tests uitbreiden**
+De volledige testlijst uit de opdracht afmaken: login en geweigerde demo-login in productie, planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
 
 **Stap 17 — Bestand opsplitsen**
 Pas als de tests groen zijn: `planning-app.tsx` stap voor stap opdelen in schermcomponenten (personeelsplanning, openstaande werken, vaste vrije dagen, agenda, werken, werkdetails, kleurbeheer) en rekenlogica (`planning-engine`, `planning-conflicts`, `planning-colors`, `project-planning`, `holidays`), met na elk onderdeel build en tests.
