@@ -3064,6 +3064,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return n;
   };
   const isSeriesVrij=(a?:AvailEntry|null)=>!!a&&a.serieType==="vastevrij"&&!!a.periodeId;
+  const clickAbsence=(a:AvailEntry)=>{if(isSeriesVrij(a))setDayOrSeries(a);else openEditAbsence(a);};
   const openFixedFree=(empId?:string)=>setFfModal({employeeId:empId||visEmp[0]?.id||employees[0]?.id||"",weekdays:[],startDate:toDateStr(refDate),endDate:toDateStr(new Date(refDate.getFullYear(),11,31))});
   // Reeks (her)opbouwen: oude gegenereerde dagen weg, uitzonderingen en projecten behouden
   const buildFixedFree=(d:FixedFreeDraft)=>{
