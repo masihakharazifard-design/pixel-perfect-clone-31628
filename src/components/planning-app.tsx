@@ -1520,12 +1520,11 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
       {tab==="medewerkers"&&<div className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
-          <span className="text-xs text-[#6B7A99]">{meds.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
+          <span className="text-xs text-[#6B7A99]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
         </div>
-        {meds.length===0&&<p className="text-[#6B7A99] text-sm">Geen medewerkers toegewezen.</p>}
-        {meds.map(e=>{
-          const rows=projectPlans(availability,project.id).filter(a=>a.employeeId===e.id).sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
-          const kleur=rows.length?teamColor(teamKey(project.id,rows[0].date,teamForDay(availability,project.id,rows[0].date)),teamColors):dc[e.afdeling].bg;
+        {assigned.length===0&&<p className="text-[#6B7A99] text-sm">Nog geen medewerkers ingepland.</p>}
+        {assigned.map(({employee:e,rows})=>{
+          const kleur=projectPlanningColorOf(project.id,projectColors);
           return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1 min-w-0">
