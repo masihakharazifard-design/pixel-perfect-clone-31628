@@ -22,9 +22,9 @@ Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker
 Toegangsregels op werken, medewerkers, planning, instellingen, documenten en auditlog worden omgezet van "iedereen" naar "alleen ingelogde gebruikers", met de bijbehorende rechten. Zonder geldige sessie is geen enkele lees- of schrijfactie meer mogelijk. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()` en accepteren nooit een gebruiker-id uit de browser; dat geldt ook voor de latere planning- en auditfuncties.
 
 **Stap 3 — Vangnet: tests op de kritieke rekenlogica**
+Vitest opzetten en tests schrijven op de bestaande helpers: ingeplande medewerkers per werk, conflictcontrole, teamkleuren/unieke werkkleuren, volgorde medewerkers, vaste vrije dagen met uitzonderingen, openstaande werken. Playwright-flows (met de aparte testgebruiker uit stap 1) voor inplannen, slepen, resizen en refresh.
 
-
-**Stap 2 — Demo-data uit productie**
+**Stap 4 — Demo-data uit productie**
 Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten: laadscherm, daarna echte gegevens; lege database geeft lege lijsten. Mislukt laden geeft "Gegevens konden niet worden geladen." met knop "Opnieuw proberen" en blokkeert elke opslag tot het laden gelukt is.
 
 **Stap 3 — Automatische opslag weghalen**
