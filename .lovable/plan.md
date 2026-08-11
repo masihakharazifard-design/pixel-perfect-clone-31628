@@ -30,7 +30,7 @@ Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten:
 **Stap 5 — Automatische opslag weghalen**
 De vier automatische opslag-effecten verdwijnen. Elke gebruikersactie krijgt één vaste route: controleren → opslaan in database → bevestiging → state bijwerken → scherm verversen. Bij fout: terugdraaien en melding.
 
-**Stap 4 — Rijgerichte opslaglaag**
+**Stap 6 — Rijgerichte opslaglaag**
 Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". Instellingen worden samengevoegd in plaats van als geheel overschreven. De teruggegeven databaserij bepaalt de state.
 
 **Stap 5 — Alle bestaande opslagfuncties omzetten**
