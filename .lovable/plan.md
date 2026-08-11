@@ -42,7 +42,7 @@ Databasefunctie die vlak voor opslaan opnieuw controleert op vrij, vakantie, zie
 **Stap 9 — Gelijktijdig werken afschermen**
 Opslaan controleert of het record ondertussen door iemand anders is gewijzigd. Zo ja: niet blind overschrijven, gegevens opnieuw laden en melden dat de planning inmiddels is gewijzigd.
 
-**Stap 8 — Realtime**
+**Stap 10 — Realtime**
 Live meekijken op planning, werken en medewerkers, zodat een tweede planner wijzigingen ziet zonder verversen. Realtime werkt alleen bij naar het scherm, nooit terug naar de database. Test met twee sessies.
 
 **Stap 9 — Availability als enige personeelsbron**
