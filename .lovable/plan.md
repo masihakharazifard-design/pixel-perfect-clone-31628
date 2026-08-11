@@ -74,12 +74,12 @@ Pas als de tests groen zijn: `planning-app.tsx` stap voor stap opdelen in scherm
 
 ## Technische details
 
+- `src/components/auth-gate.tsx`: demo-login (`maasmond-demo-user`) achter `import.meta.env.DEV` of een expliciete testvlag; in productiebuilds wordt de sleutel genegeerd en verwijderd, en blijft alleen de Azure/Microsoft-aanmelding over. Sessiecontrole via `supabase.auth.getUser()`.
+- Auth: Azure-provider definitief inschakelen en de redirect-URL's vastleggen; rollen blijven in de bestaande `user_roles`-tabel met `has_role`.
 - `src/lib/planning-store.ts`: `syncTable` uitfaseren; nieuwe mutatiehelpers met `.select().single()` retourwaarde; `syncSettings` wordt een merge op de bestaande rij.
 - `src/components/planning-app.tsx`: vier debounce-`useEffect`-writes (regels ~4050-4069) verwijderen; demo-seed bij lege database (regels ~4025-4031) verwijderen; alle `syncTable`-aanroepen in save-/drag-/resize-functies omzetten.
-- Database: RPC voor transactioneel plannen met conflictcontrole, `updated_at`-controle bij opslaan, realtime-publicatie op de drie tabellen, `archived_at` op werken/medewerkers, tabellen `project_documents` en `audit_log`, storage-bucket `project-documents`, plus de vereiste toegangsregels en rechten.
-- Nieuwe bestanden: `src/lib/holidays.ts`, later de opsplitsing uit stap 17.
-- Vitest + Playwright toevoegen als ontwikkelafhankelijkheden.
+- Database: bestaande `*_public`-policies (anon) op projects, employees, availability en app_settings vervangen door `TO authenticated`-policies; policies en grants voor `project_documents` en `audit_log`; RPC voor transactioneel plannen met conflictcontrole en `auth.uid()`-controle; `updated_at`-controle bij opslaan; realtime-publicatie; `archived_at` op werken/medewerkers; storage-bucket `project-documents` met eigen toegangsregels.
+- `audit_log`: kolommen `actor_id uuid` (uit `auth.uid()`), `actor_type text` (`user` of `system`), tijdstip, actie, tabel, record-id, oude en nieuwe waarde; alleen te vullen via server-side functies.
+- Nieuwe bestanden: `src/lib/holidays.ts`, later de opsplitsing uit stap 19.
+- Vitest + Playwright toevoegen als ontwikkelafhankelijkheden, met een aparte testconfiguratie en echte testgebruiker (geen demo-login).
 
-## Vraag vooraf
-
-Voor het auditlog en veilige toegangsregels is een echte login per gebruiker nodig; de huidige demo-login geeft geen betrouwbare gebruiker. Ik ga er in dit plan van uit dat de demo-login blijft bestaan voor het testen en dat auditregels dan zonder gebruiker worden vastgelegd, tenzij je liever eerst Microsoft-login definitief afmaakt.
