@@ -1450,7 +1450,8 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
   },[docs,notities,metaLoaded,project.id]);
 
   const plNaam=plName(project,employees);
-  const meds=employees.filter(e=>project.medewerkers.includes(e.id));
+  // Ingeplande medewerkers komen altijd uit de planningregels (availability), nooit uit het projectrecord
+  const assigned=getProjectAssignedEmployees(project.id,availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
