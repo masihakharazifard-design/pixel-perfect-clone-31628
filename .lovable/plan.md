@@ -34,8 +34,8 @@ Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten:
 **Stap 5 — Automatische opslag weghalen**
 De vier automatische opslag-effecten verdwijnen. Elke gebruikersactie krijgt één vaste route: controleren → opslaan in database → bevestiging → state bijwerken → scherm verversen. Bij fout: terugdraaien en melding.
 
-**Stap 6 — Rijgerichte opslaglaag**
-Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". Instellingen worden samengevoegd in plaats van als geheel overschreven. De teruggegeven databaserij bepaalt de state.
+**Stap 6 — Rijgerichte opslaglaag en atomair patchen van instellingen**
+Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". De teruggegeven databaserij bepaalt de state. Instellingen worden niet meer als geheel opgehaald, lokaal samengevoegd en teruggeschreven: de browser stuurt alleen de gewijzigde instellingen (bijvoorbeeld alleen de feestdagkleur, of alleen de monteursvolgorde) naar een databasefunctie die ze server-side samenvoegt met de huidige instellingen. Twee gebruikers die tegelijk een andere instelling wijzigen overschrijven elkaar zo niet. Alle instellingenwijzigingen lopen via die functie.
 
 **Stap 7 — Alle bestaande opslagfuncties omzetten**
 Inplannen, wijzigen, verplaatsen, verwijderen, team verplaatsen, resize, vaste vrije reeksen, statuswijziging, Excel-import: allemaal op de nieuwe laag, met per actie alleen de echt gewijzigde regels.
