@@ -54,7 +54,7 @@ Slepen, resizen, medewerkers toevoegen of planning verwijderen wijzigt de oorspr
 **Stap 13 — Echte documentopslag**
 Opslagmap `project-documents` per werk, plus een documententabel met bestandsnaam, pad, type, grootte, uploader en tijdstip. De uploader wordt server-side uit `auth.uid()` bepaald. Uploaden, openen, downloaden en verwijderen werken echt, alleen voor ingelogde gebruikers. Mislukt de registratie na een upload, dan wordt het bestand weer opgeruimd.
 
-**Stap 12 — Feestdagen toekomstbestendig**
+**Stap 14 — Feestdagen toekomstbestendig**
 Eén centrale `getDutchHolidays(jaar)` die ook de van Pasen afgeleide dagen berekent, gebruikt door Agenda en Personeelsplanning. Werkt dus ook na 2026. Bestaande feestdagkleur blijft.
 
 **Stap 13 — Schoolvakanties beheerbaar**
