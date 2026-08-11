@@ -60,7 +60,7 @@ Eén centrale `getDutchHolidays(jaar)` die ook de van Pasen afgeleide dagen bere
 **Stap 15 — Schoolvakanties beheerbaar**
 Schoolvakanties per jaar en regio in de instellingen, met een eenvoudig beheerscherm (naam, regio, start, eind). Ontbreken de data van het volgende jaar, dan verschijnt een duidelijke waarschuwing.
 
-**Stap 14 — Archiveren in plaats van verwijderen**
+**Stap 16 — Archiveren in plaats van verwijderen**
 Werken en medewerkers worden gearchiveerd, met een weergave "Gearchiveerd" en herstellen. Gearchiveerde medewerkers verdwijnen uit de actieve planning maar hun historie blijft zichtbaar. Definitief verwijderen blijft mogelijk als bewuste beheeractie met extra waarschuwing.
 
 **Stap 15 — Auditlog**
