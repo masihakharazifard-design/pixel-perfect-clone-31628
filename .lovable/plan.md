@@ -35,7 +35,10 @@ Alles gebeurt in `src/components/planning-app.tsx`. Geen nieuwe pagina, geen twe
 - **Alleen deze dag**: opent de bestaande mogelijkheden (Beschikbaar, Bezet, Ziek, Vakantie, Vrij, Project inplannen) en wijzigt uitsluitend die datum. De regel houdt hetzelfde `periodeId` en krijgt `isSeriesException: true`.
 - Bij het opnieuw opbouwen of wijzigen van een reeks worden datums met een bestaande uitzondering binnen hetzelfde `periodeId` overgeslagen; die worden nooit automatisch terug op `Vrij` gezet.
 - **Hele reeks wijzigen** opent het reeksvenster uit punt 1.
-- **Project inplannen** vanaf een vaste Vrij-dag toont eerst: "Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?" Na bevestiging wordt alleen die datum een uitzondering, blokkeert Vrij die datum niet meer en opent de bestaande inplanflow.
+- **Project inplannen** vanaf een vaste Vrij-dag toont eerst: "Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?" Na bevestiging wordt het `periodeId` onthouden en uitsluitend de `Vrij`-regel van die ene datum verwijderd, zodat de conflictcontrole (die alleen naar werkelijk aanwezige availability-regels kijkt) de datum niet meer blokkeert. Alle andere dagen van de reeks blijven ongewijzigd. Daarna opent de bestaande inplanflow.
+- Zodra het project is ingepland wordt het onthouden `periodeId` toegevoegd aan `vasteVrijExceptionIds` van die projectplanningregel. Er komt geen extra `Vrij`-regel en geen tweede exception-regel naast het project.
+- Annuleert de gebruiker de inplanflow, dan wordt de oorspronkelijke `Vrij`-regel hersteld (of, als de gebruiker uitdrukkelijk voor Beschikbaar koos, blijft de datum als expliciete `Beschikbaar`-uitzondering met `isSeriesException: true` staan). Een dag verdwijnt nooit ongemerkt uit de reeks.
+- Eindresultaat: project aanwezig, geen `Vrij` op die datum, `periodeId` in `vasteVrijExceptionIds`, overige vaste vrije dagen intact, datum overgeslagen bij heropbouw, en bij verwijderen van de reeks blijft het project met alleen dat `periodeId` verwijderd.
 
 ## 3. Weekweergave breder
 
