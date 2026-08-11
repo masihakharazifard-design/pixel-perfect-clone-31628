@@ -2855,6 +2855,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
+  // Kleurbeheer over de VOLLEDIGE projectenlijst (nooit afhankelijk van filters/weergave).
+  // Alleen ontbrekende kleuren en duplicaten worden aangevuld; in één gebundelde save.
+  const savingColorsRef=useRef("");
+  useEffect(()=>{
+    const next=ensureProjectColors(projects,projectColors);
+    if(next===projectColors)return;
+    const sig=JSON.stringify(next);
+    if(savingColorsRef.current===sig)return;
+    savingColorsRef.current=sig;
+    onSaveSettings({...settings,projectColors:next});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[projects,settings.projectColors]);
   const borderColors=settings.borderColors||{};
   const badgeColors=settings.badgeColors||{};
   const holColor=holidayColorOf(settings);
