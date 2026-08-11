@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { loadAll, syncTable, syncSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, type PersonalNote } from "@/lib/planning-store";
+import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, type PersonalNote, type SettingsPathPatch } from "@/lib/planning-store";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 
