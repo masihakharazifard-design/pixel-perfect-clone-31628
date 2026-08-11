@@ -1417,8 +1417,8 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 
 // ===== PROJECT DETAIL =====
 type ProjTab="overzicht"|"werkzaamheden"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;
+function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
