@@ -3051,6 +3051,101 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     await onSaveAbsence({employeeId:empId,startDate:ds,endDate:ds,startTime:"00:00",endTime:"23:59",status,note:"",wholeDay:true});
   };
 
+  // ===== Vaste vrije dagen =====
+  const fixedSeries=settings.fixedFreeSeries||[];
+  const [ffModal,setFfModal]=useState<FixedFreeDraft|null>(null);
+  const [ffAsk,setFfAsk]=useState<{draft:FixedFreeDraft;dates:string[]}|null>(null);
+  const [dayOrSeries,setDayOrSeries]=useState<AvailEntry|null>(null);
+  const [vrijAsk,setVrijAsk]=useState<AvailEntry|null>(null);
+  const [vrijEx,setVrijEx]=useState<{row:AvailEntry;periodeId:string}|null>(null);
+  const stripSeries=(a:AvailEntry):AvailEntry=>{
+    const n:AvailEntry={...a};
+    delete n.isSeriesException;delete n.serieType;delete n.serieWeekdays;delete n.serieStartDate;delete n.serieEndDate;delete n.periodeId;
+    return n;
+  };
+  const isSeriesVrij=(a?:AvailEntry|null)=>!!a&&a.serieType==="vastevrij"&&!!a.periodeId;
+  const openFixedFree=(empId?:string)=>setFfModal({employeeId:empId||visEmp[0]?.id||employees[0]?.id||"",weekdays:[],startDate:toDateStr(refDate),endDate:toDateStr(new Date(refDate.getFullYear(),11,31))});
+  // Reeks (her)opbouwen: oude gegenereerde dagen weg, uitzonderingen en projecten behouden
+  const buildFixedFree=(d:FixedFreeDraft)=>{
+    const pid=d.periodeId||"vv-"+nid();
+    const inSeries=(ds:string)=>ds>=d.startDate&&ds<=d.endDate&&d.weekdays.includes(weekdayIdx(ds));
+    const ups:AvailEntry[]=[];const rem:string[]=[];const projectDates:string[]=[];
+    const meta={serieType:"vastevrij" as const,serieWeekdays:d.weekdays,serieStartDate:d.startDate,serieEndDate:d.endDate};
+    availability.filter(a=>a.periodeId===pid&&!a.projectId).forEach(a=>{
+      if(a.status==="Vrij"&&!a.isSeriesException){rem.push(a.id);return;}
+      if(a.employeeId===d.employeeId&&inSeries(a.date))ups.push({...a,...meta,isSeriesException:true});
+      else ups.push(stripSeries(a));
+    });
+    availability.filter(a=>a.projectId&&(a.vasteVrijExceptionIds||[]).includes(pid)).forEach(a=>{
+      if(a.employeeId===d.employeeId&&inSeries(a.date))return;
+      ups.push({...a,vasteVrijExceptionIds:(a.vasteVrijExceptionIds||[]).filter(x=>x!==pid)});
+    });
+    getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00")).filter(inSeries).forEach(ds=>{
+      const rows=availability.filter(a=>a.employeeId===d.employeeId&&a.date===ds);
+      if(rows.some(a=>a.periodeId===pid&&a.isSeriesException))return;
+      const proj=rows.find(a=>a.projectId);
+      if(proj){
+        projectDates.push(ds);
+        const i=ups.findIndex(u=>u.id===proj.id);
+        const cur=i>=0?ups[i]:proj;
+        const merged={...cur,vasteVrijExceptionIds:[...new Set([...(cur.vasteVrijExceptionIds||[]),pid])]};
+        if(i>=0)ups[i]=merged;else ups.push(merged);
+        return;
+      }
+      // Een echte personeelsstatus (Ziek, Vakantie, Bezet) blijft altijd staan
+      if(rows.some(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)))return;
+      ups.push({id:"av-"+nid(),employeeId:d.employeeId,date:ds,startTime:"00:00",endTime:"23:59",status:"Vrij",periodeId:pid,...meta});
+    });
+    return {pid,ups,rem,projectDates};
+  };
+  const commitFixedFree=async(d:FixedFreeDraft)=>{
+    const {pid,ups,rem}=buildFixedFree(d);
+    const ok=await onResizePlanning(ups,rem);
+    if(!ok)return;
+    onSaveSettings({...settings,fixedFreeSeries:[...fixedSeries.filter(s=>s.periodeId!==pid),
+      {periodeId:pid,employeeId:d.employeeId,serieWeekdays:d.weekdays,serieStartDate:d.startDate,serieEndDate:d.endDate}]});
+    setFfModal(null);setFfAsk(null);
+  };
+  const saveFixedFree=async(d:FixedFreeDraft)=>{
+    const {projectDates}=buildFixedFree(d);
+    if(projectDates.length){setFfAsk({draft:d,dates:projectDates});return;}
+    await commitFixedFree(d);
+  };
+  const deleteFixedFree=async(pid:string)=>{
+    const ups:AvailEntry[]=[];const rem:string[]=[];
+    availability.filter(a=>a.periodeId===pid&&!a.projectId).forEach(a=>{
+      if(a.status==="Vrij"||a.status==="Beschikbaar")rem.push(a.id);
+      else ups.push(stripSeries(a));
+    });
+    availability.filter(a=>a.projectId&&(a.vasteVrijExceptionIds||[]).includes(pid))
+      .forEach(a=>ups.push({...a,vasteVrijExceptionIds:(a.vasteVrijExceptionIds||[]).filter(x=>x!==pid)}));
+    const ok=await onResizePlanning(ups,rem);
+    if(!ok)return;
+    onSaveSettings({...settings,fixedFreeSeries:fixedSeries.filter(s=>s.periodeId!==pid)});
+  };
+  const editSeries=(pid:string)=>{
+    const s=fixedSeries.find(x=>x.periodeId===pid);
+    if(!s){toast.error("Deze reeks is niet meer beschikbaar.");return;}
+    setFfModal({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate});
+  };
+  // Eén dag van de reeks als uitzondering een andere status geven
+  const exceptionStatus=async(a:AvailEntry,status:AvailStatus)=>{
+    await onResizePlanning([{...a,status,startTime:"00:00",endTime:"23:59",isSeriesException:true}],[]);
+  };
+  // Project inplannen op een vaste vrije dag: de Vrij-regel van die ene dag verdwijnt eerst
+  const startVrijException=async(a:AvailEntry)=>{
+    const ok=await onResizePlanning([],[a.id]);
+    if(!ok)return;
+    setVrijEx({row:a,periodeId:a.periodeId||""});
+    openPlan(a.employeeId,a.date);
+  };
+  const cancelVrijException=async()=>{
+    const v=vrijEx;setVrijEx(null);
+    if(v)await onResizePlanning([v.row],[]);
+  };
+
+
+
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
     const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
