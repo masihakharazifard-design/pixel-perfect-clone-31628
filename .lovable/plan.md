@@ -48,7 +48,7 @@ Live meekijken op planning, werken en medewerkers, zodat een tweede planner wijz
 **Stap 11 — Availability als enige personeelsbron**
 Alle plekken die nog `project.medewerkers` lezen gaan over op `getProjectAssignedEmployees(...)`. Uit het werkformulier verdwijnt het direct aanvinken van medewerkers; koppelen gebeurt via een echte planningregel. Bestaande oude gegevens blijven staan maar worden niet meer gebruikt.
 
-**Stap 10 — Werkperiode los van planning**
+**Stap 12 — Werkperiode los van planning**
 Slepen, resizen, medewerkers toevoegen of planning verwijderen wijzigt de oorspronkelijke start- en afloopdatum van een werk niet meer. Werkdetails toont twee regels: "Werkperiode" (ingevoerd/Excel) en "Geplande uitvoering" (berekend uit de planning), met "Nog niet ingepland" als er niemand staat. Agenda toont geen dubbele blokken.
 
 **Stap 11 — Echte documentopslag**
