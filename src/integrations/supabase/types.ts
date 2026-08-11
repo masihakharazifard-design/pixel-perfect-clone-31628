@@ -32,6 +32,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          actie: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          id: string
+          nieuwe_waarde: Json | null
+          oude_waarde: Json | null
+          record_id: string | null
+          tabel: string
+        }
+        Insert: {
+          actie: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          id?: string
+          nieuwe_waarde?: Json | null
+          oude_waarde?: Json | null
+          record_id?: string | null
+          tabel: string
+        }
+        Update: {
+          actie?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          id?: string
+          nieuwe_waarde?: Json | null
+          oude_waarde?: Json | null
+          record_id?: string | null
+          tabel?: string
+        }
+        Relationships: []
+      }
       availability: {
         Row: {
           data: Json
@@ -52,16 +88,19 @@ export type Database = {
       }
       employees: {
         Row: {
+          archived_at: string | null
           data: Json
           id: string
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           data: Json
           id: string
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           data?: Json
           id?: string
           updated_at?: string
@@ -95,6 +134,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_documents: {
+        Row: {
+          bestandsnaam: string
+          created_at: string
+          grootte: number | null
+          id: string
+          mimetype: string | null
+          pad: string
+          project_id: string
+          uploader_id: string | null
+        }
+        Insert: {
+          bestandsnaam: string
+          created_at?: string
+          grootte?: number | null
+          id?: string
+          mimetype?: string | null
+          pad: string
+          project_id: string
+          uploader_id?: string | null
+        }
+        Update: {
+          bestandsnaam?: string
+          created_at?: string
+          grootte?: number | null
+          id?: string
+          mimetype?: string | null
+          pad?: string
+          project_id?: string
+          uploader_id?: string | null
+        }
+        Relationships: []
+      }
       project_meta: {
         Row: {
           data: Json
@@ -115,16 +187,19 @@ export type Database = {
       }
       projects: {
         Row: {
+          archived_at: string | null
           data: Json
           id: string
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           data: Json
           id: string
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           data?: Json
           id?: string
           updated_at?: string
@@ -157,12 +232,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_record: {
+        Args: { _archiveren: boolean; _record_id: string; _tabel: string }
+        Returns: undefined
+      }
+      bootstrap_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      can_plan: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      is_admin: { Args: never; Returns: boolean }
+      is_member: { Args: never; Returns: boolean }
+      patch_app_settings: {
+        Args: { _changes?: Json; _expected_updated_at?: string; _paths?: Json }
+        Returns: Json
+      }
+      save_planning_rows: {
+        Args: { _actie?: string; _delete_ids?: string[]; _upserts?: Json }
+        Returns: Json
+      }
+      set_project_status: {
+        Args: { _project_id: string; _status: string }
+        Returns: Json
+      }
+      write_audit: {
+        Args: {
+          _actie: string
+          _nieuw: Json
+          _oud: Json
+          _record_id: string
+          _tabel: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
