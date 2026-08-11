@@ -15,11 +15,15 @@ Grote verbouwing in stappen. De app blijft na iedere stap werkend; per stap volg
 
 ## Volgorde van uitvoering
 
-**Stap 1 — Login definitief maken (verplicht vóór alle beveiliging)**
-Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker krijgt een echte `auth.uid()` uit Supabase Auth. De demo-login blijft alleen bestaan wanneer `import.meta.env.DEV` waar is of een expliciete testvlag aan staat; in een productiebuild is de demo-code niet bereikbaar en wordt een bestaande `maasmond-demo-user` in de browseropslag genegeerd en opgeruimd. Geen enkel scherm mag nog een gebruiker of e-mailadres zelf meesturen naar de database. Voor Playwright komt er een aparte testconfiguratie met een echte testgebruiker, los van de demo-login.
+**Stap 1 — Login definitief maken en beperken tot Maasmond (verplicht vóór alle beveiliging)**
+Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker krijgt een echte `auth.uid()` uit Supabase Auth. De aanmelding wordt vastgezet op de Maasmond-tenant (vaste Tenant ID, geen open multi-tenant login) en bij het aanmaken van een account wordt server-side gecontroleerd of de gebruiker echt uit die tenant komt; iemand uit een andere Microsoft-tenant krijgt geen toegang, ook niet met een gelijkend e-mailadres. Een controle op `@maasmond.nl` in de browser telt nooit als beveiliging. De demo-login blijft alleen bestaan wanneer `import.meta.env.DEV` waar is of een expliciete testvlag aan staat; in een productiebuild is die code niet bereikbaar en wordt een bestaande `maasmond-demo-user` in de browseropslag genegeerd en opgeruimd. Voor Playwright komt er een aparte testconfiguratie met een echte testgebruiker.
 
-**Stap 2 — Toegangsregels op alle tabellen**
-Toegangsregels op werken, medewerkers, planning, instellingen, documenten en auditlog worden omgezet van "iedereen" naar "alleen ingelogde gebruikers", met de bijbehorende rechten. Zonder geldige sessie is geen enkele lees- of schrijfactie meer mogelijk. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()` en accepteren nooit een gebruiker-id uit de browser; dat geldt ook voor de latere planning- en auditfuncties.
+**Stap 2 — Toegangsregels per rol op alle tabellen**
+De huidige open regels op werken, medewerkers, planning en instellingen worden vervangen. Toegang loopt via de bestaande rollen (`user_roles` + `has_role`), niet via "iedere ingelogde gebruiker mag alles":
+- Beheerder: alles beheren — medewerkers, instellingen, archiveren en herstellen, definitief verwijderen, documenten en het auditlog inzien.
+- Planner: werken en medewerkers bekijken, planning toevoegen/wijzigen/verwijderen, werkgegevens bekijken, documenten gebruiken; geen beheerfuncties.
+- Overige medewerkers: standaard alleen lezen waar dat later nodig is.
+Instellingen, auditlog, definitief verwijderen en andere beheeracties worden in de database zelf beperkt, niet alleen door knoppen te verbergen. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()`, controleren de vereiste rol en accepteren nooit een gebruiker-id of rol uit de browser. Rechten om functies uit te voeren worden zo krap mogelijk gehouden.
 
 **Stap 3 — Vangnet: tests op de kritieke rekenlogica**
 Vitest opzetten en tests schrijven op de bestaande helpers: ingeplande medewerkers per werk, conflictcontrole, teamkleuren/unieke werkkleuren, volgorde medewerkers, vaste vrije dagen met uitzonderingen, openstaande werken. Playwright-flows (met de aparte testgebruiker uit stap 1) voor inplannen, slepen, resizen en refresh.
