@@ -3446,11 +3446,49 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         const prev=availability.find(a=>a.id===e.id);
         // Bij bewerken blijven volgorde en markering behouden; bij een andere dag/medewerker vervallen ze
         const same=prev&&prev.employeeId===e.employeeId&&prev.date===e.date;
-        setPlanModal(null);
-        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId}],undefined,true);
+        // Vaste vrije dag waarop nu een project komt: alleen deze datum is een uitzondering
+        const vv=vrijEx&&vrijEx.row.employeeId===e.employeeId&&vrijEx.row.date===e.date?vrijEx.periodeId:null;
+        setVrijEx(null);setPlanModal(null);
+        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId,
+          vasteVrijExceptionIds:vv?[...new Set([...(prev?.vasteVrijExceptionIds||[]),vv])]:prev?.vasteVrijExceptionIds}],undefined,true);
       }}
       onDelete={async id=>{const b=availability.find(a=>a.id===id);setPlanModal(null);if(b)await deletePlanRow(b);else await onDeletePlanning(id);}}
-      onClose={()=>setPlanModal(null)}/>}
+      onClose={async()=>{setPlanModal(null);await cancelVrijException();}}/>}
+    {ffModal&&<FixedFreeDaysModal employees={visEmp.length?visEmp:employees} series={fixedSeries} draft={ffModal}
+      onSave={saveFixedFree} onDelete={async pid=>{await deleteFixedFree(pid);setFfModal(null);}} onClose={()=>setFfModal(null)}/>}
+    {ffAsk&&<Modal title="Er staat al werk gepland" onClose={()=>setFfAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1 max-h-40 overflow-y-auto">
+          {ffAsk.dates.map(d=><p key={d} className="text-xs text-amber-800">{fmtDate(d)}</p>)}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={()=>setFfAsk(null)}>Annuleren</Btn>
+          <Btn onClick={async()=>{const a=ffAsk;setFfAsk(null);await commitFixedFree(a.draft);}}>Doorgaan</Btn>
+        </div>
+      </div>
+    </Modal>}
+    {dayOrSeries&&<Modal title="Vaste vrije dag" onClose={()=>setDayOrSeries(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">{fmtDate(dayOrSeries.date)} hoort bij een vaste vrije reeks. Wil je alleen deze dag wijzigen of de hele reeks?</p>
+        <div className="flex flex-col gap-2">
+          {(["Beschikbaar","Bezet","Ziek","Vakantie"] as AvailStatus[]).map(s=>
+            <Btn key={s} variant="secondary" onClick={async()=>{const b=dayOrSeries;setDayOrSeries(null);await exceptionStatus(b,s);}}>Alleen deze dag: {s}</Btn>)}
+          <Btn variant="secondary" onClick={()=>{const b=dayOrSeries;setDayOrSeries(null);setVrijAsk(b);}}>Alleen deze dag: project inplannen</Btn>
+          <Btn onClick={()=>{const b=dayOrSeries;setDayOrSeries(null);editSeries(b.periodeId!);}}>Hele reeks wijzigen — dit raakt alle vaste vrije dagen</Btn>
+          <Btn variant="ghost" onClick={()=>setDayOrSeries(null)}>Annuleren</Btn>
+        </div>
+      </div>
+    </Modal>}
+    {vrijAsk&&<Modal title="Project inplannen op een vrije dag" onClose={()=>setVrijAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?</p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={()=>setVrijAsk(null)}>Annuleren</Btn>
+          <Btn onClick={async()=>{const v=vrijAsk;setVrijAsk(null);await startVrijException(v);}}>Ja, inplannen</Btn>
+        </div>
+      </div>
+    </Modal>}
     {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
