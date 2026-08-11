@@ -33,7 +33,7 @@ Alles blijft binnen `src/components/planning-app.tsx`. Geen nieuwe tabel, geen m
 ## Technisch
 
 - Nieuwe helpers naast de bestaande kleurlogica: `projectPlanningColorOf(projectId, projectColors)` (stabiele HSL-generatie met gulden-hoekverdeling + botsingscontrole) en `getProjectAssignedEmployees(projectId, availability, employees)` (op basis van `planRows`/`projectPlans`, ontdubbeld op `employeeId`).
-- Een effect in `PersoneelsplanningView` vult ontbrekende en dedupliceert botsende `projectColors` voor de zichtbare werken in één `onSaveSettings`-aanroep.
+- Een effect in `PersoneelsplanningView` loopt over de volledige `projects`-lijst (stabiele volgorde, niet `visProjects`): bestaande unieke kleuren blijven staan; alleen ontbrekende kleuren en de tweede en volgende houder van een duplicaatkleur krijgen een nieuwe waarde. Het resultaat wordt eerst vergeleken met de huidige `projectColors` en alleen bij een echt verschil in één gebundelde `onSaveSettings`-aanroep opgeslagen, zodat er geen save-loop ontstaat.
 - `rowColor` in `PersoneelsplanningView` valt terug op `projectPlanningColorOf(a.projectId)`; de teamkleurtak vervalt daar. `teamColor`/`teamKey` blijven elders intact.
 - Alle Personeelsplanning-weergaven (Dag, Week, Maand, Kwartaal), inclusief de bolletjes bij Openstaande projecten en de blokken in maand/kwartaal, gebruiken dezelfde helper.
 - `ProjectDetail` krijgt de medewerkers via de helper; `project.medewerkers` blijft in de database maar is geen bron van waarheid meer voor deze weergave. `agendaProjStyle` en de afdelingslogica in Agenda blijven ongewijzigd.
