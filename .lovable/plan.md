@@ -12,9 +12,16 @@ Alles gebeurt in `src/components/planning-app.tsx`. Geen nieuwe pagina, geen twe
 ### Bestaande reeksen beheren
 
 - In hetzelfde venster een lijst met de vaste reeksen van die medewerker, bijv. "Vrijdag — 01-09-2026 t/m 31-12-2026", elk met **Wijzigen** en **Verwijderen**.
+- De lijst komt uit de opgeslagen reeksinstellingen (`serieType`, `serieWeekdays`, `serieStartDate`, `serieEndDate`, `periodeId`), niet uit de losse gegenereerde Vrij-regels. Zo blijft de reeks herkenbaar ook als dagen uitzonderingen zijn geworden.
 - Wijzigen: weekdagen, begindatum en einddatum aanpassbaar. De reeks wordt opnieuw opgebouwd binnen hetzelfde `periodeId`; bestaande uitzonderingsdagen blijven ongemoeid.
 - Verwijderen wist uitsluitend de `Vrij`-regels van díe reeks. Projectplanning, vakantie, ziek, bezet en overige regels blijven altijd staan.
-- Staat er op een dag al een project, dan wordt dat nooit automatisch verwijderd: eerst een waarschuwing met de betreffende datums en pas na bevestiging worden alleen de vrije dagen toegevoegd.
+
+### Datums waarop al een project staat
+
+- Staat er op een gegenereerde datum al projectplanning voor die medewerker, dan wordt eerst een waarschuwing getoond met die datums.
+- Na bevestiging blijft de projectplanning volledig behouden en wordt op die datum géén `Vrij`-blok toegevoegd. Die datum wordt binnen de reeks vastgelegd als individuele uitzondering met hetzelfde `periodeId`, `serieType: "vastevrij"` en `isSeriesException: true`.
+- Alle overige datums van de reeks worden wel normaal als `Vrij` aangemaakt. Zo ontstaan nooit dubbele of conflicterende Vrij- en projectblokken.
+
 
 ## 2. Eén vaste vrije dag afzonderlijk wijzigen
 
