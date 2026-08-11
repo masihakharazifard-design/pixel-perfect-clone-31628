@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
