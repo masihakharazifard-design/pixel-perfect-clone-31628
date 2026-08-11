@@ -69,7 +69,7 @@ Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en
 **Stap 18 — Tests uitbreiden**
 De volledige testlijst uit de opdracht afmaken: login en geweigerde demo-login in productie, planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
 
-**Stap 17 — Bestand opsplitsen**
+**Stap 19 — Bestand opsplitsen**
 Pas als de tests groen zijn: `planning-app.tsx` stap voor stap opdelen in schermcomponenten (personeelsplanning, openstaande werken, vaste vrije dagen, agenda, werken, werkdetails, kleurbeheer) en rekenlogica (`planning-engine`, `planning-conflicts`, `planning-colors`, `project-planning`, `holidays`), met na elk onderdeel build en tests.
 
 ## Technische details
