@@ -3544,7 +3544,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={projStyle(p,dc)} title={`${p.werknummer} – ${p.projectnaam}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer} – ${p.projectnaam}`}>
                   {p.projectnaam.slice(0,7)}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
