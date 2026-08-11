@@ -3374,9 +3374,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
+            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
+              const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
+              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16" title={hols.join(", ")||undefined}
+                style={hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:undefined}>
               <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
+              {!!hols.length&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
