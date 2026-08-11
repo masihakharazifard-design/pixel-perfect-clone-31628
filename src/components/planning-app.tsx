@@ -3231,6 +3231,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="flex gap-2 flex-wrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>openFixedFree()}><CalendarDays className="w-3.5 h-3.5"/>Vaste vrije dagen</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>setShowColors(true)}><Palette className="w-3.5 h-3.5"/>Kleuren beheren</Btn>
       </div>
     </div>
