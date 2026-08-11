@@ -38,7 +38,9 @@ interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
   telefoon:string; email:string; competenties:string[];
 }
-interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean; }
+interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean;
+  isSeriesException?:boolean; serieType?:"vastevrij"; serieWeekdays?:number[]; serieStartDate?:string; serieEndDate?:string; vasteVrijExceptionIds?:string[]; }
+interface FixedFreeSeries { periodeId:string; employeeId:string; serieWeekdays:number[]; serieStartDate:string; serieEndDate:string; }
 const WORKDAY_END="17:00";
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
@@ -53,6 +55,8 @@ interface AppSettings {
   projectColors?:Record<string,string>;
   borderColors?:Record<string,string>;
   badgeColors?:Record<string,string>;
+  holidayColor?:string;
+  fixedFreeSeries?:FixedFreeSeries[];
 }
 
 // ===== DEPT COLOR CONTEXT =====
@@ -186,6 +190,19 @@ function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):s
 }
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
+// ===== Feestdagkleur (instelbaar, standaard fuchsia) =====
+const HOLIDAY_COLOR="#D946EF";
+function holidayColorOf(s?:{holidayColor?:string}){return s?.holidayColor||HOLIDAY_COLOR;}
+function withAlpha(hex:string,alpha:number){
+  const h=hex.replace("#","");
+  if(h.length!==6)return hex;
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+// Maandag = 0 … zondag = 6
+const WD_LABELS=["Ma","Di","Wo","Do","Vr","Za","Zo"];
+const WD_FULL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
+function weekdayIdx(ds:string){return (new Date(ds+"T12:00").getDay()+6)%7;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
 function nid(){return Math.random().toString(36).slice(2,9);}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
@@ -2633,6 +2650,9 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
         c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
         ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
+      {section("Feestdagen",[row("holiday","Landelijke feestdag",holidayColorOf(s),
+        c=>setS(p=>({...p,holidayColor:c})),
+        ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
       {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
@@ -2647,6 +2667,48 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
   </Modal>;
 }
 
+
+// ===== VASTE VRIJE DAGEN =====
+interface FixedFreeDraft{periodeId?:string;employeeId:string;weekdays:number[];startDate:string;endDate:string;}
+function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];series:FixedFreeSeries[];draft:FixedFreeDraft;
+  onSave:(d:FixedFreeDraft)=>Promise<void>;onDelete:(periodeId:string)=>Promise<void>;onClose:()=>void;
+}){
+  const [f,setF]=useState<FixedFreeDraft>(draft);
+  const [busy,setBusy]=useState(false);
+  const own=series.filter(s=>s.employeeId===f.employeeId);
+  const toggleWd=(i:number)=>setF(p=>({...p,weekdays:p.weekdays.includes(i)?p.weekdays.filter(x=>x!==i):[...p.weekdays,i].sort((a,b)=>a-b)}));
+  const canSave=!!f.employeeId&&f.weekdays.length>0&&!!f.startDate&&!!f.endDate&&f.startDate<=f.endDate&&!busy;
+  return <Modal title={f.periodeId?"Vaste vrije dagen wijzigen":"Vaste vrije dagen"} onClose={onClose} width="max-w-xl">
+    <div className="p-4 md:p-6 space-y-4">
+      <Select label="Medewerker" value={f.employeeId} onChange={v=>setF(p=>({...p,employeeId:v,periodeId:undefined}))} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+      <div>
+        <p className="text-xs font-semibold text-[#6B7A99] mb-1.5">Vaste vrije weekdagen</p>
+        <div className="flex flex-wrap gap-1.5">
+          {WD_LABELS.map((l,i)=><button key={l} type="button" onClick={()=>toggleWd(i)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${f.weekdays.includes(i)?"bg-[#1A2744] text-white border-transparent":"bg-white text-[#6B7A99] border-[rgba(26,39,68,0.12)]"}`}>{l}</button>)}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Vanaf datum" type="date" value={f.startDate} onChange={v=>setF(p=>({...p,startDate:v}))}/>
+        <Input label="Tot en met datum" type="date" value={f.endDate} onChange={v=>setF(p=>({...p,endDate:v}))}/>
+      </div>
+      <p className="text-xs text-[#6B7A99]">Op deze dagen wordt de medewerker automatisch als hele dag <b>Vrij</b> gezet. Bestaande projectplanning en losse uitzonderingen blijven altijd staan.</p>
+      {own.length>0&&<div className="space-y-1.5">
+        <p className="text-xs font-semibold text-[#6B7A99]">Bestaande reeksen</p>
+        {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-3 py-2">
+          <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
+          <button className="text-[11px] font-semibold text-[#0ABFB8]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
+          <button className="text-[11px] font-semibold text-red-600" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
+        </div>)}
+      </div>}
+      <div className="flex justify-end gap-2 pt-1">
+        <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
+        <Btn disabled={!canSave} onClick={async()=>{setBusy(true);await onSave(f);setBusy(false);}}>{busy?"Opslaan…":"Opslaan"}</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
 
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
@@ -2725,6 +2787,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const projectColors=settings.projectColors||{};
   const borderColors=settings.borderColors||{};
   const badgeColors=settings.badgeColors||{};
+  const holColor=holidayColorOf(settings);
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
   const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
@@ -2793,6 +2856,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       }else setRangeStart({empId,date:ds});
       return;
     }
+    const vv=availability.find(a=>a.employeeId===empId&&a.date===ds&&a.serieType==="vastevrij"&&!!a.periodeId&&a.status==="Vrij");
+    if(vv){setVrijAsk(vv);return;}
     openPlan(empId,ds);
   };
 
@@ -2992,6 +3057,102 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     await onSaveAbsence({employeeId:empId,startDate:ds,endDate:ds,startTime:"00:00",endTime:"23:59",status,note:"",wholeDay:true});
   };
 
+  // ===== Vaste vrije dagen =====
+  const fixedSeries=settings.fixedFreeSeries||[];
+  const [ffModal,setFfModal]=useState<FixedFreeDraft|null>(null);
+  const [ffAsk,setFfAsk]=useState<{draft:FixedFreeDraft;dates:string[]}|null>(null);
+  const [dayOrSeries,setDayOrSeries]=useState<AvailEntry|null>(null);
+  const [vrijAsk,setVrijAsk]=useState<AvailEntry|null>(null);
+  const [vrijEx,setVrijEx]=useState<{row:AvailEntry;periodeId:string}|null>(null);
+  const stripSeries=(a:AvailEntry):AvailEntry=>{
+    const n:AvailEntry={...a};
+    delete n.isSeriesException;delete n.serieType;delete n.serieWeekdays;delete n.serieStartDate;delete n.serieEndDate;delete n.periodeId;
+    return n;
+  };
+  const isSeriesVrij=(a?:AvailEntry|null)=>!!a&&a.serieType==="vastevrij"&&!!a.periodeId;
+  const clickAbsence=(a:AvailEntry)=>{if(isSeriesVrij(a))setDayOrSeries(a);else openEditAbsence(a);};
+  const openFixedFree=(empId?:string)=>setFfModal({employeeId:empId||visEmp[0]?.id||employees[0]?.id||"",weekdays:[],startDate:toDateStr(refDate),endDate:toDateStr(new Date(refDate.getFullYear(),11,31))});
+  // Reeks (her)opbouwen: oude gegenereerde dagen weg, uitzonderingen en projecten behouden
+  const buildFixedFree=(d:FixedFreeDraft)=>{
+    const pid=d.periodeId||"vv-"+nid();
+    const inSeries=(ds:string)=>ds>=d.startDate&&ds<=d.endDate&&d.weekdays.includes(weekdayIdx(ds));
+    const ups:AvailEntry[]=[];const rem:string[]=[];const projectDates:string[]=[];
+    const meta={serieType:"vastevrij" as const,serieWeekdays:d.weekdays,serieStartDate:d.startDate,serieEndDate:d.endDate};
+    availability.filter(a=>a.periodeId===pid&&!a.projectId).forEach(a=>{
+      if(a.status==="Vrij"&&!a.isSeriesException){rem.push(a.id);return;}
+      if(a.employeeId===d.employeeId&&inSeries(a.date))ups.push({...a,...meta,isSeriesException:true});
+      else ups.push(stripSeries(a));
+    });
+    availability.filter(a=>a.projectId&&(a.vasteVrijExceptionIds||[]).includes(pid)).forEach(a=>{
+      if(a.employeeId===d.employeeId&&inSeries(a.date))return;
+      ups.push({...a,vasteVrijExceptionIds:(a.vasteVrijExceptionIds||[]).filter(x=>x!==pid)});
+    });
+    getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00")).filter(inSeries).forEach(ds=>{
+      const rows=availability.filter(a=>a.employeeId===d.employeeId&&a.date===ds);
+      if(rows.some(a=>a.periodeId===pid&&a.isSeriesException))return;
+      const proj=rows.find(a=>a.projectId);
+      if(proj){
+        projectDates.push(ds);
+        const i=ups.findIndex(u=>u.id===proj.id);
+        const cur=i>=0?ups[i]:proj;
+        const merged={...cur,vasteVrijExceptionIds:[...new Set([...(cur.vasteVrijExceptionIds||[]),pid])]};
+        if(i>=0)ups[i]=merged;else ups.push(merged);
+        return;
+      }
+      // Een echte personeelsstatus (Ziek, Vakantie, Bezet) blijft altijd staan
+      if(rows.some(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)))return;
+      ups.push({id:"av-"+nid(),employeeId:d.employeeId,date:ds,startTime:"00:00",endTime:"23:59",status:"Vrij",periodeId:pid,...meta});
+    });
+    return {pid,ups,rem,projectDates};
+  };
+  const commitFixedFree=async(d:FixedFreeDraft)=>{
+    const {pid,ups,rem}=buildFixedFree(d);
+    const ok=await onResizePlanning(ups,rem);
+    if(!ok)return;
+    onSaveSettings({...settings,fixedFreeSeries:[...fixedSeries.filter(s=>s.periodeId!==pid),
+      {periodeId:pid,employeeId:d.employeeId,serieWeekdays:d.weekdays,serieStartDate:d.startDate,serieEndDate:d.endDate}]});
+    setFfModal(null);setFfAsk(null);
+  };
+  const saveFixedFree=async(d:FixedFreeDraft)=>{
+    const {projectDates}=buildFixedFree(d);
+    if(projectDates.length){setFfAsk({draft:d,dates:projectDates});return;}
+    await commitFixedFree(d);
+  };
+  const deleteFixedFree=async(pid:string)=>{
+    const ups:AvailEntry[]=[];const rem:string[]=[];
+    availability.filter(a=>a.periodeId===pid&&!a.projectId).forEach(a=>{
+      if(a.status==="Vrij"||a.status==="Beschikbaar")rem.push(a.id);
+      else ups.push(stripSeries(a));
+    });
+    availability.filter(a=>a.projectId&&(a.vasteVrijExceptionIds||[]).includes(pid))
+      .forEach(a=>ups.push({...a,vasteVrijExceptionIds:(a.vasteVrijExceptionIds||[]).filter(x=>x!==pid)}));
+    const ok=await onResizePlanning(ups,rem);
+    if(!ok)return;
+    onSaveSettings({...settings,fixedFreeSeries:fixedSeries.filter(s=>s.periodeId!==pid)});
+  };
+  const editSeries=(pid:string)=>{
+    const s=fixedSeries.find(x=>x.periodeId===pid);
+    if(!s){toast.error("Deze reeks is niet meer beschikbaar.");return;}
+    setFfModal({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate});
+  };
+  // Eén dag van de reeks als uitzondering een andere status geven
+  const exceptionStatus=async(a:AvailEntry,status:AvailStatus)=>{
+    await onResizePlanning([{...a,status,startTime:"00:00",endTime:"23:59",isSeriesException:true}],[]);
+  };
+  // Project inplannen op een vaste vrije dag: de Vrij-regel van die ene dag verdwijnt eerst
+  const startVrijException=async(a:AvailEntry)=>{
+    const ok=await onResizePlanning([],[a.id]);
+    if(!ok)return;
+    setVrijEx({row:a,periodeId:a.periodeId||""});
+    openPlan(a.employeeId,a.date);
+  };
+  const cancelVrijException=async()=>{
+    const v=vrijEx;setVrijEx(null);
+    if(v)await onResizePlanning([v.row],[]);
+  };
+
+
+
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
     const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
@@ -3077,6 +3238,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="flex gap-2 flex-wrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>openFixedFree()}><CalendarDays className="w-3.5 h-3.5"/>Vaste vrije dagen</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>setShowColors(true)}><Palette className="w-3.5 h-3.5"/>Kleuren beheren</Btn>
       </div>
     </div>
@@ -3098,6 +3260,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>
 
     {view==="dag"&&<div className="space-y-3">
+      {getDHol(toDateStr(refDate))&&<div className="rounded-2xl px-4 py-2.5 text-sm font-semibold" style={{backgroundColor:withAlpha(holColor,0.1),borderLeft:`4px solid ${holColor}`,color:holColor}}>
+        Landelijke feestdag — {getDHol(toDateStr(refDate))}
+      </div>}
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
@@ -3113,7 +3278,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
-                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?openEditAbsence(b):openPlan(e.id,ds)}>
+                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
@@ -3139,14 +3304,17 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
     {(view==="week"||view==="maand")&&(
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
-      <table className="text-xs" style={{minWidth:`${180+dates.length*(view==="week"?80:44)}px`}}>
+      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{minWidth:`${180+dates.length*(view==="week"?90:44)}px`}}>
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds} className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":hol?"text-red-400":"text-[#6B7A99]"} ${isWE||hol?"bg-[#F8F8FB]":""}`}>
+            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 w-44 min-w-44">Medewerker</th>
+            {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
+              style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`,minWidth:90}:null),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
+              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
               <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1A2744] text-white":""}`}>{d.getDate()}</div>
-              {hol&&view!=="maand"&&<div className="text-[8px] truncate max-w-16 mx-auto text-red-400">{hol}</div>}
+              {hol&&view!=="maand"&&<div className="text-[8px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
+              {hol&&view==="maand"&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
@@ -3162,13 +3330,15 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             const blockState=dayBlockState(availability,e.id,ds);
             // Cellen met een doorlopende reeks krijgen geen horizontale padding, zodat de balk aansluit
             const linkedCell=ps.some(x=>{const s=segInfo(x.row);return s.prev||s.next;});
+            const cellHol=getDHol(ds);
             return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onContextMenu={ev=>{ev.preventDefault();setCellMenu({empId:e.id,date:ds,x:ev.clientX,y:ev.clientY});}}
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
-              style={blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:undefined}
-              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title="Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu">
+              style={{...(blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:null),
+                ...(cellHol?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${withAlpha(holColor,0.7)}`}:null)}}
+              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
-                  <button onClick={ev=>{ev.stopPropagation();openEditAbsence(a);}}
+                  <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
                     className="rounded px-1 py-0.5 text-[10px] font-semibold truncate block w-full text-left hover:opacity-90"
                     style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>{a.status.slice(0,4)}</button>
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
@@ -3207,9 +3377,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
-            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16">
+            {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
+              const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
+              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16" title={hols.join(", ")||undefined}
+                style={hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:undefined}>
               <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
+              {!!hols.length&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
@@ -3290,11 +3464,49 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         const prev=availability.find(a=>a.id===e.id);
         // Bij bewerken blijven volgorde en markering behouden; bij een andere dag/medewerker vervallen ze
         const same=prev&&prev.employeeId===e.employeeId&&prev.date===e.date;
-        setPlanModal(null);
-        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId}],undefined,true);
+        // Vaste vrije dag waarop nu een project komt: alleen deze datum is een uitzondering
+        const vv=vrijEx&&vrijEx.row.employeeId===e.employeeId&&vrijEx.row.date===e.date?vrijEx.periodeId:null;
+        setVrijEx(null);setPlanModal(null);
+        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId,
+          vasteVrijExceptionIds:vv?[...new Set([...(prev?.vasteVrijExceptionIds||[]),vv])]:prev?.vasteVrijExceptionIds}],undefined,true);
       }}
       onDelete={async id=>{const b=availability.find(a=>a.id===id);setPlanModal(null);if(b)await deletePlanRow(b);else await onDeletePlanning(id);}}
-      onClose={()=>setPlanModal(null)}/>}
+      onClose={async()=>{setPlanModal(null);await cancelVrijException();}}/>}
+    {ffModal&&<FixedFreeDaysModal employees={visEmp.length?visEmp:employees} series={fixedSeries} draft={ffModal}
+      onSave={saveFixedFree} onDelete={async pid=>{await deleteFixedFree(pid);setFfModal(null);}} onClose={()=>setFfModal(null)}/>}
+    {ffAsk&&<Modal title="Er staat al werk gepland" onClose={()=>setFfAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1 max-h-40 overflow-y-auto">
+          {ffAsk.dates.map(d=><p key={d} className="text-xs text-amber-800">{fmtDate(d)}</p>)}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={()=>setFfAsk(null)}>Annuleren</Btn>
+          <Btn onClick={async()=>{const a=ffAsk;setFfAsk(null);await commitFixedFree(a.draft);}}>Doorgaan</Btn>
+        </div>
+      </div>
+    </Modal>}
+    {dayOrSeries&&<Modal title="Vaste vrije dag" onClose={()=>setDayOrSeries(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">{fmtDate(dayOrSeries.date)} hoort bij een vaste vrije reeks. Wil je alleen deze dag wijzigen of de hele reeks?</p>
+        <div className="flex flex-col gap-2">
+          {(["Beschikbaar","Bezet","Ziek","Vakantie"] as AvailStatus[]).map(s=>
+            <Btn key={s} variant="secondary" onClick={async()=>{const b=dayOrSeries;setDayOrSeries(null);await exceptionStatus(b,s);}}>Alleen deze dag: {s}</Btn>)}
+          <Btn variant="secondary" onClick={()=>{const b=dayOrSeries;setDayOrSeries(null);setVrijAsk(b);}}>Alleen deze dag: project inplannen</Btn>
+          <Btn onClick={()=>{const b=dayOrSeries;setDayOrSeries(null);editSeries(b.periodeId!);}}>Hele reeks wijzigen — dit raakt alle vaste vrije dagen</Btn>
+          <Btn variant="ghost" onClick={()=>setDayOrSeries(null)}>Annuleren</Btn>
+        </div>
+      </div>
+    </Modal>}
+    {vrijAsk&&<Modal title="Project inplannen op een vrije dag" onClose={()=>setVrijAsk(null)} width="max-w-md">
+      <div className="p-4 md:p-6 space-y-3">
+        <p className="text-sm text-[#6B7A99]">Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?</p>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={()=>setVrijAsk(null)}>Annuleren</Btn>
+          <Btn onClick={async()=>{const v=vrijAsk;setVrijAsk(null);await startVrijException(v);}}>Ja, inplannen</Btn>
+        </div>
+      </div>
+    </Modal>}
     {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
@@ -3316,16 +3528,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
             <Star className="w-3.5 h-3.5 text-[#F2A65A]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
           </button>}
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else openEditAbsence(b);}}>Bewerken…</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
+          {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
         </>}
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");}}>Project inplannen…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{
+          const c=cellMenu;setCellMenu(null);
+          const vrij=availability.find(a=>a.employeeId===c.empId&&a.date===c.date&&isSeriesVrij(a)&&a.status==="Vrij");
+          if(vrij){setVrijAsk(vrij);return;}
+          openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");
+        }}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s} (hele dag)
         </button>)}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openFixedFree(c.empId);}}>Vaste vrije dagen…</button>
       </div>
     </>}
 
