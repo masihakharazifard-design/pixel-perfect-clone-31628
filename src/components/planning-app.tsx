@@ -3472,16 +3472,23 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
             <Star className="w-3.5 h-3.5 text-[#F2A65A]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
           </button>}
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else openEditAbsence(b);}}>Bewerken…</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
+          {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
         </>}
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const c=cellMenu;setCellMenu(null);openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");}}>Project inplannen…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{
+          const c=cellMenu;setCellMenu(null);
+          const vrij=availability.find(a=>a.employeeId===c.empId&&a.date===c.date&&isSeriesVrij(a)&&a.status==="Vrij");
+          if(vrij){setVrijAsk(vrij);return;}
+          openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");
+        }}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s} (hele dag)
         </button>)}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openFixedFree(c.empId);}}>Vaste vrije dagen…</button>
       </div>
     </>}
 
