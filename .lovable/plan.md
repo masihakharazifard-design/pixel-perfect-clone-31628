@@ -15,8 +15,14 @@ Grote verbouwing in stappen. De app blijft na iedere stap werkend; per stap volg
 
 ## Volgorde van uitvoering
 
-**Stap 1 — Vangnet: tests op de kritieke rekenlogica**
-Vitest opzetten en tests schrijven op de bestaande helpers: ingeplande medewerkers per werk, conflictcontrole, teamkleuren/unieke werkkleuren, volgorde medewerkers, vaste vrije dagen met uitzonderingen, openstaande werken. Playwright-flows voor inplannen, slepen, resizen en refresh.
+**Stap 1 — Login definitief maken (verplicht vóór alle beveiliging)**
+Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker krijgt een echte `auth.uid()` uit Supabase Auth. De demo-login blijft alleen bestaan wanneer `import.meta.env.DEV` waar is of een expliciete testvlag aan staat; in een productiebuild is de demo-code niet bereikbaar en wordt een bestaande `maasmond-demo-user` in de browseropslag genegeerd en opgeruimd. Geen enkel scherm mag nog een gebruiker of e-mailadres zelf meesturen naar de database. Voor Playwright komt er een aparte testconfiguratie met een echte testgebruiker, los van de demo-login.
+
+**Stap 2 — Toegangsregels op alle tabellen**
+Toegangsregels op werken, medewerkers, planning, instellingen, documenten en auditlog worden omgezet van "iedereen" naar "alleen ingelogde gebruikers", met de bijbehorende rechten. Zonder geldige sessie is geen enkele lees- of schrijfactie meer mogelijk. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()` en accepteren nooit een gebruiker-id uit de browser; dat geldt ook voor de latere planning- en auditfuncties.
+
+**Stap 3 — Vangnet: tests op de kritieke rekenlogica**
+
 
 **Stap 2 — Demo-data uit productie**
 Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten: laadscherm, daarna echte gegevens; lege database geeft lege lijsten. Mislukt laden geeft "Gegevens konden niet worden geladen." met knop "Opnieuw proberen" en blokkeert elke opslag tot het laden gelukt is.
