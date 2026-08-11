@@ -2852,6 +2852,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       }else setRangeStart({empId,date:ds});
       return;
     }
+    const vv=availability.find(a=>a.employeeId===empId&&a.date===ds&&a.serieType==="vastevrij"&&!!a.periodeId&&a.status==="Vrij");
+    if(vv){setVrijAsk(vv);return;}
     openPlan(empId,ds);
   };
 
