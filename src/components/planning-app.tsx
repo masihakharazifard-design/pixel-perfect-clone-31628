@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette
+  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -57,6 +57,17 @@ interface AppSettings {
   badgeColors?:Record<string,string>;
   holidayColor?:string;
   fixedFreeSeries?:FixedFreeSeries[];
+  employeePlanningOrder?:string[];
+}
+
+// Centrale sortering van medewerkers volgens de handmatig gekozen planningvolgorde.
+// Onbekende/verwijderde ID's worden genegeerd; nieuwe medewerkers komen onderaan.
+function sortEmployeesByPlanningOrder<T extends {id:string}>(list:T[],order:string[]):T[]{
+  const byId=new Map(list.map(e=>[e.id,e]));
+  const out:T[]=[];const used=new Set<string>();
+  (order||[]).forEach(id=>{const e=byId.get(id);if(e&&!used.has(id)){out.push(e);used.add(id);}});
+  list.forEach(e=>{if(!used.has(e.id))out.push(e);});
+  return out;
 }
 
 // ===== DEPT COLOR CONTEXT =====
@@ -2790,7 +2801,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const holColor=holidayColorOf(settings);
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
-  const visEmp=employees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
+  // employees → employeePlanningOrder → filters → render
+  const orderedEmployees=useMemo(()=>sortEmployeesByPlanningOrder(employees,settings.employeePlanningOrder||[]),[employees,settings.employeePlanningOrder]);
+  const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   // Eén projectbron voor de hele pagina: alles volgt activeAfds
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
   const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
@@ -2809,6 +2822,72 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
   const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
   const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
+
+  // ===== Handmatige volgorde van medewerkers (alleen weergave) =====
+  const [dragEmp,setDragEmp]=useState<string|null>(null);
+  const [dropEmp,setDropEmp]=useState<{id:string;pos:"before"|"after"}|null>(null);
+  const fullOrder=useMemo(()=>orderedEmployees.map(e=>e.id),[orderedEmployees]);
+  const saveEmployeePlanningOrder=(newOrder:string[])=>{
+    const valid=new Set(employees.map(e=>e.id));
+    const clean:string[]=[];
+    newOrder.forEach(id=>{if(valid.has(id)&&!clean.includes(id))clean.push(id);});
+    employees.forEach(e=>{if(!clean.includes(e.id))clean.push(e.id);});
+    const prev=settings;
+    const next={...settings,employeePlanningOrder:clean};
+    onSaveSettings(next);
+    syncSettings(next).catch((err:unknown)=>{
+      onSaveSettings(prev);
+      toast.error(`Volgorde opslaan mislukt: ${err instanceof Error?err.message:String(err)}`);
+    });
+  };
+  // Alleen de onderlinge volgorde van zichtbare medewerkers wijzigt; verborgen ID's blijven op hun plek.
+  const applyVisibleOrder=(visibleIds:string[])=>{
+    const set=new Set(visibleIds);let k=0;
+    return fullOrder.map(id=>set.has(id)?visibleIds[k++]:id);
+  };
+  const moveEmp=(empId:string,dir:-1|1)=>{
+    const ids=visEmp.map(e=>e.id);const i=ids.indexOf(empId);const j=i+dir;
+    if(i<0||j<0||j>=ids.length)return;
+    [ids[i],ids[j]]=[ids[j],ids[i]];
+    saveEmployeePlanningOrder(applyVisibleOrder(ids));
+  };
+  const dropEmpOn=(targetId:string)=>{
+    const src=dragEmp;const pos=dropEmp?.pos||"before";
+    setDragEmp(null);setDropEmp(null);
+    if(!src||src===targetId)return;
+    const ids=visEmp.map(e=>e.id).filter(id=>id!==src);
+    const ti=ids.indexOf(targetId);if(ti<0)return;
+    ids.splice(pos==="after"?ti+1:ti,0,src);
+    saveEmployeePlanningOrder(applyVisibleOrder(ids));
+  };
+  const empDragProps=(empId:string)=>({
+    onDragOver:(ev:React.DragEvent)=>{
+      if(!dragEmp||dragEmp===empId)return;
+      ev.preventDefault();ev.stopPropagation();
+      const r=(ev.currentTarget as HTMLElement).getBoundingClientRect();
+      const pos:"before"|"after"=ev.clientY<r.top+r.height/2?"before":"after";
+      setDropEmp(d=>d&&d.id===empId&&d.pos===pos?d:{id:empId,pos});
+    },
+    onDrop:(ev:React.DragEvent)=>{if(!dragEmp)return;ev.preventDefault();ev.stopPropagation();dropEmpOn(empId);},
+  });
+  const empDropStyle=(empId:string)=>dropEmp&&dropEmp.id===empId
+    ?(dropEmp.pos==="before"?{boxShadow:"inset 0 3px 0 0 #0ABFB8"}:{boxShadow:"inset 0 -3px 0 0 #0ABFB8"}):undefined;
+  const EmpOrderControls=({empId}:{empId:string})=>{
+    const ids=visEmp.map(x=>x.id);const i=ids.indexOf(empId);
+    return <span className="flex items-center gap-0.5 flex-shrink-0">
+      <span draggable onDragStart={ev=>{ev.stopPropagation();setDragEmp(empId);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/employee-reorder",empId);}}
+        onDragEnd={()=>{setDragEmp(null);setDropEmp(null);}} onClick={ev=>ev.stopPropagation()}
+        title="Sleep om de volgorde te wijzigen" className="cursor-grab active:cursor-grabbing text-[#B8C3D9] hover:text-[#6B7A99]">
+        <GripVertical className="w-3.5 h-3.5"/>
+      </span>
+      <span className="flex flex-col">
+        <button disabled={i<=0} onClick={ev=>{ev.stopPropagation();moveEmp(empId,-1);}} title="Omhoog"
+          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronUp className="w-3 h-3"/></button>
+        <button disabled={i<0||i>=ids.length-1} onClick={ev=>{ev.stopPropagation();moveEmp(empId,1);}} title="Omlaag"
+          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronDown className="w-3 h-3"/></button>
+      </span>
+    </span>;
+  };
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
 
   // Alles komt uit dezelfde planningregels (availability met projectId)
@@ -3266,8 +3345,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       {visEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
-        return <div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
+        return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
+            <EmpOrderControls empId={e.id}/>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
             <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
@@ -3320,10 +3400,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {visEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
-            <td className="px-4 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
-              <div className="flex items-center gap-2.5">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
+              <div className="flex items-center gap-1.5">
+                <EmpOrderControls empId={e.id}/>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
+                <div className="min-w-0"><p className="font-semibold text-[#1A2744] truncate">{e.naam}</p><p className="text-[#6B7A99] truncate">{e.functie}</p></div>
               </div>
             </td>
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
@@ -3389,10 +3470,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {visEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
-            <td className="px-4 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
-              <div className="flex items-center gap-2.5">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
+              <div className="flex items-center gap-1.5">
+                <EmpOrderControls empId={e.id}/>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
+                <div className="min-w-0"><p className="font-semibold text-[#1A2744] truncate">{e.naam}</p><p className="text-[#6B7A99] truncate">{e.functie}</p></div>
               </div>
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
