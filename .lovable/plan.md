@@ -27,7 +27,7 @@ Vitest opzetten en tests schrijven op de bestaande helpers: ingeplande medewerke
 **Stap 4 — Demo-data uit productie**
 Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten: laadscherm, daarna echte gegevens; lege database geeft lege lijsten. Mislukt laden geeft "Gegevens konden niet worden geladen." met knop "Opnieuw proberen" en blokkeert elke opslag tot het laden gelukt is.
 
-**Stap 3 — Automatische opslag weghalen**
+**Stap 5 — Automatische opslag weghalen**
 De vier automatische opslag-effecten verdwijnen. Elke gebruikersactie krijgt één vaste route: controleren → opslaan in database → bevestiging → state bijwerken → scherm verversen. Bij fout: terugdraaien en melding.
 
 **Stap 4 — Rijgerichte opslaglaag**
