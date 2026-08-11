@@ -2650,6 +2650,9 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Badges (planningsstatus)",(Object.keys(DEFAULT_BADGE_COLORS) as PlanStatus[]).map(st=>row("bg-"+st,PLAN_STATUS_LABEL[st],badgeColorOf(st,badgeColors),
         c=>setS(p=>({...p,badgeColors:{...(p.badgeColors||{}),[st]:c}})),
         ()=>setS(p=>{const n={...(p.badgeColors||{})};delete n[st];return{...p,badgeColors:n};}))))}
+      {section("Feestdagen",[row("holiday","Landelijke feestdag",holidayColorOf(s),
+        c=>setS(p=>({...p,holidayColor:c})),
+        ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
       {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
