@@ -3997,12 +3997,36 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
   </div>;
 }
 
+// ===== Instellingen: verschil bepalen zodat alleen gewijzigde onderdelen naar de database gaan =====
+const NESTED_SETTING_MAPS=["projectColors","deptColors","teamColors","statusColors","borderColors","badgeColors"] as const;
+function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,unknown>;paths:SettingsPathPatch[]}{
+  const changes:Record<string,unknown>={};const paths:SettingsPathPatch[]=[];
+  const keys=new Set([...Object.keys(prev||{}),...Object.keys(next||{})]);
+  keys.forEach(key=>{
+    const a=(prev as unknown as Record<string,unknown>)[key];
+    const b=(next as unknown as Record<string,unknown>)[key];
+    if(JSON.stringify(a)===JSON.stringify(b))return;
+    const nested=(NESTED_SETTING_MAPS as readonly string[]).includes(key);
+    if(nested&&a&&b&&typeof a==="object"&&typeof b==="object"&&!Array.isArray(a)&&!Array.isArray(b)){
+      const am=a as Record<string,unknown>,bm=b as Record<string,unknown>;
+      new Set([...Object.keys(am),...Object.keys(bm)]).forEach(sub=>{
+        if(JSON.stringify(am[sub])===JSON.stringify(bm[sub]))return;
+        if(!(sub in bm))paths.push({path:[key,sub],remove:true});
+        else paths.push({path:[key,sub],value:bm[sub]});
+      });
+      return;
+    }
+    changes[key]=b;
+  });
+  return{changes,paths};
+}
+
 // ===== APP =====
 export default function PlanningApp(){
   const [nav,setNav]=useState<Nav>("dashboard");
-  const [projects,setProjects]=useState<Project[]>(INIT_PROJ);
-  const [employees,setEmployees]=useState<Employee[]>(INIT_EMP);
-  const [avail,setAvail]=useState<AvailEntry[]>(INIT_AVAIL);
+  const [projects,setProjects]=useState<Project[]>([]);
+  const [employees,setEmployees]=useState<Employee[]>([]);
+  const [avail,setAvail]=useState<AvailEntry[]>([]);
   const [detailProject,setDetailProject]=useState<Project|null>(null);
   const [editProject,setEditProject]=useState<Partial<Project>|null>(null);
   const [editEmployee,setEditEmployee]=useState<Partial<Employee>|null>(null);
@@ -4012,81 +4036,93 @@ export default function PlanningApp(){
   const [settings,setSettings]=useState<AppSettings>(INIT_SETTINGS);
   const [showVacImport,setShowVacImport]=useState(false);
   const [dbReady,setDbReady]=useState(false);
+  const [loadError,setLoadError]=useState<string>("");
   const [dbError,setDbError]=useState<string>("");
+  const [reloadKey,setReloadKey]=useState(0);
 
-  // ===== DATABASE: eenmalig laden, daarna elke wijziging opslaan =====
+  // ===== DATABASE: laden. Geen demo-data, geen automatische achtergrondopslag. =====
+  const applySettings=(s:AppSettings)=>{
+    setSettings(s);
+    (Object.keys(s.deptColors||{}) as Afdeling[]).forEach(afd=>{DC[afd]=s.deptColors[afd];});
+  };
   useEffect(()=>{
     let cancelled=false;
+    setDbReady(false);setLoadError("");
     (async()=>{
       try{
         const res=await loadAll<Project,Employee,AvailEntry,AppSettings>();
         if(cancelled)return;
-        if(res.empty){
-          // Eerste keer: demo-data als startpunt wegschrijven
-          await Promise.all([
-            syncTable("projects",INIT_PROJ),
-            syncTable("employees",INIT_EMP),
-            syncTable("availability",INIT_AVAIL),
-            syncSettings(INIT_SETTINGS),
-          ]);
-        }else{
-          setProjects(res.projects);
-          setEmployees(res.employees);
-          setAvail(res.availability);
-          if(res.settings){
-            setSettings(res.settings);
-            (Object.keys(res.settings.deptColors||{}) as Afdeling[]).forEach(afd=>{DC[afd]=res.settings!.deptColors[afd];});
-          }
-        }
+        setProjects(res.projects);
+        setEmployees(res.employees);
+        setAvail(res.availability);
+        if(res.settings)applySettings({...INIT_SETTINGS,...res.settings,deptColors:{...INIT_SETTINGS.deptColors,...(res.settings.deptColors||{})}});
+        setDbReady(true);
       }catch(err){
-        if(!cancelled)setDbError(err instanceof Error?err.message:"Onbekende fout");
-      }finally{
-        if(!cancelled)setDbReady(true);
+        if(!cancelled)setLoadError(err instanceof Error?err.message:"Onbekende fout");
       }
     })();
     return()=>{cancelled=true;};
-  },[]);
+  },[reloadKey]);
 
+  // ===== Realtime: wijzigingen van collega's direct binnenhalen =====
   useEffect(()=>{
     if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("projects",projects).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
-    return()=>clearTimeout(t);
-  },[projects,dbReady]);
-  useEffect(()=>{
-    if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("employees",employees).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
-    return()=>clearTimeout(t);
-  },[employees,dbReady]);
-  useEffect(()=>{
-    if(!dbReady)return;
-    const t=setTimeout(()=>{syncTable("availability",avail).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
-    return()=>clearTimeout(t);
-  },[avail,dbReady]);
-  useEffect(()=>{
-    if(!dbReady)return;
-    const t=setTimeout(()=>{syncSettings(settings).catch((e:unknown)=>setDbError(e instanceof Error?e.message:String(e)));},150);
-    return()=>clearTimeout(t);
-  },[settings,dbReady]);
+    const ch=supabase.channel("planning-sync")
+      .on("postgres_changes",{event:"*",schema:"public",table:"projects"},()=>setReloadKey(k=>k+1))
+      .on("postgres_changes",{event:"*",schema:"public",table:"employees"},()=>setReloadKey(k=>k+1))
+      .on("postgres_changes",{event:"*",schema:"public",table:"availability"},()=>setReloadKey(k=>k+1))
+      .on("postgres_changes",{event:"*",schema:"public",table:"app_settings"},()=>setReloadKey(k=>k+1))
+      .subscribe();
+    return()=>{void supabase.removeChannel(ch);};
+  },[dbReady]);
 
-  const addProject=(p:Project)=>{setProjects(prev=>[...prev,p]);setIsNewProject(false);setEditProject(null);};
-  const updateProject=(id:string,u:Partial<Project>)=>setProjects(prev=>prev.map(p=>p.id===id?{...p,...u}:p));
-  // Status direct wijzigen vanuit de projectlijst: zelfde projectrecord, zelfde tabel
+  const fail=(msg:string,err:unknown)=>{
+    const detail=err instanceof Error?err.message:String(err);
+    setDbError(detail);
+    toast.error(`${msg} ${detail}`);
+  };
+
+  // ===== Werken =====
+  const saveProject=async(p:Project)=>{
+    const prev=projects;
+    const exists=projects.some(x=>x.id===p.id);
+    setProjects(exists?projects.map(x=>x.id===p.id?{...x,...p}:x):[...projects,p]);
+    setEditProject(null);setIsNewProject(false);
+    try{await upsertRow("projects",p);setDbError("");toast.success("Werk opgeslagen.");}
+    catch(e){setProjects(prev);fail("Werk kon niet worden opgeslagen:",e);}
+  };
+  const updateProject=async(id:string,u:Partial<Project>)=>{
+    const cur=projects.find(p=>p.id===id);if(!cur)return;
+    const next={...cur,...u};
+    const prev=projects;
+    setProjects(projects.map(p=>p.id===id?next:p));
+    try{await upsertRow("projects",next);setDbError("");}
+    catch(e){setProjects(prev);fail("Werk kon niet worden bijgewerkt:",e);}
+  };
+  // Status direct wijzigen vanuit de werkenlijst: server-side, met logboekregel
   const changeProjectStatus=async(p:Project,status:ProjectStatus)=>{
     const prevStatus=p.status;
-    const next=projects.map(x=>x.id===p.id?{...x,status}:x);
-    setProjects(next);
+    setProjects(cur=>cur.map(x=>x.id===p.id?{...x,status}:x));
     try{
-      await syncTable("projects",next);
+      await setProjectStatusDb(p.id,status);
+      setDbError("");
       toast.success("Projectstatus is bijgewerkt.");
-    }catch{
+    }catch(e){
       setProjects(cur=>cur.map(x=>x.id===p.id?{...x,status:prevStatus}:x));
-      toast.error("De projectstatus kon niet worden bijgewerkt.");
+      fail("De projectstatus kon niet worden bijgewerkt:",e);
     }
   };
-  const deleteProject=(id:string)=>{setProjects(prev=>prev.filter(p=>p.id!==id));setAvail(prev=>prev.filter(a=>a.projectId!==id));if(detailProject?.id===id)setDetailProject(null);};
-  const saveProject=(p:Project)=>{
-    if(projects.find(x=>x.id===p.id))updateProject(p.id,p);else addProject(p);
-    setEditProject(null);setIsNewProject(false);
+  const deleteProject=async(id:string)=>{
+    const prevP=projects,prevA=avail;
+    const rowIds=avail.filter(a=>a.projectId===id).map(a=>a.id);
+    setProjects(projects.filter(p=>p.id!==id));
+    setAvail(avail.filter(a=>a.projectId!==id));
+    if(detailProject?.id===id)setDetailProject(null);
+    try{
+      if(rowIds.length)await savePlanningRows([],rowIds,"planning_verwijderd_bij_werk");
+      await deleteRow("projects",id);
+      setDbError("");toast.success("Werk verwijderd.");
+    }catch(e){setProjects(prevP);setAvail(prevA);fail("Werk kon niet worden verwijderd:",e);}
   };
 
   // ===== PLANNINGREGELS = enige bron van waarheid =====
@@ -4107,100 +4143,72 @@ export default function PlanningApp(){
     return projects.map(p=>p.id===projectId?{...p,startdatum:per.start,afloopdatum:per.end}:p);
   };
 
+  // Eén vaste route voor iedere planningwijziging: opslaan (met server-side
+  // conflictcontrole) en pas daarna de state definitief bijwerken.
+  const persistPlanning=async(nextAvail:AvailEntry[],upserts:AvailEntry[],removeIds:string[],actie:string,okMsg:string)=>{
+    const prevAvail=avail,prevProjects=projects;
+    const pids=[...new Set([...upserts.map(e=>e.projectId),
+      ...prevAvail.filter(a=>removeIds.includes(a.id)||upserts.some(u=>u.id===a.id)).map(a=>a.projectId)])].filter(Boolean) as string[];
+    let nextProjects=projects;
+    pids.forEach(pid=>{
+      const tmp=applyDerivedDates(nextAvail,pid);
+      nextProjects=nextProjects.map(p=>p.id===pid?(tmp.find(x=>x.id===pid)||p):p);
+    });
+    setAvail(nextAvail);setProjects(nextProjects);
+    try{
+      await savePlanningRows(upserts,removeIds,actie);
+      const changedProjects=nextProjects.filter(p=>{
+        const before=prevProjects.find(x=>x.id===p.id);
+        return before&&(before.startdatum!==p.startdatum||before.afloopdatum!==p.afloopdatum);
+      });
+      if(changedProjects.length)await upsertRows("projects",changedProjects);
+      setDbError("");
+      if(okMsg)toast.success(okMsg);
+      return true;
+    }catch(e){
+      setAvail(prevAvail);setProjects(prevProjects);
+      fail("Planning kon niet worden opgeslagen:",e);
+      return false;
+    }
+  };
 
   const savePlanning=async(entry:AvailEntry)=>{
     const exists=avail.some(a=>a.id===entry.id);
-    const prevAvail=avail,prevProjects=projects;
     const nextAvail=exists?avail.map(a=>a.id===entry.id?entry:a):[...avail,entry];
-    const oldPid=exists?avail.find(a=>a.id===entry.id)?.projectId:undefined;
-    let nextProjects=entry.projectId?applyDerivedDates(nextAvail,entry.projectId):projects;
-    if(oldPid&&oldPid!==entry.projectId){
-      const tmp=applyDerivedDates(nextAvail,oldPid);
-      nextProjects=nextProjects.map(p=>p.id===oldPid?tmp.find(x=>x.id===oldPid)!:p);
-    }
-    setAvail(nextAvail);setProjects(nextProjects);
-    try{
-      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
-      toast.success("Planning opgeslagen.");
-      return true;
-    }catch{
-      setAvail(prevAvail);setProjects(prevProjects);
-      toast.error("Planning kon niet worden opgeslagen.");
-      return false;
-    }
+    return persistPlanning(nextAvail,[entry],[],"planning_opgeslagen","Planning opgeslagen.");
   };
 
   // Meerdere planningregels in één keer (teamverplaatsing, volgorde wijzigen)
   const savePlanningMany=async(entries:AvailEntry[])=>{
     if(entries.length===0)return true;
     if(entries.length===1)return savePlanning(entries[0]);
-    const prevAvail=avail,prevProjects=projects;
     const map=new Map(entries.map(e=>[e.id,e]));
     const nextAvail=[...avail.map(a=>map.get(a.id)||a),...entries.filter(e=>!avail.some(a=>a.id===e.id))];
-    const pids=[...new Set([...entries.map(e=>e.projectId),...avail.filter(a=>map.has(a.id)).map(a=>a.projectId)])].filter(Boolean) as string[];
-    let nextProjects=projects;
-    pids.forEach(pid=>{
-      const tmp=applyDerivedDates(nextAvail,pid);
-      nextProjects=nextProjects.map(p=>p.id===pid?(tmp.find(x=>x.id===pid)||p):p);
-    });
-    setAvail(nextAvail);setProjects(nextProjects);
-    try{
-      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
-      toast.success("Planning opgeslagen.");
-      return true;
-    }catch{
-      setAvail(prevAvail);setProjects(prevProjects);
-      toast.error("Planning kon niet worden opgeslagen.");
-      return false;
-    }
+    return persistPlanning(nextAvail,entries,[],"planning_opgeslagen","Planning opgeslagen.");
   };
 
   // Reeks bijwerken bij doortrekken/inkorten: regels toevoegen/bijwerken én
   // overtollige dagregels van dezelfde reeks verwijderen, in één opslag.
   const savePlanningResize=async(entries:AvailEntry[],removeIds:string[])=>{
-    const prevAvail=avail,prevProjects=projects;
     const map=new Map(entries.map(e=>[e.id,e]));
     const nextAvail=[...avail.filter(a=>!removeIds.includes(a.id)).map(a=>map.get(a.id)||a),
       ...entries.filter(e=>!avail.some(a=>a.id===e.id))];
-    const touched=avail.filter(a=>map.has(a.id)||removeIds.includes(a.id)).map(a=>a.projectId);
-    const pids=[...new Set([...entries.map(e=>e.projectId),...touched])].filter(Boolean) as string[];
-    let nextProjects=projects;
-    pids.forEach(pid=>{
-      const tmp=applyDerivedDates(nextAvail,pid);
-      nextProjects=nextProjects.map(p=>p.id===pid?(tmp.find(x=>x.id===pid)||p):p);
-    });
-    setAvail(nextAvail);setProjects(nextProjects);
-    try{
-      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
-      toast.success("Planning bijgewerkt.");
-      return true;
-    }catch{
-      setAvail(prevAvail);setProjects(prevProjects);
-      toast.error("Planning kon niet worden opgeslagen.");
-      return false;
-    }
+    return persistPlanning(nextAvail,entries,removeIds,"planning_aangepast","Planning bijgewerkt.");
   };
-
 
   // Afwezigheid als één periode: elke dag krijgt een regel met hetzelfde periodeId
   const saveAbsence=async(d:AbsenceDraft)=>{
     const dates=getDatesInRange(new Date(d.startDate+"T12:00"),new Date(d.endDate+"T12:00"));
     const pid=d.periodeId||"per-"+nid();
-    const kept=avail.filter(a=>a.periodeId!==pid);
-    // geen dubbele regels: bestaande regel voor dezelfde medewerker/dag/status vervangen
-    const base=kept.filter(a=>!(a.employeeId===d.employeeId&&!a.projectId&&dates.includes(a.date)&&a.status===d.status));
+    const removed=avail.filter(a=>a.periodeId===pid||(a.employeeId===d.employeeId&&!a.projectId&&dates.includes(a.date)&&a.status===d.status));
+    const base=avail.filter(a=>!removed.includes(a));
     const rows:AvailEntry[]=dates.map(date=>({id:"av-"+nid(),employeeId:d.employeeId,date,startTime:d.startTime,endTime:d.endTime,status:d.status,note:d.note||undefined,periodeId:pid}));
-    const nextAvail=[...base,...rows];
-    setAvail(nextAvail);
-    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid opgeslagen.");}
-    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden opgeslagen.");}
+    await persistPlanning([...base,...rows],rows,removed.map(a=>a.id),"afwezigheid_opgeslagen","Afwezigheid opgeslagen.");
   };
 
   const deleteAbsence=async(periodeId:string)=>{
-    const nextAvail=avail.filter(a=>a.periodeId!==periodeId);
-    setAvail(nextAvail);
-    try{await syncTable("availability",nextAvail);toast.success("Afwezigheid verwijderd.");}
-    catch{setAvail(avail);toast.error("Afwezigheid kon niet worden verwijderd.");}
+    const removed=avail.filter(a=>a.periodeId===periodeId);
+    await persistPlanning(avail.filter(a=>a.periodeId!==periodeId),[],removed.map(a=>a.id),"afwezigheid_verwijderd","Afwezigheid verwijderd.");
   };
 
   const deletePlanning=async(id:string)=>{
@@ -4208,15 +4216,9 @@ export default function PlanningApp(){
     const nextAvail=avail.filter(a=>a.id!==id);
     const pid=row?.projectId;
     const rest=pid?projectPlans(nextAvail,pid):[];
-    const nextProjects=pid?applyDerivedDates(nextAvail,pid):projects;
-    setAvail(nextAvail);setProjects(nextProjects);
-    try{
-      await Promise.all([syncTable("availability",nextAvail),syncTable("projects",nextProjects)]);
-      if(pid&&rest.length===0)toast.info("Laatste planning verwijderd — de projectdatums blijven staan tot je ze zelf aanpast.");
-      else toast.success("Planning verwijderd.");
-    }catch{toast.error("Planning kon niet worden verwijderd.");}
+    const ok=await persistPlanning(nextAvail,[],[id],"planning_verwijderd",pid&&rest.length===0?"":"Planning verwijderd.");
+    if(ok&&pid&&rest.length===0)toast.info("Laatste planning verwijderd — de projectdatums blijven staan tot je ze zelf aanpast.");
   };
-
 
   const handleImport=async(rows:ImportRow[])=>{
     const createProjectFromImportRow=(r:ImportRow):Project=>{
@@ -4249,62 +4251,94 @@ export default function PlanningApp(){
 
     // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken
     const next=[...projects];
+    const changed:Project[]=[];
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
       const idx=nr?next.findIndex(p=>normalizeProjectnr(p.projectnr)===nr):-1;
       if(idx>=0){
         next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
+        changed.push(next[idx]);
       }else{
-        next.push(createProjectFromImportRow(r));
+        const created=createProjectFromImportRow(r);
+        next.push(created);changed.push(created);
       }
     });
 
+    const prev=projects;
     setProjects(next);
     try{
-      await syncTable("projects",next);
-      const refreshed=await loadAll<Project,Employee,AvailEntry,AppSettings>();
-      setProjects(refreshed.projects);
-    }catch(e:unknown){
-      setDbError(e instanceof Error?e.message:String(e));
+      await upsertRows("projects",changed);
+      setDbError("");
+      toast.success(`${changed.length} werken geïmporteerd.`);
+    }catch(e){
+      setProjects(prev);
+      fail("Import kon niet worden opgeslagen:",e);
     }
   };
 
-  const addEmployee=(e:Employee)=>{setEmployees(prev=>[...prev,e]);setIsNewEmployee(false);setEditEmployee(null);};
-  const updateEmployee=(id:string,u:Partial<Employee>)=>setEmployees(prev=>prev.map(e=>e.id===id?{...e,...u}:e));
-  const deleteEmployee=(id:string)=>{
-    setEmployees(prev=>prev.filter(e=>e.id!==id));
-    setAvail(prev=>prev.filter(a=>a.employeeId!==id));
-    setProjects(prev=>prev.map(p=>({
-      ...p,
-      medewerkers:p.medewerkers.filter(mid=>mid!==id),
-      projectleider:p.projectleider===id?"":p.projectleider,
-    })));
-  };
-  const saveEmployee=(e:Employee)=>{
-    if(employees.find(x=>x.id===e.id))updateEmployee(e.id,e);else addEmployee(e);
+  // ===== Medewerkers =====
+  const saveEmployee=async(e:Employee)=>{
+    const prev=employees;
+    const exists=employees.some(x=>x.id===e.id);
+    setEmployees(exists?employees.map(x=>x.id===e.id?{...x,...e}:x):[...employees,e]);
     setEditEmployee(null);setIsNewEmployee(false);
+    try{await upsertRow("employees",e);setDbError("");toast.success("Medewerker opgeslagen.");}
+    catch(err){setEmployees(prev);fail("Medewerker kon niet worden opgeslagen:",err);}
+  };
+  const deleteEmployee=async(id:string)=>{
+    const prevE=employees,prevA=avail,prevP=projects;
+    const rowIds=avail.filter(a=>a.employeeId===id).map(a=>a.id);
+    const nextProjects=projects.map(p=>({...p,medewerkers:p.medewerkers.filter(mid=>mid!==id)}));
+    setEmployees(employees.filter(e=>e.id!==id));
+    setAvail(avail.filter(a=>a.employeeId!==id));
+    setProjects(nextProjects);
+    try{
+      if(rowIds.length)await savePlanningRows([],rowIds,"planning_verwijderd_bij_medewerker");
+      await deleteRow("employees",id);
+      setDbError("");toast.success("Medewerker verwijderd.");
+    }catch(err){setEmployees(prevE);setAvail(prevA);setProjects(prevP);fail("Medewerker kon niet worden verwijderd:",err);}
   };
 
   const openEditProject=(p:Project)=>{setDetailProject(null);setEditProject(p);setIsNewProject(false);};
   const openNewProject=(prefill:Partial<Project>={})=>{setEditProject({...prefill});setIsNewProject(true);};
   const openDetailProject=(p:Project)=>setDetailProject(p);
 
-  const handleVacImport=(entries:AvailEntry[])=>{
-    setAvail(prev=>{
-      const existKeys=new Set(prev.map(a=>`${a.employeeId}|${a.date}|${a.startTime}|${a.endTime}|${a.status}`));
-      const toAdd=entries.filter(e=>!existKeys.has(`${e.employeeId}|${e.date}|${e.startTime}|${e.endTime}|${e.status}`));
-      return [...prev,...toAdd];
-    });
+  const handleVacImport=async(entries:AvailEntry[])=>{
+    const existKeys=new Set(avail.map(a=>`${a.employeeId}|${a.date}|${a.startTime}|${a.endTime}|${a.status}`));
+    const toAdd=entries.filter(e=>!existKeys.has(`${e.employeeId}|${e.date}|${e.startTime}|${e.endTime}|${e.status}`));
     setShowVacImport(false);
+    if(!toAdd.length){toast.info("Geen nieuwe regels om te importeren.");return;}
+    await persistPlanning([...avail,...toAdd],toAdd,[],"afwezigheid_geimporteerd",`${toAdd.length} regels geïmporteerd.`);
   };
 
+  // Instellingen: alleen de gewijzigde onderdelen naar de database, geneste
+  // kleurenmaps per sleutel zodat twee gebruikers elkaar niet overschrijven.
   const handleSaveSettings=(s:AppSettings)=>{
-    setSettings(s);
-    // update DC in place so all components re-render with new colors
-    (Object.keys(s.deptColors) as Afdeling[]).forEach(afd=>{
-      DC[afd]=s.deptColors[afd];
+    const prev=settings;
+    const {changes,paths}=diffSettings(prev,s);
+    applySettings(s);
+    if(!Object.keys(changes).length&&!paths.length)return;
+    patchSettings(changes,paths).then(()=>setDbError("")).catch((err:unknown)=>{
+      applySettings(prev);
+      fail("Instellingen konden niet worden opgeslagen:",err);
     });
   };
+
+  if(loadError){
+    return <div className="min-h-screen flex items-center justify-center bg-[#F0F3F8] px-4" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div className="max-w-sm w-full bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-6 text-center">
+        <p className="text-base font-semibold text-[#1A2744]">Gegevens konden niet worden geladen.</p>
+        <p className="text-sm text-[#6B7A99] mt-1 break-words">{loadError}</p>
+        <button onClick={()=>setReloadKey(k=>k+1)} className="mt-4 w-full py-2.5 rounded-xl bg-[#1A2744] text-white text-sm font-semibold hover:bg-[#24365c]">Opnieuw proberen</button>
+      </div>
+    </div>;
+  }
+  if(!dbReady){
+    return <div className="min-h-screen flex items-center justify-center bg-[#F0F3F8]" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <p className="text-sm text-[#6B7A99]">Gegevens laden…</p>
+    </div>;
+  }
+
 
   return <DeptColorCtx.Provider value={settings.deptColors}>
     <div className="flex h-screen bg-[#F0F3F8] overflow-hidden" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
