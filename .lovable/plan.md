@@ -15,11 +15,15 @@ Grote verbouwing in stappen. De app blijft na iedere stap werkend; per stap volg
 
 ## Volgorde van uitvoering
 
-**Stap 1 — Login definitief maken (verplicht vóór alle beveiliging)**
-Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker krijgt een echte `auth.uid()` uit Supabase Auth. De demo-login blijft alleen bestaan wanneer `import.meta.env.DEV` waar is of een expliciete testvlag aan staat; in een productiebuild is de demo-code niet bereikbaar en wordt een bestaande `maasmond-demo-user` in de browseropslag genegeerd en opgeruimd. Geen enkel scherm mag nog een gebruiker of e-mailadres zelf meesturen naar de database. Voor Playwright komt er een aparte testconfiguratie met een echte testgebruiker, los van de demo-login.
+**Stap 1 — Login definitief maken en beperken tot Maasmond (verplicht vóór alle beveiliging)**
+Microsoft/Azure-login wordt in productie de enige loginmethode; iedere gebruiker krijgt een echte `auth.uid()` uit Supabase Auth. De aanmelding wordt vastgezet op de Maasmond-tenant (vaste Tenant ID, geen open multi-tenant login) en bij het aanmaken van een account wordt server-side gecontroleerd of de gebruiker echt uit die tenant komt; iemand uit een andere Microsoft-tenant krijgt geen toegang, ook niet met een gelijkend e-mailadres. Een controle op `@maasmond.nl` in de browser telt nooit als beveiliging. De demo-login blijft alleen bestaan wanneer `import.meta.env.DEV` waar is of een expliciete testvlag aan staat; in een productiebuild is die code niet bereikbaar en wordt een bestaande `maasmond-demo-user` in de browseropslag genegeerd en opgeruimd. Voor Playwright komt er een aparte testconfiguratie met een echte testgebruiker.
 
-**Stap 2 — Toegangsregels op alle tabellen**
-Toegangsregels op werken, medewerkers, planning, instellingen, documenten en auditlog worden omgezet van "iedereen" naar "alleen ingelogde gebruikers", met de bijbehorende rechten. Zonder geldige sessie is geen enkele lees- of schrijfactie meer mogelijk. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()` en accepteren nooit een gebruiker-id uit de browser; dat geldt ook voor de latere planning- en auditfuncties.
+**Stap 2 — Toegangsregels per rol op alle tabellen**
+De huidige open regels op werken, medewerkers, planning en instellingen worden vervangen. Toegang loopt via de bestaande rollen (`user_roles` + `has_role`), niet via "iedere ingelogde gebruiker mag alles":
+- Beheerder: alles beheren — medewerkers, instellingen, archiveren en herstellen, definitief verwijderen, documenten en het auditlog inzien.
+- Planner: werken en medewerkers bekijken, planning toevoegen/wijzigen/verwijderen, werkgegevens bekijken, documenten gebruiken; geen beheerfuncties.
+- Overige medewerkers: standaard alleen lezen waar dat later nodig is.
+Instellingen, auditlog, definitief verwijderen en andere beheeracties worden in de database zelf beperkt, niet alleen door knoppen te verbergen. Databasefuncties bepalen de gebruiker altijd zelf via `auth.uid()`, controleren de vereiste rol en accepteren nooit een gebruiker-id of rol uit de browser. Rechten om functies uit te voeren worden zo krap mogelijk gehouden.
 
 **Stap 3 — Vangnet: tests op de kritieke rekenlogica**
 Vitest opzetten en tests schrijven op de bestaande helpers: ingeplande medewerkers per werk, conflictcontrole, teamkleuren/unieke werkkleuren, volgorde medewerkers, vaste vrije dagen met uitzonderingen, openstaande werken. Playwright-flows (met de aparte testgebruiker uit stap 1) voor inplannen, slepen, resizen en refresh.
@@ -30,8 +34,8 @@ Demo-data alleen nog achter een expliciete ontwikkelaarsschakelaar. Bij starten:
 **Stap 5 — Automatische opslag weghalen**
 De vier automatische opslag-effecten verdwijnen. Elke gebruikersactie krijgt één vaste route: controleren → opslaan in database → bevestiging → state bijwerken → scherm verversen. Bij fout: terugdraaien en melding.
 
-**Stap 6 — Rijgerichte opslaglaag**
-Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". Instellingen worden samengevoegd in plaats van als geheel overschreven. De teruggegeven databaserij bepaalt de state.
+**Stap 6 — Rijgerichte opslaglaag en atomair patchen van instellingen**
+Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabel; `syncTable` verdwijnt voor werken, medewerkers, planning en werkgegevens. Nooit meer "verwijder wat lokaal ontbreekt". De teruggegeven databaserij bepaalt de state. Instellingen worden niet meer als geheel opgehaald, lokaal samengevoegd en teruggeschreven: de browser stuurt alleen de gewijzigde instellingen (bijvoorbeeld alleen de feestdagkleur, of alleen de monteursvolgorde) naar een databasefunctie die ze server-side samenvoegt met de huidige instellingen. Twee gebruikers die tegelijk een andere instelling wijzigen overschrijven elkaar zo niet. Alle instellingenwijzigingen lopen via die functie.
 
 **Stap 7 — Alle bestaande opslagfuncties omzetten**
 Inplannen, wijzigen, verplaatsen, verwijderen, team verplaatsen, resize, vaste vrije reeksen, statuswijziging, Excel-import: allemaal op de nieuwe laag, met per actie alleen de echt gewijzigde regels.
@@ -63,11 +67,11 @@ Schoolvakanties per jaar en regio in de instellingen, met een eenvoudig beheersc
 **Stap 16 — Archiveren in plaats van verwijderen**
 Werken en medewerkers worden gearchiveerd, met een weergave "Gearchiveerd" en herstellen. Gearchiveerde medewerkers verdwijnen uit de actieve planning maar hun historie blijft zichtbaar. Definitief verwijderen blijft mogelijk als bewuste beheeractie met extra waarschuwing.
 
-**Stap 17 — Auditlog**
-Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en nieuwe waarde. De gebruiker wordt altijd server-side uit `auth.uid()` gehaald en nooit uit gegevens die de browser meestuurt. Alleen wegschrijven ná een geslaagde wijziging. Een regel zonder gebruiker mag alleen ontstaan bij aantoonbaar systeemgegenereerde processen en krijgt dan `actor_type: "system"`; gewone gebruikersacties worden nooit anoniem vastgelegd. Beheerscherm "Recente wijzigingen".
+**Stap 17 — Auditlog in dezelfde transactie**
+Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en nieuwe waarde. Het auditlog wordt niet als losse tweede actie vanuit de browser geschreven: bij belangrijke wijzigingen doet één databasefunctie in één transactie de controle op gebruiker en rol, de conflict- en gelijktijdigheidscontrole, de wijziging zelf en de auditregel. Mislukt de wijziging, dan komt er geen auditregel; kan de auditregel niet worden geschreven, dan gaat de hele wijziging niet door. Dit geldt voor planning verplaatsen en verwijderen, team verplaatsen, projectstatus wijzigen, archiveren en herstellen, medewerker wijzigen en vaste vrije reeksen wijzigen. De gebruiker komt altijd uit `auth.uid()`. Een regel zonder gebruiker mag alleen ontstaan bij echte automatische serverprocessen en krijgt dan `actor_type: "system"` — nooit als noodoplossing wanneer de gebruiker onbekend is. Beheerscherm "Recente wijzigingen", alleen voor Beheerder.
 
 **Stap 18 — Tests uitbreiden**
-De volledige testlijst uit de opdracht afmaken: login en geweigerde demo-login in productie, planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
+De volledige testlijst uit de opdracht afmaken: login en geweigerde demo-login in productie, een account buiten de Maasmond-tenant dat geen toegang krijgt, een planner die een beheeractie probeert (moet falen in de database, niet alleen in de UI), directe API-aanroepen zonder sessie, twee instellingen die gelijktijdig worden gewijzigd, planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
 
 **Stap 19 — Bestand opsplitsen**
 Pas als de tests groen zijn: `planning-app.tsx` stap voor stap opdelen in schermcomponenten (personeelsplanning, openstaande werken, vaste vrije dagen, agenda, werken, werkdetails, kleurbeheer) en rekenlogica (`planning-engine`, `planning-conflicts`, `planning-colors`, `project-planning`, `holidays`), met na elk onderdeel build en tests.
@@ -75,11 +79,12 @@ Pas als de tests groen zijn: `planning-app.tsx` stap voor stap opdelen in scherm
 ## Technische details
 
 - `src/components/auth-gate.tsx`: demo-login (`maasmond-demo-user`) achter `import.meta.env.DEV` of een expliciete testvlag; in productiebuilds wordt de sleutel genegeerd en verwijderd, en blijft alleen de Azure/Microsoft-aanmelding over. Sessiecontrole via `supabase.auth.getUser()`.
-- Auth: Azure-provider definitief inschakelen en de redirect-URL's vastleggen; rollen blijven in de bestaande `user_roles`-tabel met `has_role`.
-- `src/lib/planning-store.ts`: `syncTable` uitfaseren; nieuwe mutatiehelpers met `.select().single()` retourwaarde; `syncSettings` wordt een merge op de bestaande rij.
-- `src/components/planning-app.tsx`: vier debounce-`useEffect`-writes (regels ~4050-4069) verwijderen; demo-seed bij lege database (regels ~4025-4031) verwijderen; alle `syncTable`-aanroepen in save-/drag-/resize-functies omzetten.
-- Database: bestaande `*_public`-policies (anon) op projects, employees, availability en app_settings vervangen door `TO authenticated`-policies; policies en grants voor `project_documents` en `audit_log`; RPC voor transactioneel plannen met conflictcontrole en `auth.uid()`-controle; `updated_at`-controle bij opslaan; realtime-publicatie; `archived_at` op werken/medewerkers; storage-bucket `project-documents` met eigen toegangsregels.
-- `audit_log`: kolommen `actor_id uuid` (uit `auth.uid()`), `actor_type text` (`user` of `system`), tijdstip, actie, tabel, record-id, oude en nieuwe waarde; alleen te vullen via server-side functies.
+- Auth: Azure-provider met vaste Maasmond Tenant ID (geen `common`), redirect-URL's vastleggen, e-mail/wachtwoord-signups uit; trigger op `auth.users` die de tenant-claim (`tid`) uit de identiteit controleert en alleen dan een rol toekent — geen tenant-match betekent geen rol en dus geen toegang via RLS. Rollen blijven in `user_roles` met `has_role`.
+- `src/lib/planning-store.ts`: `syncTable` uitfaseren; nieuwe mutatiehelpers met `.select().single()` retourwaarde; `syncSettings` wordt vervangen door een aanroep van `patch_app_settings(changes jsonb)`.
+- `src/components/planning-app.tsx`: vier debounce-`useEffect`-writes (regels ~4050-4069) verwijderen; demo-seed bij lege database (regels ~4025-4031) verwijderen; alle `syncTable`-aanroepen in save-/drag-/resize-functies omzetten; instellingen alleen nog als delta doorgeven.
+- Database: bestaande `*_public`-policies (anon) op projects, employees, availability en app_settings intrekken; nieuwe policies `TO authenticated` met `has_role(auth.uid(), 'beheerder')` / `'planner'` per actie; `anon` krijgt nergens meer rechten. Nieuwe tabellen `project_documents` en `audit_log` met grants en policies (auditlog alleen leesbaar voor beheerder, alleen schrijfbaar via functies). `archived_at` op werken/medewerkers, realtime-publicatie, storage-bucket `project-documents` met eigen policies.
+- RPC's: `patch_app_settings(changes jsonb)` met `data = COALESCE(data,'{}'::jsonb) || changes`, en transactionele functies zoals `move_planning_transaction(...)`, `delete_planning_transaction(...)`, `set_project_status(...)`, `archive_record(...)`. Alle `SECURITY DEFINER` met `SET search_path = public`, een `auth.uid()`-controle, een rolcontrole en `REVOKE EXECUTE FROM PUBLIC, anon` plus gerichte `GRANT EXECUTE TO authenticated`. Geen enkele functie accepteert een actor of rol als parameter.
+- `audit_log`: kolommen `actor_id uuid` (uit `auth.uid()`), `actor_type text` (`user` of `system`), tijdstip, actie, tabel, record-id, oude en nieuwe waarde; alleen gevuld binnen dezelfde transactie als de wijziging.
 - Nieuwe bestanden: `src/lib/holidays.ts`, later de opsplitsing uit stap 19.
 - Vitest + Playwright toevoegen als ontwikkelafhankelijkheden, met een aparte testconfiguratie en echte testgebruiker (geen demo-login).
 
