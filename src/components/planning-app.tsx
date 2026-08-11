@@ -3470,10 +3470,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {visEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
-            <td className="px-4 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
-              <div className="flex items-center gap-2.5">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
+              <div className="flex items-center gap-1.5">
+                <EmpOrderControls empId={e.id}/>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div><p className="font-semibold text-[#1A2744]">{e.naam}</p><p className="text-[#6B7A99]">{e.functie}</p></div>
+                <div className="min-w-0"><p className="font-semibold text-[#1A2744] truncate">{e.naam}</p><p className="text-[#6B7A99] truncate">{e.functie}</p></div>
               </div>
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
