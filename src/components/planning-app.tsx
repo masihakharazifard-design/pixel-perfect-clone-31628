@@ -311,6 +311,65 @@ function teamColor(key:string,overrides:Record<string,string>={}):string{
   let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))>>>0;
   return TEAM_PALETTE[h%TEAM_PALETTE.length];
 }
+// ===== PROJECTKLEUREN (Personeelsplanning) =====
+// De kleur hoort uitsluitend bij projectId en wordt centraal bewaard in settings.projectColors.
+// Nooit afhankelijk van medewerker, datum, team, status, tijd, rijpositie of actieve filter.
+function hslToHex(h:number,s:number,l:number):string{ // s,l in 0..1
+  const a=s*Math.min(l,1-l);
+  const f=(n:number)=>{
+    const k=(n+h/30)%12;
+    const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));
+    return Math.round(255*c).toString(16).padStart(2,"0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+// Ruime, goed onderscheidbare kleurreeks (gulden hoek + wisselende verzadiging/helderheid)
+function generatedProjectColor(i:number):string{
+  const h=(i*137.508)%360;
+  const s=0.55+((i%3)*0.14);
+  const l=0.40+((i%2)*0.10);
+  return hslToHex(h,s,l);
+}
+function stableIdx(s:string):number{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%997;}
+const FALLBACK_PROJECT_COLOR="#64748B";
+// Centrale helper voor alle Personeelsplanning-weergaven
+function projectPlanningColorOf(projectId:string|undefined|null,projectColors:Record<string,string>={}):string{
+  if(!projectId)return FALLBACK_PROJECT_COLOR;
+  return projectColors[projectId]||generatedProjectColor(stableIdx(projectId));
+}
+// Vult ontbrekende kleuren aan en lost duplicaten op over de VOLLEDIGE projectenlijst.
+// Een bestaande unieke kleur blijft altijd staan; bij een botsing houdt het eerste project (stabiele volgorde) zijn kleur.
+function ensureProjectColors(projects:{id:string}[],current:Record<string,string>):Record<string,string>{
+  const next:Record<string,string>={...current};
+  const used=new Set<string>();
+  let changed=false;let i=0;
+  const freeColor=()=>{
+    let c=generatedProjectColor(i++);let guard=0;
+    while(used.has(c.toLowerCase())&&guard++<5000)c=generatedProjectColor(i++);
+    return c;
+  };
+  projects.forEach(p=>{
+    const cur=(next[p.id]||"").toLowerCase();
+    if(cur&&!used.has(cur)){used.add(cur);return;}
+    const c=freeColor();
+    next[p.id]=c;used.add(c.toLowerCase());changed=true;
+  });
+  return changed?next:current;
+}
+// Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
+function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
+  const out:{employee:E;rows:AvailEntry[]}[]=[];
+  const seen=new Map<string,number>();
+  projectPlans(av,projectId).forEach(r=>{
+    const emp=employees.find(e=>e.id===r.employeeId);
+    if(!emp)return;
+    const idx=seen.get(emp.id);
+    if(idx===undefined){seen.set(emp.id,out.length);out.push({employee:emp,rows:[r]});}
+    else out[idx].rows.push(r);
+  });
+  out.forEach(o=>o.rows.sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime)));
+  return out;
+}
 // Alle medewerkers die op dezelfde dag op hetzelfde project staan vormen een team
 function teamForDay(av:AvailEntry[],projectId:string,date:string):string[]{
   return [...new Set(planRows(av).filter(a=>a.projectId===projectId&&a.date===date).map(a=>a.employeeId))].sort();
