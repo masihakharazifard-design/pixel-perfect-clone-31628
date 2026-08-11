@@ -36,8 +36,8 @@ Nieuwe laag met `upsertRow` / `deleteRow` / `upsertRows` / `deleteRows` per tabe
 **Stap 7 — Alle bestaande opslagfuncties omzetten**
 Inplannen, wijzigen, verplaatsen, verwijderen, team verplaatsen, resize, vaste vrije reeksen, statuswijziging, Excel-import: allemaal op de nieuwe laag, met per actie alleen de echt gewijzigde regels.
 
-**Stap 6 — Conflictcontrole in de database**
-Databasefunctie die vlak voor opslaan opnieuw controleert op vrij, vakantie, ziek, bezet en overlappende planning. Meerdere regels tegelijk (team, meerdere dagen, series) slagen samen of gaan samen niet door. De melding noemt medewerker, datum, tijd en reden. De snelle controle in het scherm blijft.
+**Stap 8 — Conflictcontrole in de database**
+Databasefunctie die vlak voor opslaan opnieuw controleert op vrij, vakantie, ziek, bezet en overlappende planning, en de gebruiker daarbij zelf uit `auth.uid()` haalt. Meerdere regels tegelijk (team, meerdere dagen, series) slagen samen of gaan samen niet door. De melding noemt medewerker, datum, tijd en reden. De snelle controle in het scherm blijft.
 
 **Stap 7 — Gelijktijdig werken afschermen**
 Opslaan controleert of het record ondertussen door iemand anders is gewijzigd. Zo ja: niet blind overschrijven, gegevens opnieuw laden en melden dat de planning inmiddels is gewijzigd.
