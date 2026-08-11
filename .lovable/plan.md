@@ -13,13 +13,14 @@ Alles gebeurt in `src/components/planning-app.tsx`. Geen nieuwe pagina, geen twe
 
 - In hetzelfde venster een lijst met de vaste reeksen van die medewerker, bijv. "Vrijdag — 01-09-2026 t/m 31-12-2026", elk met **Wijzigen** en **Verwijderen**.
 - De lijst komt uit de opgeslagen reeksinstellingen (`serieType`, `serieWeekdays`, `serieStartDate`, `serieEndDate`, `periodeId`), niet uit de losse gegenereerde Vrij-regels. Zo blijft de reeks herkenbaar ook als dagen uitzonderingen zijn geworden.
-- Wijzigen: weekdagen, begindatum en einddatum aanpassbaar. De reeks wordt opnieuw opgebouwd binnen hetzelfde `periodeId`; bestaande uitzonderingsdagen blijven ongemoeid.
-- Verwijderen wist uitsluitend de `Vrij`-regels van díe reeks. Projectplanning, vakantie, ziek, bezet en overige regels blijven altijd staan.
+- Wijzigen van een reeks (bijv. vrijdag → donderdag) verwijdert eerst de oude automatisch gegenereerde regels van diezelfde reeks: alleen regels met `periodeId` van de reeks, `serieType === "vastevrij"`, `status === "Vrij"`, zonder `projectId` en `isSeriesException !== true`. Individuele uitzonderingen en alle projectplanning blijven behouden. Daarna wordt de nieuwe reeks met hetzelfde `periodeId` opgebouwd en in één keer opgeslagen.
+- Verwijderen van een reeks wist de automatisch gegenereerde `Vrij`-regels en de losse exception-regels (Beschikbaar e.d.) die uitsluitend voor die reeks zijn aangemaakt. Een regel met `projectId` wordt nooit verwijderd: daar wordt alleen het betreffende `periodeId` uit `vasteVrijExceptionIds` gehaald. Medewerker, datum, tijden, team, `reeksId` en overige planning blijven volledig staan.
 
 ### Datums waarop al een project staat
 
 - Staat er op een gegenereerde datum al projectplanning voor die medewerker, dan wordt eerst een waarschuwing getoond met die datums.
-- Na bevestiging blijft de projectplanning volledig behouden en wordt op die datum géén `Vrij`-blok toegevoegd. Die datum wordt binnen de reeks vastgelegd als individuele uitzondering met hetzelfde `periodeId`, `serieType: "vastevrij"` en `isSeriesException: true`.
+- Na bevestiging blijft de projectplanning volledig behouden en wordt op die datum géén `Vrij`-blok en géén tweede losse regel aangemaakt. In plaats daarvan wordt op de bestaande projectplanningregel het `periodeId` toegevoegd aan `vasteVrijExceptionIds`. Het blijft dus een gewone projectplanning, maar de vaste-vrij-logica weet dat die datum niet automatisch Vrij mag worden.
+- Bij het (opnieuw) opbouwen van een reeks wordt een datum overgeslagen wanneer er een exception-regel bestaat met hetzelfde `periodeId` en `isSeriesException === true`, óf wanneer een projectplanning op die datum dat `periodeId` in `vasteVrijExceptionIds` heeft.
 - Alle overige datums van de reeks worden wel normaal als `Vrij` aangemaakt. Zo ontstaan nooit dubbele of conflicterende Vrij- en projectblokken.
 
 
@@ -54,10 +55,11 @@ Elke wijziging (reeks toevoegen/wijzigen/verwijderen, uitzondering, kleur) wordt
 
 ## Technische details
 
-- `AvailEntry` krijgt optioneel `isSeriesException?: boolean`, `serieType?: "vastevrij"`, `serieWeekdays?: number[]`, `serieStartDate?: string` en `serieEndDate?: string` (alles binnen de bestaande JSONB-data, geen migratie). De reeksinstellingen worden op elke regel van de reeks meegeschreven, inclusief uitzonderingsregels, zodat het beheervenster de reeks altijd kan reconstrueren.
+- `AvailEntry` krijgt optioneel `isSeriesException?: boolean`, `serieType?: "vastevrij"`, `serieWeekdays?: number[]`, `serieStartDate?: string`, `serieEndDate?: string` en `vasteVrijExceptionIds?: string[]` (alles binnen de bestaande JSONB-data, geen migratie). De reeksinstellingen worden op elke regel van de reeks meegeschreven, inclusief uitzonderingsregels, zodat het beheervenster de reeks altijd kan reconstrueren.
 - Nieuw `FixedFreeDaysModal` (weekdagselectie, periode, reeksenlijst, wijzigen/verwijderen) plus een kleine keuzedialoog "Alleen deze dag / Hele reeks".
-- Reeksopbouw: datums in periode filteren op gekozen weekdagen; datums met een bestaande uitzondering binnen hetzelfde `periodeId` overslaan; datums met bestaande projectplanning van die medewerker eerst melden en na bevestiging als uitzonderingsregel (`isSeriesException: true`, zonder `Vrij`-blok) wegschrijven; de rest als hele dag `Vrij`. Alles in één `savePlanningMany` met hetzelfde `periodeId`.
-- Verwijderen filtert op `periodeId` én `status==="Vrij"` zonder `projectId`, zodat andere regels nooit meegaan; de bijbehorende uitzonderingsregels van dezelfde reeks verdwijnen mee.
+- Reeksopbouw: oude gegenereerde regels van dezelfde reeks eerst opruimen (zie hierboven), datums filteren op gekozen weekdagen, datums met exception-regel of met `vasteVrijExceptionIds`-markering overslaan, projectdatums melden en na bevestiging alleen markeren, de rest als hele dag `Vrij`. Alles via één opslagactie (`savePlanningResize`-achtige combinatie van toevoegen en verwijderen) met hetzelfde `periodeId`.
+- Verwijderen van een reeks: `Vrij`-regels en exception-regels met dat `periodeId` en zonder `projectId` weg; projectregels alleen bijwerken door het `periodeId` uit `vasteVrijExceptionIds` te filteren.
 - `AppSettings` krijgt `holidayColor?: string`; helper `holidayColorOf(settings)` met fallback `#D946EF`, gebruikt door Personeelsplanning, Agenda en `ColorManagerModal`.
 - Weekweergave: tabel/grid met `gridTemplateColumns: 180px repeat(7, minmax(90px, 1fr))` en `w-full` in plaats van de huidige `minWidth`-berekening.
-- Verificatie in een echte browser: reeks aanmaken over drie maanden, refresh, één dag als uitzondering naar Beschikbaar, project op die dag inplannen, reeks daarna van vrijdag naar donderdag, weekbreedte op groot en klein scherm, en feestdagen plus kleurwijziging in alle vier de weergaven.
+- Verificatie in een echte browser: reeks aanmaken over drie maanden, refresh, één dag als uitzondering naar Beschikbaar, project op die dag inplannen, weekbreedte op groot en klein scherm, en feestdagen plus kleurwijziging in alle vier de weergaven.
+- Extra scenario: iedere vrijdag Vrij, één vrijdag als losse uitzondering op Beschikbaar, op een andere vrijdag al een project; daarna de reeks van vrijdag naar donderdag wijzigen en controleren dat de oude normale vrijdagen verdwijnen, de losse uitzondering blijft, het project onaangeroerd blijft en de donderdagen Vrij worden. Daarna de hele reeks verwijderen en controleren dat alle Vrij-regels weg zijn terwijl het project blijft bestaan met alleen de vaste-vrij-markering verwijderd.
