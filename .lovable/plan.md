@@ -63,8 +63,8 @@ Schoolvakanties per jaar en regio in de instellingen, met een eenvoudig beheersc
 **Stap 16 — Archiveren in plaats van verwijderen**
 Werken en medewerkers worden gearchiveerd, met een weergave "Gearchiveerd" en herstellen. Gearchiveerde medewerkers verdwijnen uit de actieve planning maar hun historie blijft zichtbaar. Definitief verwijderen blijft mogelijk als bewuste beheeractie met extra waarschuwing.
 
-**Stap 15 — Auditlog**
-Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en nieuwe waarde. Alleen wegschrijven ná een geslaagde wijziging. Beheerscherm "Recente wijzigingen".
+**Stap 17 — Auditlog**
+Nieuwe logtabel met gebruiker, tijdstip, actie, soort record, record-id, oude en nieuwe waarde. De gebruiker wordt altijd server-side uit `auth.uid()` gehaald en nooit uit gegevens die de browser meestuurt. Alleen wegschrijven ná een geslaagde wijziging. Een regel zonder gebruiker mag alleen ontstaan bij aantoonbaar systeemgegenereerde processen en krijgt dan `actor_type: "system"`; gewone gebruikersacties worden nooit anoniem vastgelegd. Beheerscherm "Recente wijzigingen".
 
 **Stap 16 — Tests uitbreiden**
 De volledige testlijst uit de opdracht afmaken: planning, openstaande werken, agenda-weergaven en kleuren, opslagfouten en terugdraaien, twee gelijktijdige gebruikers, realtime.
