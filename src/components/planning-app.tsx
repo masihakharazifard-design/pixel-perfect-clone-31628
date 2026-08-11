@@ -2822,6 +2822,72 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const saveFilters=(list:PlanFilter[])=>onSaveSettings({...settings,planFilters:list});
   const toggleFilter=(id:string)=>saveFilters(filters.map(f=>f.id===id?{...f,actief:!f.actief}:f));
   const setTeamColor=(key:string,kleur:string)=>onSaveSettings({...settings,teamColors:{...teamColors,[key]:kleur}});
+
+  // ===== Handmatige volgorde van medewerkers (alleen weergave) =====
+  const [dragEmp,setDragEmp]=useState<string|null>(null);
+  const [dropEmp,setDropEmp]=useState<{id:string;pos:"before"|"after"}|null>(null);
+  const fullOrder=useMemo(()=>orderedEmployees.map(e=>e.id),[orderedEmployees]);
+  const saveEmployeePlanningOrder=(newOrder:string[])=>{
+    const valid=new Set(employees.map(e=>e.id));
+    const clean:string[]=[];
+    newOrder.forEach(id=>{if(valid.has(id)&&!clean.includes(id))clean.push(id);});
+    employees.forEach(e=>{if(!clean.includes(e.id))clean.push(e.id);});
+    const prev=settings;
+    const next={...settings,employeePlanningOrder:clean};
+    onSaveSettings(next);
+    syncSettings(next).catch((err:unknown)=>{
+      onSaveSettings(prev);
+      toast.error(`Volgorde opslaan mislukt: ${err instanceof Error?err.message:String(err)}`);
+    });
+  };
+  // Alleen de onderlinge volgorde van zichtbare medewerkers wijzigt; verborgen ID's blijven op hun plek.
+  const applyVisibleOrder=(visibleIds:string[])=>{
+    const set=new Set(visibleIds);let k=0;
+    return fullOrder.map(id=>set.has(id)?visibleIds[k++]:id);
+  };
+  const moveEmp=(empId:string,dir:-1|1)=>{
+    const ids=visEmp.map(e=>e.id);const i=ids.indexOf(empId);const j=i+dir;
+    if(i<0||j<0||j>=ids.length)return;
+    [ids[i],ids[j]]=[ids[j],ids[i]];
+    saveEmployeePlanningOrder(applyVisibleOrder(ids));
+  };
+  const dropEmpOn=(targetId:string)=>{
+    const src=dragEmp;const pos=dropEmp?.pos||"before";
+    setDragEmp(null);setDropEmp(null);
+    if(!src||src===targetId)return;
+    const ids=visEmp.map(e=>e.id).filter(id=>id!==src);
+    const ti=ids.indexOf(targetId);if(ti<0)return;
+    ids.splice(pos==="after"?ti+1:ti,0,src);
+    saveEmployeePlanningOrder(applyVisibleOrder(ids));
+  };
+  const empDragProps=(empId:string)=>({
+    onDragOver:(ev:React.DragEvent)=>{
+      if(!dragEmp||dragEmp===empId)return;
+      ev.preventDefault();ev.stopPropagation();
+      const r=(ev.currentTarget as HTMLElement).getBoundingClientRect();
+      const pos:"before"|"after"=ev.clientY<r.top+r.height/2?"before":"after";
+      setDropEmp(d=>d&&d.id===empId&&d.pos===pos?d:{id:empId,pos});
+    },
+    onDrop:(ev:React.DragEvent)=>{if(!dragEmp)return;ev.preventDefault();ev.stopPropagation();dropEmpOn(empId);},
+  });
+  const empDropStyle=(empId:string)=>dropEmp&&dropEmp.id===empId
+    ?(dropEmp.pos==="before"?{boxShadow:"inset 0 3px 0 0 #0ABFB8"}:{boxShadow:"inset 0 -3px 0 0 #0ABFB8"}):undefined;
+  const EmpOrderControls=({empId}:{empId:string})=>{
+    const ids=visEmp.map(x=>x.id);const i=ids.indexOf(empId);
+    return <span className="flex items-center gap-0.5 flex-shrink-0">
+      <span draggable onDragStart={ev=>{ev.stopPropagation();setDragEmp(empId);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/employee-reorder",empId);}}
+        onDragEnd={()=>{setDragEmp(null);setDropEmp(null);}} onClick={ev=>ev.stopPropagation()}
+        title="Sleep om de volgorde te wijzigen" className="cursor-grab active:cursor-grabbing text-[#B8C3D9] hover:text-[#6B7A99]">
+        <GripVertical className="w-3.5 h-3.5"/>
+      </span>
+      <span className="flex flex-col">
+        <button disabled={i<=0} onClick={ev=>{ev.stopPropagation();moveEmp(empId,-1);}} title="Omhoog"
+          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronUp className="w-3 h-3"/></button>
+        <button disabled={i<0||i>=ids.length-1} onClick={ev=>{ev.stopPropagation();moveEmp(empId,1);}} title="Omlaag"
+          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronDown className="w-3 h-3"/></button>
+      </span>
+    </span>;
+  };
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
 
   // Alles komt uit dezelfde planningregels (availability met projectId)
