@@ -45,7 +45,7 @@ Opslaan controleert of het record ondertussen door iemand anders is gewijzigd. Z
 **Stap 10 — Realtime**
 Live meekijken op planning, werken en medewerkers, zodat een tweede planner wijzigingen ziet zonder verversen. Realtime werkt alleen bij naar het scherm, nooit terug naar de database. Test met twee sessies.
 
-**Stap 9 — Availability als enige personeelsbron**
+**Stap 11 — Availability als enige personeelsbron**
 Alle plekken die nog `project.medewerkers` lezen gaan over op `getProjectAssignedEmployees(...)`. Uit het werkformulier verdwijnt het direct aanvinken van medewerkers; koppelen gebeurt via een echte planningregel. Bestaande oude gegevens blijven staan maar worden niet meer gebruikt.
 
 **Stap 10 — Werkperiode los van planning**
