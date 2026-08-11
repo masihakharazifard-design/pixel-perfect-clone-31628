@@ -57,6 +57,17 @@ interface AppSettings {
   badgeColors?:Record<string,string>;
   holidayColor?:string;
   fixedFreeSeries?:FixedFreeSeries[];
+  employeePlanningOrder?:string[];
+}
+
+// Centrale sortering van medewerkers volgens de handmatig gekozen planningvolgorde.
+// Onbekende/verwijderde ID's worden genegeerd; nieuwe medewerkers komen onderaan.
+function sortEmployeesByPlanningOrder<T extends {id:string}>(list:T[],order:string[]):T[]{
+  const byId=new Map(list.map(e=>[e.id,e]));
+  const out:T[]=[];const used=new Set<string>();
+  (order||[]).forEach(id=>{const e=byId.get(id);if(e&&!used.has(id)){out.push(e);used.add(id);}});
+  list.forEach(e=>{if(!used.has(e.id))out.push(e);});
+  return out;
 }
 
 // ===== DEPT COLOR CONTEXT =====
