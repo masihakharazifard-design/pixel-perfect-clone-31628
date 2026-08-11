@@ -38,7 +38,9 @@ interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
   telefoon:string; email:string; competenties:string[];
 }
-interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean; }
+interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean;
+  isSeriesException?:boolean; serieType?:"vastevrij"; serieWeekdays?:number[]; serieStartDate?:string; serieEndDate?:string; vasteVrijExceptionIds?:string[]; }
+interface FixedFreeSeries { periodeId:string; employeeId:string; serieWeekdays:number[]; serieStartDate:string; serieEndDate:string; }
 const WORKDAY_END="17:00";
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
@@ -53,6 +55,8 @@ interface AppSettings {
   projectColors?:Record<string,string>;
   borderColors?:Record<string,string>;
   badgeColors?:Record<string,string>;
+  holidayColor?:string;
+  fixedFreeSeries?:FixedFreeSeries[];
 }
 
 // ===== DEPT COLOR CONTEXT =====
