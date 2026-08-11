@@ -57,7 +57,7 @@ Opslagmap `project-documents` per werk, plus een documententabel met bestandsnaa
 **Stap 14 — Feestdagen toekomstbestendig**
 Eén centrale `getDutchHolidays(jaar)` die ook de van Pasen afgeleide dagen berekent, gebruikt door Agenda en Personeelsplanning. Werkt dus ook na 2026. Bestaande feestdagkleur blijft.
 
-**Stap 13 — Schoolvakanties beheerbaar**
+**Stap 15 — Schoolvakanties beheerbaar**
 Schoolvakanties per jaar en regio in de instellingen, met een eenvoudig beheerscherm (naam, regio, start, eind). Ontbreken de data van het volgende jaar, dan verschijnt een duidelijke waarschuwing.
 
 **Stap 14 — Archiveren in plaats van verwijderen**
