@@ -2904,13 +2904,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     const clean:string[]=[];
     newOrder.forEach(id=>{if(valid.has(id)&&!clean.includes(id))clean.push(id);});
     employees.forEach(e=>{if(!clean.includes(e.id))clean.push(e.id);});
-    const prev=settings;
-    const next={...settings,employeePlanningOrder:clean};
-    onSaveSettings(next);
-    syncSettings(next).catch((err:unknown)=>{
-      onSaveSettings(prev);
-      toast.error(`Volgorde opslaan mislukt: ${err instanceof Error?err.message:String(err)}`);
-    });
+    // Opslaan gebeurt centraal: alleen de gewijzigde instelling gaat naar de database.
+    onSaveSettings({...settings,employeePlanningOrder:clean});
   };
   // Alleen de onderlinge volgorde van zichtbare medewerkers wijzigt; verborgen ID's blijven op hun plek.
   const applyVisibleOrder=(visibleIds:string[])=>{
