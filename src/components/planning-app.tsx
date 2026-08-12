@@ -2897,8 +2897,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   // Eén projectbron voor de hele pagina: alles volgt activeAfds
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
-  const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
+  // Gememoiseerde index: geen lineaire find() per cel bij duizenden werken
+  const visProjById=useMemo(()=>new Map(visProjects.map(p=>[p.id,p])),[visProjects]);
+  const visProj=(id?:string)=>id?visProjById.get(id):undefined;
+  const [openZoek,setOpenZoek]=useState("");
   const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
+
   const FILTER_MSG="Dit werk valt niet meer binnen de actieve afdelingsfilter.";
   // Guard: geen projectactie op een project of medewerker die buiten de filter valt
   const canAct=(projectId?:string|null,empId?:string|null)=>{
