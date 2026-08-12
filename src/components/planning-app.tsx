@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, createContext, useContext } from "react";
 import {
   LayoutDashboard, FolderOpen, CalendarDays, Users, Clock3,
   Receipt, Settings, ChevronLeft, ChevronRight, Plus, Pencil,
@@ -15,6 +15,10 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
+import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
+import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";
+import { createIndexOpenProjectsProvider, OPEN_PROJECTS_LIMIT, type OpenProjectsProvider } from "@/lib/open-projects";
+import { OpenProjectsPanel } from "@/components/open-projects-panel";
 
 
 // ===== TYPES =====
@@ -35,6 +39,24 @@ interface Project {
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
   eersteVanDag?:boolean;
+}
+// ===== CENTRALE PROJECTINDEX =====
+// Eén gedeelde index voor de hele app: O(1) lookups op id/werknummer en een vooraf
+// opgebouwde zoekindex. Componenten krijgen nooit de volledige projectenlijst als prop.
+const projectIndex=createProjectIndex<Project>();
+const getIndexedProject=(id?:string|null):Project|undefined=>projectIndex.getProjectById(id);
+/** Zoeken via de vooraf opgebouwde zoekindex; stopt zodra `limit` treffers gevonden zijn. */
+function searchIndexedProjects(q:string,limit=20):Project[]{
+  const s=q.trim().toLowerCase();
+  if(!s)return [];
+  const out:Project[]=[];
+  for(const id of projectIndex.getOrder()){
+    if(!projectIndex.getProjectSearchText(id).includes(s))continue;
+    const p=projectIndex.getProjectById(id);
+    if(p)out.push(p);
+    if(out.length>=limit)break;
+  }
+  return out;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
@@ -255,16 +277,18 @@ function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
 interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;kind:"blocking"|"warning";type?:"planning_overlap";}
 // Blokkerend: Bezet, Vakantie, Ziek, Vrij, Niet beschikbaar.
 // Waarschuwing: de medewerker staat al op een ánder project in hetzelfde tijdvak.
-function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
+// `rows` bevat uitsluitend de regels van deze medewerker op deze dag (O(1)-lookup),
+// en `getProject` is een O(1)-lookup op de centrale projectindex.
+function findConflicts(rows:AvailEntry[],employees:Employee[],getProject:(id?:string|null)=>Project|undefined,empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
   const emp=employees.find(e=>e.id===empId);
   const naam=emp?emp.naam:"Medewerker";
   const out:PlanConflict[]=[];
-  av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
+  rows.filter(a=>a.id!==ignoreId).forEach(a=>{
     if(!overlaps(start,end,a.startTime,a.endTime))return;
     const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij","Bezet"];
     if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"blocking"});return;}
     if(a.status==="Ingepland"){
-      const p=projects.find(x=>x.id===a.projectId);
+      const p=getProject(a.projectId);
       out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"warning",type:"planning_overlap"});
     }
   });
@@ -302,30 +326,14 @@ function generatedProjectColor(i:number):string{
 }
 function stableIdx(s:string):number{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%997;}
 const FALLBACK_PROJECT_COLOR="#64748B";
-// Centrale helper voor alle Personeelsplanning-weergaven
+// Centrale helper voor alle Personeelsplanning-weergaven.
+// O(1): handmatig opgeslagen kleur, anders een deterministische kleur uit alleen projectId.
+// Er wordt nooit automatisch een kleur voor de volledige projectenlijst berekend of opgeslagen.
 function projectPlanningColorOf(projectId:string|undefined|null,projectColors:Record<string,string>={}):string{
   if(!projectId)return FALLBACK_PROJECT_COLOR;
   return projectColors[projectId]||generatedProjectColor(stableIdx(projectId));
 }
-// Vult ontbrekende kleuren aan en lost duplicaten op over de VOLLEDIGE projectenlijst.
-// Een bestaande unieke kleur blijft altijd staan; bij een botsing houdt het eerste project (stabiele volgorde) zijn kleur.
-function ensureProjectColors(projects:{id:string}[],current:Record<string,string>):Record<string,string>{
-  const next:Record<string,string>={...current};
-  const used=new Set<string>();
-  let changed=false;let i=0;
-  const freeColor=()=>{
-    let c=generatedProjectColor(i++);let guard=0;
-    while(used.has(c.toLowerCase())&&guard++<5000)c=generatedProjectColor(i++);
-    return c;
-  };
-  projects.forEach(p=>{
-    const cur=(next[p.id]||"").toLowerCase();
-    if(cur&&!used.has(cur)){used.add(cur);return;}
-    const c=freeColor();
-    next[p.id]=c;used.add(c.toLowerCase());changed=true;
-  });
-  return changed?next:current;
-}
+
 // Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
 function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
   const out:{employee:E;rows:AvailEntry[]}[]=[];
@@ -2264,8 +2272,8 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
 }
 
 // ===== MEDEWERKER INPLANNEN =====
-function PlanEmployeeModal({employees,projects,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
-  employees:Employee[];projects:Project[];availability:AvailEntry[];
+function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];
   empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
   onSave:(entry:AvailEntry)=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
 }){
@@ -2274,14 +2282,12 @@ function PlanEmployeeModal({employees,projects,availability,empId,date,startTime
   const [st,setSt]=useState(startTime);
   const [et,setEt]=useState(endTime);
   const [q,setQ]=useState("");
-  const [sel,setSel]=useState<Project|null>(projectId?projects.find(p=>p.id===projectId)||null:null);
+  const [sel,setSel]=useState<Project|null>(projectId?getIndexedProject(projectId)||null:null);
   const [busy,setBusy]=useState(false);
-  const results=q.trim().length===0?[]:projects.filter(p=>{
-    const s=q.trim().toLowerCase();
-    return (p.werknummer||"").toLowerCase().includes(s)||(p.projectnr||"").toLowerCase().includes(s)||
-      (p.projectnaam||"").toLowerCase().includes(s)||(p.werkzaamheden||"").toLowerCase().includes(s);
-  }).slice(0,20);
-  const conflicts=sel?findConflicts(availability,employees,projects,emp,d,st,et,editId):[];
+  // Zoeken via de vooraf opgebouwde zoekindex, met harde limiet: nooit de volledige lijst mappen.
+  const results=useMemo(()=>searchIndexedProjects(q,20),[q]);
+  const dayRows=useMemo(()=>availability.filter(a=>a.employeeId===emp&&a.date===d),[availability,emp,d]);
+  const conflicts=sel?findConflicts(dayRows,employees,getIndexedProject,emp,d,st,et,editId):[];
   const blockers=blockingOnly(conflicts);
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
@@ -2382,8 +2388,8 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
 
 // ===== AFWEZIGHEID (vakantie, ziek, vrij, bezet) =====
 interface AbsenceDraft{periodeId?:string;employeeId:string;startDate:string;endDate:string;startTime:string;endTime:string;status:AvailStatus;note:string;wholeDay:boolean;}
-function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onClose}:{
-  employees:Employee[];availability:AvailEntry[];projects:Project[];draft:AbsenceDraft;
+function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];draft:AbsenceDraft;
   onSave:(d:AbsenceDraft)=>Promise<void>;onDelete?:(periodeId:string)=>Promise<void>;onClose:()=>void;
 }){
   const [f,setF]=useState<AbsenceDraft>(draft);
@@ -2392,7 +2398,7 @@ function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onC
   const st=f.wholeDay?"00:00":f.startTime,et=f.wholeDay?"23:59":f.endTime;
   const days=(f.startDate&&f.endDate&&f.startDate<=f.endDate)?getDatesInRange(new Date(f.startDate),new Date(f.endDate)):[];
   const own=f.periodeId?availability.filter(a=>a.periodeId===f.periodeId).map(a=>a.id):[];
-  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,projects,f.employeeId,d,st,et,own));
+  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,getIndexedProject,f.employeeId,d,st,et,own));
   const canSave=!!f.employeeId&&days.length>0&&st<et&&!busy;
   return <Modal title={f.periodeId?"Afwezigheid bewerken":"Afwezigheid toevoegen"} onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-4">
@@ -2427,8 +2433,8 @@ function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onC
   </Modal>;
 }
 // Conflicten voor een dag, meerdere eigen records uitgesloten (bij het bewerken van een periode)
-function findConflictsMulti(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
-  return findConflicts(av.filter(a=>!ignoreIds.includes(a.id)),employees,projects,empId,date,start,end);
+function findConflictsMulti(av:AvailEntry[],employees:Employee[],getProject:(id?:string|null)=>Project|undefined,empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
+  return findConflicts(av.filter(a=>a.employeeId===empId&&a.date===date&&!ignoreIds.includes(a.id)),employees,getProject,empId,date,start,end);
 }
 
 // ===== KLEUREN BEHEREN =====
@@ -2606,18 +2612,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
-  // Kleurbeheer over de VOLLEDIGE projectenlijst (nooit afhankelijk van filters/weergave).
-  // Alleen ontbrekende kleuren en duplicaten worden aangevuld; in één gebundelde save.
-  const savingColorsRef=useRef("");
-  useEffect(()=>{
-    const next=ensureProjectColors(projects,projectColors);
-    if(next===projectColors)return;
-    const sig=JSON.stringify(next);
-    if(savingColorsRef.current===sig)return;
-    savingColorsRef.current=sig;
-    onSaveSettings({...settings,projectColors:next});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[projects,settings.projectColors]);
+  // Geen kleurcontrole meer over de volledige projectenlijst bij het openen van dit scherm.
+  // Handmatige kleuren blijven leidend; ontbrekende kleuren komen deterministisch uit projectId.
   const borderColors=settings.borderColors||{};
   const badgeColors=settings.badgeColors||{};
   const holColor=holidayColorOf(settings);
@@ -2759,7 +2755,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const evaluate=(entries:AvailEntry[],extraIgnore:string[]=[]):PlanConflict[]=>{
     const ids=[...entries.map(e=>e.id),...extraIgnore];
     const base=availability.filter(a=>!ids.includes(a.id));
-    return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
+    return entries.flatMap(e=>findConflicts(base.filter(a=>a.employeeId===e.employeeId&&a.date===e.date),employees,getIndexedProject,e.employeeId,e.date,e.startTime,e.endTime));
   };
   const commitPlanning=async(entries:AvailEntry[],removeIds?:string[],checkFirst=false)=>{
     // Laatste controle: nooit opslaan voor een project buiten de actieve filter
@@ -3364,11 +3360,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>}
 
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
-    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
+    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
       onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
-    {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
+    {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
       projectId={planModal.projectId} editId={planModal.editId}
       onSave={async e=>{
@@ -3418,7 +3414,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </div>
       </div>
     </Modal>}
-    {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
+    {absModal&&<AbsenceModal employees={employees} availability={availability} draft={absModal}
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
       onClose={()=>setAbsModal(null)}/>}
