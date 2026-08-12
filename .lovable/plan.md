@@ -19,37 +19,43 @@ Er is dus geen verspreide database-code die eerst opgeschoond moet worden: de fa
 
 `.env` krijgt `VITE_DEMO_AUTH_MODE=true`. Eén gedeelde constante `DEMO_MODE` in `src/lib/demo-mode.ts` leest deze vlag, zodat er nergens verspreide checks nodig zijn.
 
-## 2. Demo-login
+## 2. Demo-login, strikt gescheiden van Supabase
 
-In `src/components/auth-gate.tsx` wordt DEMO MODE als eerste gecontroleerd, vóór alle Supabase-logica:
+`src/components/auth-gate.tsx` wordt gesplitst:
+
+- `DemoAuthGate` — importeert of initialiseert geen enkele Supabase-module. Werkt puur op `localStorage`.
+- `SupabaseAuthGate` — bevat de bestaande echte authenticatie, ongewijzigd, in een apart bestand.
+- `AuthGate` kiest alleen: `DEMO_MODE ? <DemoAuthGate/> : <SupabaseAuthGate/>`, waarbij `SupabaseAuthGate` via `React.lazy`/dynamische import pas geladen wordt als demo uit staat. In demo-modus wordt de Supabase-client dus nooit geïnitialiseerd. Types worden met `import type` gedeeld, wat geen runtime-code laadt.
+
+Gedrag van `DemoAuthGate`:
 
 - bestaande demosessie in `localStorage` (`maasmond-demo-session`) → app opent direct, ook na refresh;
 - geen demosessie → hetzelfde inlogscherm met E-mailadres, Code en knop Inloggen (één stap, geen validatie);
-- op Inloggen → demosessie opslaan → app opent meteen. Geen OTP, geen magic link, geen e-mail, geen Microsoft/tenantcontrole, geen enkele Supabase-auth-aanroep;
-- de demo-gebruiker krijgt alleen in de frontend `roles: ["beheerder"]`; er wordt niets naar `user_roles` geschreven en `bootstrapMyRole()` wordt niet aangeroepen;
+- op Inloggen → demosessie opslaan → app opent meteen. Geen OTP, magic link, e-mail, Microsoft/tenantcontrole;
+- de demo-gebruiker krijgt alleen in de frontend `roles: ["beheerder"]`; niets naar `user_roles`, geen `bootstrapMyRole()`;
 - uitloggen wist `maasmond-demo-session` en toont het inlogscherm; `maasmond-demo-data` blijft bewaard.
 
-De demo-branch komt vóór elke Supabase-aanroep, ook bij het opstarten: met `DEMO_MODE === true` worden `getSession()`, `getUser()`, `onAuthStateChange`, `bootstrapMyRole()` en de `user_roles`-query niet uitgevoerd — die staan achter een vroege return, niet in een effect dat toch al draait. Er ontstaat dus geen enkel verborgen auth-request. Met `DEMO_MODE === false` gebeurt uitsluitend het bestaande Supabase-authpad.
+Er draait in demo-modus dus geen `getSession()`, `getUser()`, `onAuthStateChange` of `user_roles`-query — die code wordt niet eens geladen.
 
-De bestaande echte inlogcode blijft ongewijzigd in het bestand staan voor later.
+## 3. Store-facade die alleen de actieve implementatie laadt
 
-## 3. Centrale store-facade met volledige API
-
-Nieuw bestand `src/lib/store.ts` kiest één keer de actieve store en exporteert daarnaast exact dezelfde named exports als `planning-store.ts` nu heeft, zodat de schermcode niet herschreven hoeft te worden:
+Nieuw bestand `src/lib/store.ts` exporteert exact dezelfde named exports als `planning-store.ts` nu heeft, zodat de schermcode niet herschreven hoeft te worden. De actieve implementatie wordt lazy geladen:
 
 ```
-const activeStore = DEMO_MODE ? demoPlanningStore : supabasePlanningStore
-export const store = activeStore
-export const loadAll = (...a) => activeStore.loadAll(...a)
-export const upsertRow = (...a) => activeStore.upsertRow(...a)
+const impl = () => DEMO_MODE
+  ? import("./demo-planning-store")
+  : import("./planning-store")   // alleen geladen als DEMO_MODE === false
+
+export const loadAll = async (...a) => (await impl()).loadAll(...a)
+export const upsertRow = async (...a) => (await impl()).upsertRow(...a)
 // ... idem voor elke bestaande publieke storefunctie
 ```
 
-Ook `EMPTY_META` en de gedeelde types (`PersonalNote`, `SettingsPathPatch`, `ProjectMeta`, `ProjectDocument`) worden doorgegeven, zodat de import in `planning-app.tsx` alleen van pad verandert.
+De module-promise wordt één keer gecachet. Zo wordt `planning-store.ts` (en daarmee de Supabase-client) in demo-modus nooit geïmporteerd of geïnitialiseerd. Types en constanten zoals `EMPTY_META`, `PersonalNote`, `SettingsPathPatch`, `ProjectMeta` en `ProjectDocument` komen uit een klein, Supabase-vrij typebestand met `import type`, zodat de import in `planning-app.tsx` alleen van pad verandert.
 
-De facade biedt de volledige publieke API die de app gebruikt of kan gebruiken: planning toevoegen/wijzigen/verwijderen, meerdere planningregels tegelijk (teamverplaatsing, resize, vaste vrije reeksen lopen allemaal via `savePlanningRows`/`upsertRows`/`deleteRow`), projectstatus, werken en medewerkers toevoegen/wijzigen, instellingen patchen, projectmeta, persoonlijke notities, archiveren/herstellen en de documentfuncties.
+De facade dekt de volledige publieke API: planning toevoegen/wijzigen/verwijderen, meerdere planningregels tegelijk (teamverplaatsing, resize, vaste vrije reeksen lopen allemaal via `savePlanningRows`/`upsertRows`/`deleteRow`), projectstatus, werken en medewerkers toevoegen/wijzigen, instellingen patchen, projectmeta, persoonlijke notities, archiveren/herstellen en de documentfuncties.
 
-`planning-app.tsx` importeert al alles op één regel; die import gaat naar de facade. Verder blijft de schermcode ongewijzigd. Het Realtime-kanaal wordt in demo-modus volledig overgeslagen (de `useEffect` doet niets als `DEMO_MODE` aan staat). Geen verborgen fallback naar Supabase: de demo-store raakt de netwerklaag nooit aan.
+`planning-app.tsx` importeert al alles op één regel; die import gaat naar de facade. Het Realtime-kanaal en de `supabase`-import in dat bestand worden achter dezelfde vlag gezet, zodat er in demo geen kanaal wordt geopend. Geen verborgen fallback naar Supabase.
 
 ## 4. Lokale demo-datalaag
 
