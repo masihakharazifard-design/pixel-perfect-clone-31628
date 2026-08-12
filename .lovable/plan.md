@@ -84,7 +84,7 @@ Alleen zichtbaar in demo-modus: onder Instellingen een knop **Demo resetten** me
 
 ## 7. Test in de browser
 
-Ik loop het scenario door met een echte browser: inloggen met willekeurige gegevens, Werken/Medewerkers/Personeelsplanning/Agenda controleren, medewerker inplannen, project slepen, projectkleur wijzigen, refreshen, uitloggen, opnieuw inloggen, en Demo resetten. Daarbij lees ik het netwerkverkeer uit en controleer ik dat er tijdens de hele demosessie geen enkel verzoek naar de database gaat voor werken, medewerkers, planning, instellingen, RPC's, opslag of auditlog.
+Ik loop het scenario door met een echte browser: inloggen met willekeurige gegevens, Werken/Medewerkers/Personeelsplanning/Agenda controleren, medewerker inplannen, project slepen, projectkleur wijzigen, refreshen, uitloggen, opnieuw inloggen, en Demo resetten. Daarbij lees ik het volledige netwerkverkeer uit en controleer ik dat er tijdens de hele demosessie geen enkel verzoek naar het backendproject gaat — niet voor auth, niet voor database/REST, niet voor RPC's, niet voor opslag en ook geen realtime-websocket. De demo draait dus volledig standalone in de browser.
 
 ## Technische notities
 
