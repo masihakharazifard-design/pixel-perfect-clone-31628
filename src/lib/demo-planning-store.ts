@@ -1,0 +1,227 @@
+// DEMO MODE datalaag: alles in localStorage, geen enkel netwerkverzoek.
+import { makeDemoSeed, DEMO_DATA_VERSION, type DemoData } from "./demo-seed";
+import {
+  EMPTY_META,
+  type LoadAllResult,
+  type PersonalNote,
+  type ProjectDocument,
+  type ProjectMeta,
+  type SettingsPathPatch,
+  type SyncTable,
+  type WithId,
+} from "./store-types";
+
+const KEY = "maasmond-demo-data";
+
+function read(): DemoData {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DemoData;
+      if (parsed && parsed.version === DEMO_DATA_VERSION) return parsed;
+    }
+  } catch {
+    /* beschadigde demo-data: terugvallen op de seed */
+  }
+  const seed = makeDemoSeed();
+  write(seed);
+  return seed;
+}
+
+function write(data: DemoData): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+  } catch {
+    /* opslag vol of geblokkeerd: demo blijft in het geheugen werken */
+  }
+}
+
+function mutate(fn: (d: DemoData) => void): DemoData {
+  const d = read();
+  fn(d);
+  write(d);
+  return d;
+}
+
+export function resetDemoData(): void {
+  write(makeDemoSeed());
+}
+
+export async function loadAll<P extends WithId, E extends WithId, A extends WithId, S>(): Promise<
+  LoadAllResult<P, E, A, S>
+> {
+  const d = read();
+  return {
+    projects: d.projects as unknown as P[],
+    employees: d.employees as unknown as E[],
+    availability: d.availability as unknown as A[],
+    settings: (d.settings as S) ?? null,
+    settingsUpdatedAt: d.settingsUpdatedAt ?? null,
+    empty: d.projects.length === 0 && d.employees.length === 0 && d.availability.length === 0,
+  };
+}
+
+function listOf(d: DemoData, table: SyncTable): { id: string }[] {
+  if (table === "projects") return d.projects;
+  if (table === "employees") return d.employees;
+  return d.availability;
+}
+
+export async function upsertRows<T extends WithId>(table: SyncTable, items: T[]): Promise<T[]> {
+  if (items.length === 0) return [];
+  mutate((d) => {
+    const list = listOf(d, table);
+    items.forEach((item) => {
+      const i = list.findIndex((r) => r.id === item.id);
+      if (i >= 0) list[i] = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
+      else list.push({ ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string });
+    });
+  });
+  return items;
+}
+
+export async function upsertRow<T extends WithId>(table: SyncTable, item: T): Promise<T> {
+  await upsertRows(table, [item]);
+  return item;
+}
+
+export async function deleteRows(table: SyncTable, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  mutate((d) => {
+    const keep = listOf(d, table).filter((r) => !ids.includes(r.id));
+    if (table === "projects") d.projects = keep as DemoData["projects"];
+    else if (table === "employees") d.employees = keep as DemoData["employees"];
+    else d.availability = keep as DemoData["availability"];
+  });
+}
+
+export async function deleteRow(table: SyncTable, id: string): Promise<void> {
+  await deleteRows(table, [id]);
+}
+
+export async function savePlanningRows<A extends WithId>(
+  upserts: A[],
+  deleteIds: string[] = [],
+  actie = "planning_gewijzigd",
+): Promise<void> {
+  mutate((d) => {
+    if (deleteIds.length) {
+      d.availability = d.availability.filter((r) => !deleteIds.includes(r.id)) as DemoData["availability"];
+    }
+    upserts.forEach((item) => {
+      const row = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
+      const i = d.availability.findIndex((r) => r.id === item.id);
+      if (i >= 0) d.availability[i] = row;
+      else d.availability.push(row);
+    });
+    d.audit.unshift({ actie, tijd: new Date().toISOString(), aantal: upserts.length + deleteIds.length });
+    d.audit = d.audit.slice(0, 200);
+  });
+}
+
+export async function setProjectStatusDb(projectId: string, status: string): Promise<void> {
+  mutate((d) => {
+    const p = d.projects.find((r) => r.id === projectId) as Record<string, unknown> | undefined;
+    if (p) p.status = status;
+    d.audit.unshift({ actie: "status_gewijzigd", tijd: new Date().toISOString(), projectId, status });
+  });
+}
+
+export async function archiveRecord(
+  table: "projects" | "employees",
+  recordId: string,
+  archive: boolean,
+): Promise<void> {
+  mutate((d) => {
+    const rec = listOf(d, table).find((r) => r.id === recordId) as Record<string, unknown> | undefined;
+    if (rec) rec.archived_at = archive ? new Date().toISOString() : null;
+  });
+}
+
+export async function bootstrapMyRole(): Promise<string | null> {
+  return "beheerder";
+}
+
+export async function patchSettings(
+  changes: Record<string, unknown> = {},
+  paths: SettingsPathPatch[] = [],
+): Promise<Record<string, unknown> | null> {
+  const d = mutate((data) => {
+    const s: Record<string, unknown> = { ...((data.settings as Record<string, unknown>) ?? {}) };
+    Object.entries(changes).forEach(([k, v]) => {
+      s[k] = v;
+    });
+    paths.forEach((p) => {
+      if (!p.path.length) return;
+      let node = s;
+      for (let i = 0; i < p.path.length - 1; i++) {
+        const key = p.path[i];
+        const next = node[key];
+        node[key] = next && typeof next === "object" && !Array.isArray(next) ? { ...(next as object) } : {};
+        node = node[key] as Record<string, unknown>;
+      }
+      const last = p.path[p.path.length - 1];
+      if (p.remove) delete node[last];
+      else node[last] = p.value;
+    });
+    data.settings = s;
+    data.settingsUpdatedAt = new Date().toISOString();
+  });
+  return (d.settings as Record<string, unknown>) ?? null;
+}
+
+export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | null> {
+  const d = read();
+  return ((d.projectMeta as Record<string, ProjectMeta>)[projectId] as ProjectMeta) ?? null;
+}
+
+export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
+  mutate((d) => {
+    (d.projectMeta as Record<string, ProjectMeta>)[projectId] = { ...EMPTY_META, ...meta };
+  });
+}
+
+const DEMO_DOC_MSG = "Documentupload is niet beschikbaar in de demo-omgeving.";
+
+export async function listProjectDocuments(_projectId: string): Promise<ProjectDocument[]> {
+  return [];
+}
+
+export async function uploadProjectDocument(_projectId: string, _file: File): Promise<ProjectDocument> {
+  throw new Error(DEMO_DOC_MSG);
+}
+
+export async function projectDocumentUrl(_pad: string): Promise<string> {
+  throw new Error(DEMO_DOC_MSG);
+}
+
+export async function deleteProjectDocument(_doc: ProjectDocument): Promise<void> {
+  throw new Error(DEMO_DOC_MSG);
+}
+
+export async function loadPersonalNotes(): Promise<PersonalNote[]> {
+  const d = read();
+  return [...(d.notes as PersonalNote[])].sort((a, b) => (a.datum < b.datum ? 1 : -1));
+}
+
+export async function savePersonalNote(
+  _ownerId: string,
+  datum: string,
+  tekst: string,
+  id?: string,
+): Promise<PersonalNote> {
+  const note: PersonalNote = { id: id ?? `note-${Date.now()}-${Math.round(Math.random() * 1e6)}`, datum, tekst };
+  mutate((d) => {
+    const notes = d.notes as PersonalNote[];
+    const i = notes.findIndex((n) => n.id === note.id);
+    if (i >= 0) notes[i] = note;
+    else notes.unshift(note);
+  });
+  return note;
+}
+
+export async function deletePersonalNote(id: string): Promise<void> {
+  mutate((d) => {
+    d.notes = (d.notes as PersonalNote[]).filter((n) => n.id !== id);
+  });
+}
