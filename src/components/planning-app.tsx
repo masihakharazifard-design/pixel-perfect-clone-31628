@@ -1008,7 +1008,7 @@ function mapVacStatus(raw:string):AvailStatus{
 
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
-  onImport:(entries:AvailEntry[])=>void;onClose:()=>void;
+  onImport:(entries:AvailEntry[])=>void|Promise<void>;onClose:()=>void;
 }){
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [preview,setPreview]=useState<VacPreview|null>(null);
