@@ -193,9 +193,10 @@ export async function savePlanningRows<A extends WithId>(
 }
 
 export async function setProjectStatusDb(projectId: string, status: string): Promise<void> {
+  await ensureProjectsInIdb();
+  const p = await getDemoProject<Rec>(projectId);
+  if (p) await putDemoProjects([{ ...p, status }]);
   mutate((d) => {
-    const p = d.projects.find((r) => r.id === projectId) as Record<string, unknown> | undefined;
-    if (p) p.status = status;
     d.audit.unshift({ actie: "status_gewijzigd", tijd: new Date().toISOString(), projectId, status });
   });
 }
@@ -205,11 +206,19 @@ export async function archiveRecord(
   recordId: string,
   archive: boolean,
 ): Promise<void> {
+  const stamp = archive ? new Date().toISOString() : null;
+  if (table === "projects") {
+    await ensureProjectsInIdb();
+    const p = await getDemoProject<Rec>(recordId);
+    if (p) await putDemoProjects([{ ...p, archived_at: stamp }]);
+    return;
+  }
   mutate((d) => {
     const rec = listOf(d, table).find((r) => r.id === recordId) as Record<string, unknown> | undefined;
-    if (rec) rec.archived_at = archive ? new Date().toISOString() : null;
+    if (rec) rec.archived_at = stamp;
   });
 }
+
 
 export async function bootstrapMyRole(): Promise<string | null> {
   return "beheerder";
