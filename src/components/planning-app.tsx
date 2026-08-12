@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, type PersonalNote, type SettingsPathPatch } from "@/lib/store";
+import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
