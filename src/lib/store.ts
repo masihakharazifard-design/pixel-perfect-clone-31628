@@ -125,5 +125,5 @@ export async function deletePersonalNote(id: string): Promise<void> {
 export async function resetDemoData(): Promise<void> {
   if (!DEMO_MODE) return;
   const mod = await import("./demo-planning-store");
-  mod.resetDemoData();
+  await mod.resetDemoData();
 }
