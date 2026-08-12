@@ -80,7 +80,7 @@ Nieuw bestand `src/lib/demo-planning-store.ts` met exact dezelfde functienamen, 
 
 Documenten in demo: upload wordt zichtbaar uitgeschakeld. Bij een poging verschijnt de melding "Documentupload is niet beschikbaar in de demo-omgeving." Er gaat geen bestand naar de server, er wordt geen base64/data-URL in `localStorage` gezet en er verschijnt nooit een geslaagd-melding. Eventuele demo-documentnamen worden alleen als voorbeeldmetadata getoond. `localStorage` blijft uitsluitend voor lichte JSON: werken, medewerkers, availability, instellingen, projectmeta, notities en het demo-auditlog. Echte demo-bestandsopslag (bijvoorbeeld via IndexedDB) valt buiten dit plan en kan later toegevoegd worden als het nodig blijkt.
 
-Nieuw bestand `src/lib/demo-seed.ts` bevat de startdataset, gebaseerd op de bestaande voorbeelddata `INIT_PROJ`, `INIT_EMP` en `INIT_AVAIL` uit `planning-app.tsx` plus standaardinstellingen, en exporteert `DEMO_DATA_VERSION = 1`. Deze data gaat nooit naar Supabase.
+Nieuw bestand `src/lib/demo-seed.ts` bevat de volledige startdataset: de voorbeelddata wordt uit `planning-app.tsx` naar dit bestand verplaatst en daar als `INIT_PROJ`, `INIT_EMP` en `INIT_AVAIL` gedefinieerd, plus standaardinstellingen en `DEMO_DATA_VERSION = 1`. De demo-store importeert deze data uitsluitend uit `demo-seed.ts` en nooit uit `planning-app.tsx`, zodat er geen circulaire afhankelijkheid tussen UI en demo-store ontstaat. Als `planning-app.tsx` deze data zelf nog nodig heeft, importeert het scherm ze voortaan uit `demo-seed.ts`. Deze data gaat nooit naar Supabase.
 
 De opgeslagen `maasmond-demo-data` bevat altijd een `version`-veld. `loadAll()` in demo-modus:
 
