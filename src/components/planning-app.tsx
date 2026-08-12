@@ -3102,7 +3102,9 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     isHidden:p=>String(p.status||"").trim().toLowerCase()==="afgerond",
     getAfdelingen:p=>getAllAfds(p as Project),
   }),[]);
-  const planningVersion=useMemo(()=>availability.length+avIdx.planByProjectId.size,[avIdx]);
+  // Verandert alleen na een echte planningwijziging (nieuwe availability-referentie).
+  const planningVersionRef=useRef(0);
+  const planningVersion=useMemo(()=>++planningVersionRef.current,[avIdx]);
   // Zware renderdata wordt uitsluitend voor de zichtbare (max 100) rijen opgebouwd.
   const openRowData=useCallback((p:Project)=>{
     const n=avIdx.plannedCountByProject.get(p.id)||0;
