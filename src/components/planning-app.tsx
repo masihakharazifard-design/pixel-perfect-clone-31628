@@ -3617,6 +3617,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
           </div>
         ))}
+        {openProjectsAll.length>OPEN_LIMIT&&<p className="px-4 py-2 text-xs text-[#6B7A99]">Verfijn je zoekopdracht om meer resultaten te zien.</p>}
       </div>}
     </div>
 
