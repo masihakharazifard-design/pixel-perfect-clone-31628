@@ -850,94 +850,50 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const parseFile=async(file:File)=>{
     if(busyRef.current)return;
     busyRef.current=true;
-    setLoading(true);setParseError("");
+    setLoading(true);setProgress(0);setParseError("");
+    const finish=()=>{
+      setLoading(false);busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+      workerRef.current?.terminate();workerRef.current=null;
+    };
     try{
-        const buf=await file.arrayBuffer();
-        const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
-
-        // Find header row: look for row containing "medewerker", "naam" or "startdatum"
-        let headerIdx=-1;
-        for(let i=0;i<Math.min(raw.length,20);i++){
-          const row=raw[i] as unknown[];
-          const cells=row.map(c=>cellStr(c).toLowerCase());
-          if(cells.some(c=>c==="medewerker"||c==="naam"||c.includes("startdatum"))){headerIdx=i;break;}
-        }
-        if(headerIdx===-1){
-          // Try looser: any row with "naam" somewhere
-          for(let i=0;i<Math.min(raw.length,20);i++){
-            const row=raw[i] as unknown[];
-            if(row.some(c=>cellStr(c).toLowerCase().includes("naam"))){headerIdx=i;break;}
-          }
-        }
-        if(headerIdx===-1){setParseError("Geen headerrij gevonden. Voeg een rij toe met 'Medewerker', 'Naam' of 'Startdatum'.");setLoading(false);return;}
-
-        const headers=(raw[headerIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-        const ci=(names:string[])=>{for(const n of names){const i=headers.indexOf(n);if(i>=0)return i;}return -1;};
-        const colNaam=ci(["medewerker","naam","name","employee","werknemer"]);
-        const colStart=ci(["startdatum","start datum","start","van"]);
-        const colEind=ci(["einddatum","eind datum","eind","end","tot","t/m"]);
-        const colStartT=ci(["starttijd","start tijd","begintijd","van tijd","time start"]);
-        const colEindT=ci(["eindtijd","eind tijd","eindigd","tot tijd","time end"]);
-        const colType=ci(["type","reden","status","soort","categorie"]);
-        const colNote=ci(["notitie","opmerking","note","toelichting"]);
-
-        if(colNaam===-1&&colStart===-1){setParseError("Kolommen 'Medewerker/Naam' en 'Startdatum' niet gevonden in de header.");setLoading(false);return;}
-
-        const rows:VacRow[]=[];
-        raw.slice(headerIdx+1).forEach((rawRow,relIdx)=>{
-          const row=rawRow as unknown[];
-          if(!row||row.every(c=>c==null||cellStr(c)===""))return;
-          const absRow=headerIdx+2+relIdx;
-
-          const rawName=colNaam>=0?cellStr(row[colNaam]):"";
-          const rawStart=colStart>=0?row[colStart]:null;
-          const rawEind=colEind>=0?row[colEind]:null;
-          const rawStartT=colStartT>=0?row[colStartT]:null;
-          const rawEindT=colEindT>=0?row[colEindT]:null;
-          const rawType=colType>=0?cellStr(row[colType]):"";
-          const rawNote=colNote>=0?cellStr(row[colNote]):"";
-
-          const startISO=parseXlDate(rawStart as string|number|null);
-          const eindISO=parseXlDate(rawEind as string|number|null)||startISO;
-          const startTime=parseTimeCell(rawStartT)||"08:00";
-          const endTime=parseTimeCell(rawEindT)||"17:00";
-          const hasExplicitTimes=!!(parseTimeCell(rawStartT)||parseTimeCell(rawEindT));
-          const status=mapVacStatus(rawType);
-          const note=rawNote;
-
-          let invalidReason="";
-          if(!rawName&&colNaam>=0)invalidReason=`Rij ${absRow}: Medewerker naam ontbreekt`;
-          else if(!startISO)invalidReason=`Rij ${absRow}: Startdatum ontbreekt of ongeldig`;
-
-          const startDate=startISO?startISO.split("T")[0]:"";
-          const endDate=eindISO?eindISO.split("T")[0]:startDate;
-
-          const{emp,ambiguous}=matchEmployee(rawName);
+      const buf=await file.arrayBuffer();
+      const worker=createImportWorker();
+      workerRef.current=worker;
+      worker.onmessage=(ev:MessageEvent<ImportWorkerResponse>)=>{
+        const msg=ev.data;
+        if(msg.type==="progress"){setProgress(msg.pct);return;}
+        if(msg.type==="error"){setParseError(msg.message);finish();return;}
+        if(msg.type!=="avail")return;
+        // Medewerkermatching, duplicaten en conflicten: alleen op de hoofdthread mogelijk
+        const rows:VacRow[]=msg.rows.map((b:VacBaseRow)=>{
+          const{emp,ambiguous}=matchEmployee(b.rawName);
           let conflicts:{date:string;project:Project}[]=[];
           let duplicateDates:string[]=[];
           let entriesToCreate:AvailEntry[]=[];
-
-          if(!invalidReason&&emp&&startDate){
-            const allEntries=buildEntries(emp,startDate,endDate,startTime,endTime,status,note);
+          const status=b.status as AvailStatus;
+          if(!b.invalidReason&&emp&&b.startDate){
+            const allEntries=buildEntries(emp,b.startDate,b.endDate,b.startTime,b.endTime,status,b.note);
             entriesToCreate=allEntries.filter(e=>!isDuplicate(e));
             duplicateDates=allEntries.filter(e=>isDuplicate(e)).map(e=>e.date);
-            conflicts=findConflicts(emp,startDate,endDate);
+            conflicts=findConflicts(emp,b.startDate,b.endDate);
           }
-
-          rows.push({rowIndex:absRow,rawName,matchedEmployee:emp,ambiguous,startDate,endDate,startTime,endTime,hasExplicitTimes,status,note,invalidReason,conflicts,duplicateDates,entriesToCreate});
+          return{...b,status,matchedEmployee:emp,ambiguous,conflicts,duplicateDates,entriesToCreate};
         });
-
-        setPreview({total:rows.length,rows});
+        setPreview({total:msg.total,rows});
         setStep("preview");
-    }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
-    finally{
-      setLoading(false);
-      busyRef.current=false;
-      if(fileRef.current)fileRef.current.value="";
+        finish();
+      };
+      worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand.");finish();};
+      const req:ImportWorkerRequest={mode:"avail",buffer:buf};
+      worker.postMessage(req,[buf]);
+    }catch(err){
+      console.error(err);
+      setParseError("Fout bij het lezen van het bestand.");
+      finish();
     }
   };
+
 
   const handleImport=async()=>{
     if(!preview||importing)return;
