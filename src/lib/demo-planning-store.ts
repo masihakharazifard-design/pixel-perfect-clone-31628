@@ -1,5 +1,14 @@
-// DEMO MODE datalaag: alles in localStorage, geen enkel netwerkverzoek.
+// DEMO MODE datalaag.
+// Projecten staan altijd in IndexedDB (één record per project); de overige,
+// kleine demo-data staat in localStorage. Geen enkel netwerkverzoek.
 import { makeDemoSeed, DEMO_DATA_VERSION, type DemoData } from "./demo-seed";
+import {
+  deleteDemoProjects,
+  getDemoProject,
+  loadDemoProjects,
+  putDemoProjects,
+  resetDemoProjects,
+} from "./demo-idb";
 import {
   EMPTY_META,
   type LoadAllResult,
@@ -10,6 +19,10 @@ import {
   type SyncTable,
   type WithId,
 } from "./store-types";
+
+type Rec = { id: string } & Record<string, unknown>;
+type DemoDataV2 = DemoData & { projectsInIdb?: boolean };
+
 
 const KEY = "maasmond-demo-data";
 
