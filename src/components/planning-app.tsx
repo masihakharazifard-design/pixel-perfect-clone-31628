@@ -1147,16 +1147,20 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
         setPreview({total:rows.length,rows});
         setStep("preview");
-      }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
+    }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
+    finally{
       setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+      busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+    }
   };
 
-  const handleImport=()=>{
-    if(!preview)return;
+  const handleImport=async()=>{
+    if(!preview||importing)return;
     const all=preview.rows.flatMap(r=>r.matchedEmployee&&!r.ambiguous&&!r.invalidReason?r.entriesToCreate:[]);
-    onImport(all);
+    setImporting(true);
+    try{await onImport(all);}
+    finally{setImporting(false);}
   };
 
   if(!preview||step==="upload")return <Modal title="Beschikbaarheid importeren" onClose={onClose} width="max-w-xl">
