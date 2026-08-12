@@ -24,7 +24,11 @@ function read(): DemoData {
     /* beschadigde demo-data: terugvallen op de seed */
   }
   const seed = makeDemoSeed();
-  write(seed);
+  try {
+    write(seed);
+  } catch {
+    /* opslag vol bij initialisatie: demo draait dan in het geheugen */
+  }
   return seed;
 }
 
