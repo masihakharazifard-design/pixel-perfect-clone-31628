@@ -3071,6 +3071,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
+  // Datums van de zichtbare periode: de basis voor alle periode-afhankelijke berekeningen.
+  const visibleDateStrings=useMemo(()=>(
+    periodStart&&periodEnd?getDatesInRange(new Date(periodStart),new Date(periodEnd)):[]
+  ),[periodStart?.getTime(),periodEnd?.getTime()]);
+
   // ===== Doorlopende meerdaagse balken =====
   // Alleen regels met hetzelfde reeksId (of aantoonbaar dezelfde doortrekactie) worden
   // visueel aan elkaar geplakt. Zonder reeksId blijft elke regel een los blok.
@@ -3089,29 +3094,35 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return{prev:visDates.has(pd)&&linkedOn(row,pd),next:visDates.has(nd)&&linkedOn(row,nd)};
   };
 
-  // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
-  // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
-  // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
-  // inplannen op exact dezelfde positie blijft staan.
-  const openProjectsAll=useMemo(()=>{
-    const q=openZoek.trim().toLowerCase();
-    return visProjects.filter(p=>{
-      if(String(p.status||"").trim().toLowerCase()==="afgerond")return false;
-      if(!q)return true;
-      return `${p.werknummer} ${p.projectnr||""} ${p.projectnaam} ${p.opdrachtgever||""}`.toLowerCase().includes(q);
-    });
-  },[visProjects,openZoek]);
-  // Alleen de eerste 100 resultaten renderen; zoeken doorzoekt de volledige lijst.
-  const openProjects=openProjectsAll.slice(0,OPEN_LIMIT).map(p=>{
-    const n=assignedEmpIds(availability,p.id).length;
+  // ===== Openstaande werken =====
+  // Querygebaseerd (max 100 resultaten renderen, alles blijft vindbaar) en losgekoppeld
+  // van de planning-render: het paneel hertekent niet mee met celinteracties.
+  const openProjectsProvider=useMemo<OpenProjectsProvider<Project>>(()=>createIndexOpenProjectsProvider<Project>({
+    index:projectIndex,
+    isHidden:p=>String(p.status||"").trim().toLowerCase()==="afgerond",
+    getAfdelingen:p=>getAllAfds(p as Project),
+  }),[]);
+  const planningVersion=useMemo(()=>availability.length+avIdx.planByProjectId.size,[avIdx]);
+  // Zware renderdata wordt uitsluitend voor de zichtbare (max 100) rijen opgebouwd.
+  const openRowData=useCallback((p:Project)=>{
+    const n=avIdx.plannedCountByProject.get(p.id)||0;
     const nodig=benodigd(p);
-    return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  });
+    const st=planStatusOf(p,availability);
+    const rest=Math.max(0,nodig-n);
+    return{
+      title:`${p.werknummer} – ${p.projectnaam}`,
+      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.werkzaamheden||"—"}`,
+      color:projectPlanningColorOf(p.id,projectColors),
+      badgeStyle:badgeStyle(st,badgeColors),
+      statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
+      countLabel:`${n}/${nodig}`,
+    };
+  },[avIdx,projectColors,badgeColors,availability]);
 
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   // Alleen de zichtbare periode wordt verwerkt (nooit alle planningregels).
-  planRows(avIdx.forDates(dates.map(toDateStr))).forEach(a=>{
+  planRows(avIdx.forDates(visibleDateStrings)).forEach(a=>{
     const ids=teamForDay(availability,a.projectId||"",a.date);
     if(ids.length<2)return;
     const key=teamKey(a.projectId||"",a.date,ids);
@@ -3316,38 +3327,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>
     )}
 
-    {/* ===== Openstaande projecten ===== */}
-    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-      <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
-        <div className="flex items-center gap-3">
-          <input value={openZoek} onChange={e=>setOpenZoek(e.target.value)} placeholder="Zoek werk…"
-            className="py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
-          <span className="text-xs text-[#6B7A99]">{openProjectsAll.length} werk{openProjectsAll.length!==1?"en":""} · sleep naar een cel</span>
-        </div>
-      </div>
-      {openProjectsAll.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
-
-      :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
-        {openProjects.map(({p,st,n,nodig,rest})=>(
-          <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
-            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}}/>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
-              <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>
-              {PLAN_STATUS_LABEL[st]}{rest>0?` · nog ${rest}`:""}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>{n}/{nodig}</span>
-            <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
-            <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
-          </div>
-        ))}
-        {openProjectsAll.length>OPEN_LIMIT&&<p className="px-4 py-2 text-xs text-[#6B7A99]">Verfijn je zoekopdracht om meer resultaten te zien.</p>}
-      </div>}
-    </div>
+    {/* ===== Openstaande werken ===== */}
+    <OpenProjectsPanel<Project> openProjectsProvider={openProjectsProvider} afdelingenKey={afdKey}
+      projectVersion={projVersion} planningVersion={planningVersion} getRowData={openRowData}
+      onOpen={onOpenProject} onPlan={p=>setProjMenu(p)}
+      onDragStartProject={id=>setDragProject(id)} onDragEndProject={()=>setDragProject(null)}/>
 
     <div className="flex items-center gap-4 flex-wrap">
       {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
