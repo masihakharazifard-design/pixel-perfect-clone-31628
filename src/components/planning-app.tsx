@@ -852,14 +852,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
     <div className="p-4 md:p-6 space-y-4">
       {step==="upload"&&<>
         <p className="text-sm text-[#6B7A99]">Upload uw originele Excel-bestand. De importer leest de kolommen op positie — u hoeft niets te hernoemen of te herordenen.</p>
-        <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
+        <div className={`border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center transition-colors ${loading?"opacity-60 cursor-not-allowed":"hover:border-[#0ABFB8] cursor-pointer"}`} onClick={()=>{if(!loading)fileRef.current?.click();}}>
           <Table2 className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
           <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
           <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-            onChange={e=>{if(e.target.files?.[0])parseFile(e.target.files[0]);}}/>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading}
+            onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
         </div>
-        {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
+        {loading&&<div className="space-y-2">
+          <p className="text-center text-sm text-[#6B7A99]">Excelbestand verwerken… {progress}%</p>
+          <div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div>
+        </div>}
         {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
         <div className="bg-[#F0F3F8] rounded-xl p-4 space-y-3 text-xs">
           <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
