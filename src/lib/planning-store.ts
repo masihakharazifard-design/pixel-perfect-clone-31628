@@ -1,13 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { EMPTY_META, type PersonalNote, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
-type WithId = { id: string };
 
-const TABLES = ["projects", "employees", "availability"] as const;
-export type SyncTable = (typeof TABLES)[number];
+export { EMPTY_META };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable };
 
 const SETTINGS_ID = "default";
+
 
 async function fetchTable<T extends WithId>(table: SyncTable): Promise<T[]> {
   const query = supabase.from(table).select("id, data");
@@ -109,13 +110,6 @@ export async function bootstrapMyRole(): Promise<string | null> {
 }
 
 // ===== Instellingen: atomair patchen, ook binnen geneste objecten =====
-export interface SettingsPathPatch {
-  /** Pad binnen de instellingen, bijv. ["projectColors","proj-1"] */
-  path: string[];
-  value?: unknown;
-  remove?: boolean;
-}
-
 export async function patchSettings(
   changes: Record<string, unknown> = {},
   paths: SettingsPathPatch[] = [],
@@ -131,14 +125,6 @@ export async function patchSettings(
 }
 
 // ===== Projectgegevens (facturatietermijnen, notities) =====
-export interface ProjectMeta {
-  docs: string[];
-  termijnen: Record<string, boolean>;
-  notities: string;
-}
-
-export const EMPTY_META: ProjectMeta = { docs: [], termijnen: {}, notities: "" };
-
 export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | null> {
   const { data, error } = await supabase
     .from("project_meta")
@@ -158,16 +144,6 @@ export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Pro
 
 // ===== Documenten per werk (echte bestandsopslag) =====
 const DOC_BUCKET = "project-documents";
-
-export interface ProjectDocument {
-  id: string;
-  project_id: string;
-  bestandsnaam: string;
-  pad: string;
-  mimetype: string | null;
-  grootte: number | null;
-  created_at: string;
-}
 
 export async function listProjectDocuments(projectId: string): Promise<ProjectDocument[]> {
   const { data, error } = await supabase
@@ -219,12 +195,6 @@ export async function deleteProjectDocument(doc: ProjectDocument): Promise<void>
 }
 
 // ===== Persoonlijke notities (privé per ingelogde gebruiker) =====
-export interface PersonalNote {
-  id: string;
-  datum: string;
-  tekst: string;
-}
-
 export async function loadPersonalNotes(): Promise<PersonalNote[]> {
   const { data, error } = await supabase
     .from("personal_notes")
