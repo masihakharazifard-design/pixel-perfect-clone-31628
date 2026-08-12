@@ -1,13 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { EMPTY_META, type PersonalNote, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
-type WithId = { id: string };
 
-const TABLES = ["projects", "employees", "availability"] as const;
-export type SyncTable = (typeof TABLES)[number];
+export { EMPTY_META };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable };
 
 const SETTINGS_ID = "default";
+
 
 async function fetchTable<T extends WithId>(table: SyncTable): Promise<T[]> {
   const query = supabase.from(table).select("id, data");
