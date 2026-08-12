@@ -909,10 +909,11 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
+        {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} projectnummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuw.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuw.length})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuw.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
+            {preview.nieuw.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
               <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.projectnr}</span>
               <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
@@ -923,31 +924,34 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               }
               {r.startdatum&&<span className="text-[#B8C3D9] flex-shrink-0">{fmtDate(r.startdatum)}</span>}
             </div>)}
+            {preview.nieuw.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuw.length-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.bestaand.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaand.length})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaand.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
+            {preview.bestaand.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
               <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
             </div>)}
+            {preview.bestaand.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaand.length-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.ongeldig.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldig.length})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldig.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
+            {preview.ongeldig.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
               <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
+            {preview.ongeldig.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldig.length-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={preview.nieuw.length+preview.bestaand.length===0}>
+          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuw.length+preview.bestaand.length===0}>
             <Download className="w-4 h-4"/>
-            {preview.nieuw.length+preview.bestaand.length} project{preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren
+            {importing?"Bezig met importeren…":`${preview.nieuw.length+preview.bestaand.length} project${preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
