@@ -561,8 +561,18 @@ interface ImportRow {
   invalidReason:string;   // Non-empty = invalid row
 }
 interface ImportPreview {
-  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number;
+  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number; duplicaten:number;
 }
+
+// Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
+const PREVIEW_LIMIT=20;
+// Rijen per verwerkingsblok; tussen blokken krijgt de browser even lucht
+const CHUNK=500;
+const yieldToBrowser=()=>new Promise<void>(res=>{
+  if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>res());
+  else setTimeout(res,0);
+});
+
 
 // Resolve raw department string → Afdeling[]
 function resolveDept(raw:string):{afdelingen:Afdeling[];turnkey:boolean}{
