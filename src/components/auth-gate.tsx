@@ -107,7 +107,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   // Accounts buiten het Maasmond-domein krijgen geen toegang.
   useEffect(() => {
-    if (user && !domeinOk) {
+    if (!LOGIN_UITGESCHAKELD && user && !domeinOk) {
       setMelding("Alleen accounts van maasmond.nl hebben toegang tot deze planning.");
       void supabase.auth.signOut();
     }
