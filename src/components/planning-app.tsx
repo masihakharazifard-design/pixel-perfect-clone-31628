@@ -543,25 +543,13 @@ function ConfirmModal({message,onConfirm,onCancel,confirmLabel="Verwijderen",con
 }
 
 // ===== EXCEL IMPORT MODAL =====
-interface ImportRow {
-  projectnr:string;       // Projectnr. — unique key for dedup
-  projectnaam:string;     // First Omschrijving column
-  opdrachtgever:string;   // Naam opdrachtgever
-  contactpersoon:string;  // Contactpersoon
-  projectleider:string;   // Kolom K (index 10)
-  startdatum:string;      // Startdatum + Starttijd (ISO datetime)
-  einddatum:string;       // Einddatum + Eindtijd (ISO datetime)
-  datumOpdracht:string;   // Datum opdracht (alleen informatief)
-  werknummer:string;      // Werknr. (may be empty)
-  werkzaamheden:string;   // Kolom J (index 9) — exacte tekst
-  rawDept:string;         // Kolom J — bron voor afdelingsherkenning
-  afdelingen:Afdeling[];  // Resolved departments
-  turnkey:boolean;
-  rowIndex:number;        // 1-based Excel row number for error messages
-  invalidReason:string;   // Non-empty = invalid row
-}
+// Parsing gebeurt volledig in een Web Worker (src/workers/excel-import.worker.ts).
+// De UI houdt alleen tellingen en maximaal 20 voorbeeldregels per lijst in state;
+// de volledige regels blijven in een ref en komen nooit in de React-state.
 interface ImportPreview {
-  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number; duplicaten:number;
+  total:number; duplicaten:number;
+  nieuwCount:number; bestaandCount:number; ongeldigCount:number;
+  nieuwSample:ImportRow[]; bestaandSample:ImportRow[]; ongeldigSample:ImportRow[];
 }
 
 // Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
@@ -569,98 +557,8 @@ const PREVIEW_LIMIT=20;
 // Maximaal aantal gerenderde regels in "Openstaande werken" en rijen per pagina in Werken
 const OPEN_LIMIT=100;
 const PAGE_SIZE=50;
-// Rijen per verwerkingsblok; tussen blokken krijgt de browser even lucht
-const CHUNK=500;
-const yieldToBrowser=()=>new Promise<void>(res=>{
-  if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>res());
-  else setTimeout(res,0);
-});
 
-
-// Resolve raw department string → Afdeling[]
-function resolveDept(raw:string):{afdelingen:Afdeling[];turnkey:boolean}{
-  const s=raw.toLowerCase().trim();
-  if(!s)return{afdelingen:["Stoffering"],turnkey:false};
-  if(s==="turnkey")return{afdelingen:["Stoffering","Schilderwerk","Zonwering"],turnkey:true};
-  if(s.includes("combinatie")||s.includes("combi")){
-    // multiple — include all that match
-    const out:Afdeling[]=[];
-    if(s.includes("stof"))out.push("Stoffering");
-    if(s.includes("schild"))out.push("Schilderwerk");
-    if(s.includes("zon"))out.push("Zonwering");
-    return{afdelingen:out.length?out:["Stoffering","Schilderwerk","Zonwering"],turnkey:false};
-  }
-  if(s.includes("schild"))return{afdelingen:["Schilderwerk"],turnkey:false};
-  if(s.includes("stof"))return{afdelingen:["Stoffering"],turnkey:false};
-  if(s.includes("zon"))return{afdelingen:["Zonwering"],turnkey:false};
-  // Unknown value → default Stoffering, not invalid
-  return{afdelingen:["Stoffering"],turnkey:false};
-}
-
-// Parse a cell value that may be an Excel date serial, a formatted date string, or plain text
-function parseXlDate(raw:string|number|null|undefined):string{
-  if(raw==null||raw==="")return "";
-  // Excel date serial (number > 1 and looks like an integer or float)
-  const n=typeof raw==="number"?raw:Number(String(raw).replace(",","."));
-  if(!isNaN(n)&&n>1&&n<200000){
-    // Convert Excel serial (days since 1900-01-01, accounting for Lotus 1900 bug)
-    const d=new Date(Math.round((n-25569)*86400000));
-    if(!isNaN(d.getTime()))return d.toISOString();
-  }
-  const s=String(raw).trim();
-  if(!s)return "";
-  // Try DD-MM-YYYY
-  const dm=/^(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{2,4})$/.exec(s);
-  if(dm){
-    const [,d,m,y]=dm;
-    const year=y.length===2?2000+parseInt(y):parseInt(y);
-    const dt=new Date(year,parseInt(m)-1,parseInt(d));
-    if(!isNaN(dt.getTime()))return dt.toISOString();
-  }
-  // ISO or other parseable format
-  const dt=new Date(s);
-  if(!isNaN(dt.getTime()))return dt.toISOString();
-  return "";
-}
-
-// Parse a time cell: "08:30", "8.30", "8", or an Excel time fraction (0–1) → {h,m} or null
-function parseXlTime(raw:unknown):{h:number;m:number}|null{
-  if(raw==null||raw==="")return null;
-  if(typeof raw==="number"){
-    const frac=raw-Math.floor(raw);
-    if(raw>0&&raw<1||frac>0){
-      const mins=Math.round(frac*24*60);
-      return{h:Math.floor(mins/60)%24,m:mins%60};
-    }
-    if(raw>=0&&raw<=23)return{h:Math.round(raw),m:0};
-    return null;
-  }
-  const s=String(raw).trim();
-  const m=/^(\d{1,2})[:.\uff1a]?(\d{2})?$/.exec(s);
-  if(!m)return null;
-  const h=parseInt(m[1]);const mi=m[2]?parseInt(m[2]):0;
-  if(isNaN(h)||h>23||mi>59)return null;
-  return{h,m:mi};
-}
-
-// Combine an ISO date with a time (defaults applied) → ISO datetime string
-function combineDT(iso:string,time:{h:number;m:number}|null,defH:number,defM=0):string{
-  if(!iso)return "";
-  const d=new Date(iso);
-  if(isNaN(d.getTime()))return "";
-  d.setHours(time?time.h:defH,time?time.m:defM,0,0);
-  return d.toISOString();
-}
-
-// Cell value → trimmed string, empty if null/undefined
-function cellStr(v:unknown):string{
-  if(v==null)return "";
-  return String(v).trim();
-}
-
-// Vaste kolomposities in het projectimportbestand (alleen projectimport)
-const COL_WERKZAAMHEDEN=9;  // Excel kolom J
-const COL_PROJECTLEIDER=10; // Excel kolom K
+const createImportWorker=()=>new Worker(new URL("../workers/excel-import.worker.ts",import.meta.url),{type:"module"});
 
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
@@ -672,183 +570,63 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
   const [progress,setProgress]=useState(0);
   const [importing,setImporting]=useState(false);
   const [parseError,setParseError]=useState<string>("");
+  const [warning,setWarning]=useState<string>("");
   const busyRef=useRef(false);
   const fileRef=useRef<HTMLInputElement>(null);
+  // Volledige importregels (±7.000) — bewust buiten de React-state
+  const rowsRef=useRef<ImportRow[]>([]);
+  const workerRef=useRef<Worker|null>(null);
+  useEffect(()=>()=>{workerRef.current?.terminate();},[]);
 
   const parseFile=async(file:File)=>{
     if(busyRef.current)return;
     busyRef.current=true;
-    setLoading(true);
-    setProgress(0);
-    setParseError("");
+    setLoading(true);setProgress(0);setParseError("");setWarning("");
+    rowsRef.current=[];
+    const finish=()=>{
+      setLoading(false);busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+      workerRef.current?.terminate();workerRef.current=null;
+    };
     try{
-      // Bestand één keer lezen, één keer parsen, alleen het eerste werkblad
       const buf=await file.arrayBuffer();
-      const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      // Read as array-of-arrays to preserve column positions (handles duplicate headers)
-      const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
-
-      // ── Find header row ──────────────────────────────────────────────────
-      // Look for the row containing "Projectnr." (case-insensitive, trimmed)
-      let headerRowIdx=-1;
-      for(let i=0;i<Math.min(raw.length,30);i++){
-        const row=raw[i] as unknown[];
-        if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
-            .match(/^projectnr?$/))){
-          headerRowIdx=i;break;
-        }
-      }
-      if(headerRowIdx===-1){
-        setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
-        return;
-      }
-
-      const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-
-      // ── Column index resolution (positional, handles duplicate headers) ──
-      // Track first occurrence of "omschrijving" (Projectnaam)
-      let omschrijvingCount=0;
-      let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
-      let col_contactpersoon=-1,col_datum_opdracht=-1;
-      let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
-
-      headerRow.forEach((h,i)=>{
-        const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
-        if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
-        else if(h==="omschrijving"){
-          omschrijvingCount++;
-          if(omschrijvingCount===1)col_omschr1=i;
-        }
-        else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
-        else if(norm==="contactpersoon")col_contactpersoon=i;
-        else if(norm==="datumopdracht")col_datum_opdracht=i;
-        else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
-        else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
-        else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
-        else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
-        else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
-      });
-
-      // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
-      if(col_werknr===-1){
-        col_werknr=headerRow.findIndex(h=>{
-          const n=h.replace(/\s+/g,"").replace(/\./g,"");
-          return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
+      const worker=createImportWorker();
+      workerRef.current=worker;
+      worker.onmessage=(ev:MessageEvent<ImportWorkerResponse>)=>{
+        const msg=ev.data;
+        if(msg.type==="progress"){setProgress(msg.pct);return;}
+        if(msg.type==="error"){setParseError(msg.message);finish();return;}
+        if(msg.type!=="projects")return;
+        rowsRef.current=[...msg.nieuw,...msg.bestaand];
+        setWarning(msg.warning);
+        setPreview({
+          total:msg.total,duplicaten:msg.duplicaten,
+          nieuwCount:msg.nieuw.length,bestaandCount:msg.bestaand.length,ongeldigCount:msg.ongeldig.length,
+          nieuwSample:msg.nieuw.slice(0,PREVIEW_LIMIT),
+          bestaandSample:msg.bestaand.slice(0,PREVIEW_LIMIT),
+          ongeldigSample:msg.ongeldig.slice(0,PREVIEW_LIMIT),
         });
-      }
-
-      if(col_projectnr===-1){
-        setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
-        return;
-      }
-
-      // ── Parse data rows (in blokken, zonder state-update per rij) ────────
-      const existingProjectNumbers=new Set(
-        projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
-      );
-
-      const allRows:ImportRow[]=[];
-      const dataRows=raw.slice(headerRowIdx+1);
-
-      for(let start=0;start<dataRows.length;start+=CHUNK){
-        const end=Math.min(start+CHUNK,dataRows.length);
-        for(let idx=start;idx<end;idx++){
-          const row=dataRows[idx] as unknown[];
-          // Skip completely empty rows
-          if(!row||row.every(c=>c==null||cellStr(c)===""))continue;
-
-          const absRow=headerRowIdx+2+idx; // 1-based Excel row number
-
-          const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
-          const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
-          // Kolom J (index 9) = Werkzaamheden én bron voor afdelingsherkenning
-          const rawDeptCell=cellStr(row[COL_WERKZAAMHEDEN]);
-          const opdrachtgever=col_opdrachtgever>=0?cellStr(row[col_opdrachtgever]):"";
-          const contactpersoon=col_contactpersoon>=0?cellStr(row[col_contactpersoon]):"";
-          // Kolom K (index 10) = Projectleider
-          const calculator=cellStr(row[COL_PROJECTLEIDER]);
-          const startdatumRaw=col_startdatum>=0?row[col_startdatum]:null;
-          const einddatumRaw=col_einddatum>=0?row[col_einddatum]:null;
-          const starttijd=col_starttijd>=0?parseXlTime(row[col_starttijd]):null;
-          const eindtijd=col_eindtijd>=0?parseXlTime(row[col_eindtijd]):null;
-          const datumOpdrachtRaw=col_datum_opdracht>=0?row[col_datum_opdracht]:null;
-          const werknrRaw=col_werknr>=0?cellStr(row[col_werknr]):"";
-
-          // Validation: alleen Projectnr. is verplicht
-          let invalidReason="";
-          if(!projectnr&&!projectnaam)continue; // skip truly blank rows silently
-          if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
-
-          const{afdelingen,turnkey}=resolveDept(rawDeptCell);
-
-          // Start = Startdatum + Starttijd (default 08:00); Eind = Einddatum (of Startdatum) + Eindtijd (default 17:00)
-          const startISO=combineDT(parseXlDate(startdatumRaw as string|number|null),starttijd,8,0);
-          const eindBase=parseXlDate(einddatumRaw as string|number|null)||parseXlDate(startdatumRaw as string|number|null);
-          const eindISO=combineDT(eindBase,eindtijd,17,0);
-
-          allRows.push({
-            projectnr,
-            projectnaam:projectnaam||projectnr,
-
-            opdrachtgever,
-            contactpersoon,
-            projectleider:calculator,
-            startdatum:startISO,
-            einddatum:eindISO,
-            datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
-            werknummer:werknrRaw||projectnr,
-            werkzaamheden:rawDeptCell,
-            rawDept:rawDeptCell,
-            afdelingen,
-            turnkey,
-            rowIndex:absRow,
-            invalidReason,
-          });
-        }
-        setProgress(Math.round((end/Math.max(dataRows.length,1))*100));
-        if(end<dataRows.length)await yieldToBrowser();
-      }
-
-      const ongeldig=allRows.filter(r=>r.invalidReason);
-      const geldig=allRows.filter(r=>!r.invalidReason&&r.projectnr);
-
-      // Dubbele Projectnr.-regels binnen hetzelfde bestand samenvoegen (laatste wint)
-      const importedByProjectNr=new Map<string,ImportRow>();
-      let duplicaten=0;
-      geldig.forEach(r=>{
-        const nr=normalizeProjectnr(r.projectnr);
-        if(importedByProjectNr.has(nr))duplicaten++;
-        importedByProjectNr.set(nr,r);
-      });
-
-      const nieuw:ImportRow[]=[],bestaand:ImportRow[]=[];
-      importedByProjectNr.forEach((r,nr)=>{
-        (existingProjectNumbers.has(nr)?bestaand:nieuw).push(r);
-      });
-
-      setPreview({nieuw,bestaand,ongeldig,total:allRows.length,duplicaten});
-      setStep("preview");
+        setStep("preview");
+        finish();
+      };
+      worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");finish();};
+      const req:ImportWorkerRequest={
+        mode:"projects",buffer:buf,
+        existingProjectNumbers:projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean),
+      };
+      worker.postMessage(req,[buf]);
     }catch(err){
       console.error(err);
       setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
-    }finally{
-      setLoading(false);
-      busyRef.current=false;
-      if(fileRef.current)fileRef.current.value="";
+      finish();
     }
   };
 
   const handleImport=async()=>{
-    if(!preview||importing)return;
+    if(!preview||importing||rowsRef.current.length===0)return;
     setImporting(true);
-    try{await onImport([...preview.nieuw,...preview.bestaand]);}
+    try{await onImport(rowsRef.current);}
     finally{setImporting(false);}
-  };
-
-
-  const DEPT_LABELS:Record<string,string>={
-    Stoffering:"Stof",Schilderwerk:"Schilder",Zonwering:"Zon",
   };
 
   return <Modal title="Excel importeren" onClose={onClose} width="max-w-2xl">
@@ -894,29 +672,30 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>
       </>}
       {step==="preview"&&preview&&<>
+        {warning&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
           <div className="bg-[#F0F3F8] rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-[#1A2744]">{preview.total}</p>
             <p className="text-[10px] text-[#6B7A99] font-medium">Rijen gelezen</p>
           </div>
           <div className="bg-emerald-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-emerald-700">{preview.nieuw.length}</p>
+            <p className="text-xl font-bold text-emerald-700">{preview.nieuwCount}</p>
             <p className="text-[10px] text-emerald-600 font-medium">Nieuw</p>
           </div>
           <div className="bg-amber-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-amber-700">{preview.bestaand.length}</p>
+            <p className="text-xl font-bold text-amber-700">{preview.bestaandCount}</p>
             <p className="text-[10px] text-amber-600 font-medium">Wordt bijgewerkt</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-red-700">{preview.ongeldig.length}</p>
+            <p className="text-xl font-bold text-red-700">{preview.ongeldigCount}</p>
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
         {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} projectnummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
-        {preview.nieuw.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuw.length})</p>
+        {preview.nieuwCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuw.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
+            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
               <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.projectnr}</span>
               <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
@@ -927,40 +706,41 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               }
               {r.startdatum&&<span className="text-[#B8C3D9] flex-shrink-0">{fmtDate(r.startdatum)}</span>}
             </div>)}
-            {preview.nieuw.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuw.length-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.nieuwCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuwCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
-        {preview.bestaand.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaand.length})</p>
+        {preview.bestaandCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaand.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
+            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
               <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
             </div>)}
-            {preview.bestaand.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaand.length-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
-        {preview.ongeldig.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldig.length})</p>
+        {preview.ongeldigCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldig.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
+            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
               <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
-            {preview.ongeldig.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldig.length-PREVIEW_LIMIT} andere regels met een fout.</p>}
+            {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={importing||preview.nieuw.length+preview.bestaand.length===0}>
+          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");rowsRef.current=[];}} disabled={importing}>Terug</Btn>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount+preview.bestaandCount===0}>
             <Download className="w-4 h-4"/>
-            {importing?"Bezig met importeren…":`${preview.nieuw.length+preview.bestaand.length} project${preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren`}
+            {importing?"Bezig met importeren…":`${preview.nieuwCount+preview.bestaandCount} project${preview.nieuwCount+preview.bestaandCount!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
     </div>
   </Modal>;
 }
+
 
 // ===== VACATION IMPORT MODAL =====
 interface VacRow {
