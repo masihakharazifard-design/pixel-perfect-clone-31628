@@ -141,11 +141,10 @@ const HOUR_HEIGHT = 56;
 const BASE_HOUR = 7;
 const HOURS = Array.from({length:13},(_,i)=>i+BASE_HOUR);
 
-// ===== SAMPLE DATA =====
-const mk = (off:number,h=8,m=0) => {
-  const d = new Date(); d.setDate(d.getDate()+off); d.setHours(h,m,0,0); return d.toISOString();
-};
+const TODAY_STR = new Date().toISOString().split("T")[0];
+
 // ===== UTILS =====
+
 function validDate(d:string|Date|null|undefined):boolean{if(!d)return false;const dt=typeof d==="string"?new Date(d):d;return !isNaN(dt.getTime());}
 function fmtDate(d:string|Date){if(!validDate(d))return "—";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function fmtTime(d:string|Date){if(!validDate(d))return "";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
