@@ -47,7 +47,7 @@ De facade biedt de volledige publieke API die de app gebruikt of kan gebruiken: 
 
 Nieuw bestand `src/lib/demo-planning-store.ts` met exact dezelfde functienamen, signaturen en types als de Supabase-store. Alles leest en schrijft naar `localStorage` onder `maasmond-demo-data`: werken, medewerkers, planning/availability, instellingen, projectkleuren, vaste vrije dagen, projectmeta, persoonlijke notities en een lokaal demo-auditlog (voor "Recente wijzigingen", mocht de UI dat tonen).
 
-Documentupload in demo: de store slaat kleine bestanden lokaal op als data-URL in `maasmond-demo-data`; lukt dat niet (te groot), dan verschijnt de melding "Documentupload is niet beschikbaar in de demo-omgeving". Een upload lijkt nooit gelukt terwijl er niets is opgeslagen.
+Documenten in demo: upload wordt zichtbaar uitgeschakeld. Bij een poging verschijnt de melding "Documentupload is niet beschikbaar in de demo-omgeving." Er gaat geen bestand naar de server, er wordt geen base64/data-URL in `localStorage` gezet en er verschijnt nooit een geslaagd-melding. Eventuele demo-documentnamen worden alleen als voorbeeldmetadata getoond. `localStorage` blijft uitsluitend voor lichte JSON: werken, medewerkers, availability, instellingen, projectmeta, notities en het demo-auditlog. Echte demo-bestandsopslag (bijvoorbeeld via IndexedDB) valt buiten dit plan en kan later toegevoegd worden als het nodig blijkt.
 
 Nieuw bestand `src/lib/demo-seed.ts` bevat de startdataset, gebaseerd op de bestaande voorbeelddata `INIT_PROJ`, `INIT_EMP` en `INIT_AVAIL` uit `planning-app.tsx` plus standaardinstellingen. Bij de eerste demo-login zonder bestaande `maasmond-demo-data` wordt hiermee geïnitialiseerd; bestaat de data al, dan wordt die geladen. Deze data gaat nooit naar Supabase.
 
