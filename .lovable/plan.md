@@ -74,7 +74,7 @@ Omdat alle mutaties door dezelfde functies lopen, blijven ze werken en worden ze
 
 ## 6. Demo resetten
 
-Alleen zichtbaar in demo-modus: onder Instellingen een knop **Demo resetten** met bevestiging. Die wist `maasmond-demo-data` en laadt de oorspronkelijke demo-dataset opnieuw.
+Alleen zichtbaar in demo-modus: onder Instellingen een knop **Demo resetten** met bevestiging. Die wist `maasmond-demo-data` en schrijft de actuele seed uit `demo-seed.ts` opnieuw weg, inclusief de huidige `DEMO_DATA_VERSION`.
 
 ## 7. Test in de browser
 
