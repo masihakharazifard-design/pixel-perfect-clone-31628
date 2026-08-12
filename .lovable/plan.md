@@ -22,6 +22,20 @@ In `src/lib/project-index.ts`, gekoppeld aan de projectdata zelf, niet aan de re
 
 Incrementeel bijwerken: bij wijziging van één project alleen dat record in de drie maps aanpassen. Alleen na een grote Excel-import één bulk-herindexering. Openen/sluiten van Personeelsplanning bouwt nooit een projectindex op.
 
+De index is tegelijk incrementeel én React-safe: geen los mutable `Map` waarop stil `.set()`/`.delete()` gebeurt. De laag biedt één API met een versie/subscription-mechanisme:
+
+```
+getProjectById(id)
+getProjectByProjectNr(projectNr)
+getProjectSearchText(id)
+updateProjectIndex(project)
+removeProjectFromIndex(id)
+rebuildProjectIndex(projects)
+subscribe(listener) / getVersion()
+```
+
+Componenten lezen via `useSyncExternalStore` op `subscribe` + `getVersion`. Bij één projectwijziging: alleen de betreffende entries aanpassen, één lichte versiebump, notify — geen nieuwe Maps voor de hele dataset en geen verouderde weergave. Na een Excel-bulkimport: één bulk-herindexering gevolgd door één notificatie/statecommit.
+
 **Availability-indexen (component-niveau)**
 Nieuwe hook `useAvailabilityIndexes(availability)` in `src/lib/availability-index.ts` met uitsluitend:
 `availabilityByDate`, `availabilityByEmployeeDate` (`employeeId|YYYY-MM-DD`), `availabilityByEmployeeId`, `availabilityByProjectId`, `availabilityByPeriodeId`, `availabilityByReeksId`, `plannedEmployeeIdsByProject`, `plannedCountByProject`.
