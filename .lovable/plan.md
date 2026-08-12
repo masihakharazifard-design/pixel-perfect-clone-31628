@@ -29,15 +29,23 @@ In `src/components/auth-gate.tsx` wordt DEMO MODE als eerste gecontroleerd, vó�
 - de demo-gebruiker krijgt alleen in de frontend `roles: ["beheerder"]`; er wordt niets naar `user_roles` geschreven en `bootstrapMyRole()` wordt niet aangeroepen;
 - uitloggen wist `maasmond-demo-session` en toont het inlogscherm; `maasmond-demo-data` blijft bewaard.
 
+De demo-branch komt vóór elke Supabase-aanroep, ook bij het opstarten: met `DEMO_MODE === true` worden `getSession()`, `getUser()`, `onAuthStateChange`, `bootstrapMyRole()` en de `user_roles`-query niet uitgevoerd — die staan achter een vroege return, niet in een effect dat toch al draait. Er ontstaat dus geen enkel verborgen auth-request. Met `DEMO_MODE === false` gebeurt uitsluitend het bestaande Supabase-authpad.
+
 De bestaande echte inlogcode blijft ongewijzigd in het bestand staan voor later.
 
 ## 3. Centrale store-facade met volledige API
 
-Nieuw bestand `src/lib/store.ts`:
+Nieuw bestand `src/lib/store.ts` kiest één keer de actieve store en exporteert daarnaast exact dezelfde named exports als `planning-store.ts` nu heeft, zodat de schermcode niet herschreven hoeft te worden:
 
 ```
-export const store = DEMO_MODE ? demoPlanningStore : supabasePlanningStore
+const activeStore = DEMO_MODE ? demoPlanningStore : supabasePlanningStore
+export const store = activeStore
+export const loadAll = (...a) => activeStore.loadAll(...a)
+export const upsertRow = (...a) => activeStore.upsertRow(...a)
+// ... idem voor elke bestaande publieke storefunctie
 ```
+
+Ook `EMPTY_META` en de gedeelde types (`PersonalNote`, `SettingsPathPatch`, `ProjectMeta`, `ProjectDocument`) worden doorgegeven, zodat de import in `planning-app.tsx` alleen van pad verandert.
 
 De facade biedt de volledige publieke API die de app gebruikt of kan gebruiken: planning toevoegen/wijzigen/verwijderen, meerdere planningregels tegelijk (teamverplaatsing, resize, vaste vrije reeksen lopen allemaal via `savePlanningRows`/`upsertRows`/`deleteRow`), projectstatus, werken en medewerkers toevoegen/wijzigen, instellingen patchen, projectmeta, persoonlijke notities, archiveren/herstellen en de documentfuncties.
 
