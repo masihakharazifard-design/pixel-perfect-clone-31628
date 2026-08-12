@@ -2350,7 +2350,7 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
           <div className="border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-56 overflow-y-auto">
             {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F8F9FC] ${sel?.id===p.id?"bg-[#E0F7F6]":""}`}>
               <p className="text-xs font-semibold text-[#1A2744]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
-              <p className="text-[11px] text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"} · {p.projectleider||"—"} · {getAllAfds(p).join(", ")}</p>
+              <p className="text-[11px] text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
             </button>)}
           </div>
         </div>}
@@ -2375,7 +2375,7 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
           <div><span className="text-[#6B7A99]">Projectnr.</span><p className="font-semibold text-[#1A2744]">{sel.projectnr||"—"}</p></div>
           <div><span className="text-[#6B7A99]">Afdeling</span><p className="font-semibold text-[#1A2744]">{getAllAfds(sel).join(", ")}</p></div>
-          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{sel.projectleider||"—"}</p></div>
+          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{plName(sel,employees)||"—"}</p></div>
           <div><span className="text-[#6B7A99]">Opdrachtgever</span><p className="font-semibold text-[#1A2744]">{sel.opdrachtgever||"—"}</p></div>
           <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
         </div>
