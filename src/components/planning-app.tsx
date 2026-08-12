@@ -45,6 +45,8 @@ interface Project {
 // opgebouwde zoekindex. Componenten krijgen nooit de volledige projectenlijst als prop.
 const projectIndex=createProjectIndex<Project>();
 const getIndexedProject=(id?:string|null):Project|undefined=>projectIndex.getProjectById(id);
+/** Werknummer is geen unieke sleutel: O(1) lookup die 0, 1 of meerdere werken oplevert. */
+const getIndexedProjectsByWerknummer=(wn:string):Project[]=>projectIndex.getProjectsByWerknummer(String(wn).trim());
 /** Zoeken via de vooraf opgebouwde zoekindex; stopt zodra `limit` treffers gevonden zijn. */
 function searchIndexedProjects(q:string,limit=20):Project[]{
   const s=q.trim().toLowerCase();
@@ -2275,43 +2277,84 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
 function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
   employees:Employee[];availability:AvailEntry[];
   empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
-  onSave:(entry:AvailEntry)=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
+  onSave:(entries:AvailEntry[])=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
 }){
   const [emp,setEmp]=useState(empId);
   const [d,setD]=useState(date);
+  const [dEnd,setDEnd]=useState(date);
   const [st,setSt]=useState(startTime);
   const [et,setEt]=useState(endTime);
   const [q,setQ]=useState("");
+  const [wn,setWn]=useState("");
+  const [wnQuery,setWnQuery]=useState("");
   const [sel,setSel]=useState<Project|null>(projectId?getIndexedProject(projectId)||null:null);
   const [busy,setBusy]=useState(false);
+  // Startdatum bepaalt de ondergrens van de einddatum; bewerken blijft altijd één dag.
+  const multi=!editId;
+  useEffect(()=>{if(dEnd<d)setDEnd(d);},[d,dEnd]);
+  // Werknummer-invoer: korte debounce, daarna O(1) lookup op de centrale index.
+  useEffect(()=>{const t=setTimeout(()=>setWnQuery(wn.trim()),150);return()=>clearTimeout(t);},[wn]);
+  const wnMatches=useMemo(()=>wnQuery?getIndexedProjectsByWerknummer(wnQuery):[],[wnQuery]);
+  useEffect(()=>{
+    if(projectId)return;
+    if(wnMatches.length===1)setSel(wnMatches[0]);
+    else if(wnQuery)setSel(null);
+  },[wnMatches,wnQuery,projectId]);
   // Zoeken via de vooraf opgebouwde zoekindex, met harde limiet: nooit de volledige lijst mappen.
   const results=useMemo(()=>searchIndexedProjects(q,20),[q]);
-  const dayRows=useMemo(()=>availability.filter(a=>a.employeeId===emp&&a.date===d),[availability,emp,d]);
-  const conflicts=sel?findConflicts(dayRows,employees,getIndexedProject,emp,d,st,et,editId):[];
+  const days=useMemo(()=>{
+    if(!d)return [];
+    if(!multi||!dEnd||dEnd<=d)return [d];
+    return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
+  },[d,dEnd,multi]);
+  const conflicts=useMemo(()=>sel?days.flatMap(day=>findConflictsMulti(availability,employees,getIndexedProject,emp,day,st,et,editId?[editId]:[])):[],[sel,days,availability,employees,emp,st,et,editId]);
   const blockers=blockingOnly(conflicts);
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
   const needsConfirm=warnings.length>0&&!confirmed;
-  const canSave=!!sel&&!!emp&&!!d&&st<et&&blockers.length===0&&!needsConfirm&&!busy;
+  const dateOk=!!d&&(!multi||!dEnd||dEnd>=d);
+  const canSave=!!sel&&!!emp&&dateOk&&days.length>0&&st<et&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
-    await onSave({
-      id:editId||("plan-"+nid()),employeeId:emp,date:d,startTime:st,endTime:et,
-      status:"Ingepland",note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
-    });
+    const reeksId=days.length>1?"reeks-"+nid():undefined;
+    await onSave(days.map(day=>({
+      id:days.length===1?(editId||("plan-"+nid())):("plan-"+nid()),
+      employeeId:emp,date:day,startTime:st,endTime:et,
+      status:"Ingepland" as AvailStatus,note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
+      ...(reeksId?{reeksId}:null),
+    })));
     setBusy(false);
   };
+
   return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
-        <Input label="Datum" value={d} onChange={setD} type="date"/>
+        <div className={multi?"grid grid-cols-2 gap-2":""}>
+          <Input label={multi?"Startdatum":"Datum"} value={d} onChange={setD} type="date"/>
+          {multi&&<Input label="Einddatum" value={dEnd} onChange={v=>setDEnd(v<d?d:v)} type="date"/>}
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <Input label="Begintijd" value={st} onChange={setSt} type="time"/>
           <Input label="Eindtijd" value={et} onChange={setEt} type="time"/>
         </div>
       </div>
+      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">Deze medewerker wordt op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
+
+      {!projectId&&<div className="space-y-2">
+        <Input label="Werknummer" value={wn} onChange={setWn} placeholder="Bijv. 12345"/>
+        {wnQuery&&wnMatches.length===0&&<p className="text-xs text-red-600">Geen bestaand werk gevonden met dit werknummer.</p>}
+        {wnMatches.length>1&&<div className="space-y-1">
+          <p className="text-xs font-semibold text-amber-700">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
+          <div className="border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-56 overflow-y-auto">
+            {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F8F9FC] ${sel?.id===p.id?"bg-[#E0F7F6]":""}`}>
+              <p className="text-xs font-semibold text-[#1A2744]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
+              <p className="text-[11px] text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"} · {p.projectleider||"—"} · {getAllAfds(p).join(", ")}</p>
+            </button>)}
+          </div>
+        </div>}
+      </div>}
       {!sel?<div>
         <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer, werknaam of werkzaamheden..."/>
         {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
@@ -2327,21 +2370,23 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
             <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
             <p className="text-xs text-[#6B7A99]">{sel.werkzaamheden||"Geen omschrijving"}</p>
           </div>
-          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
+          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");setWn("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <div><span className="text-[#6B7A99]">Projectnr.</span><p className="font-semibold text-[#1A2744]">{sel.projectnr||"—"}</p></div>
           <div><span className="text-[#6B7A99]">Afdeling</span><p className="font-semibold text-[#1A2744]">{getAllAfds(sel).join(", ")}</p></div>
-          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{plName(sel,employees)||"—"}</p></div>
+          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{sel.projectleider||"—"}</p></div>
+          <div><span className="text-[#6B7A99]">Opdrachtgever</span><p className="font-semibold text-[#1A2744]">{sel.opdrachtgever||"—"}</p></div>
           <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
         </div>
       </div>}
       {blockers.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
         <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
-        {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{c.employee} · {c.label} · {c.time}</p>)}
+        {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{conflictLine(c)}</p>)}
       </div>}
       {blockers.length===0&&warnings.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
         <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
-        {warnings.map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.label} · {c.time}</p>)}
+        {warnings.map((c,i)=><p key={i} className="text-xs text-amber-800">{conflictLine(c)}</p>)}
         {!confirmed
           ?<div className="flex gap-2 pt-1"><Btn size="sm" onClick={()=>setConfirmed(true)}>Planning toch opslaan</Btn><Btn size="sm" variant="secondary" onClick={onClose}>Annuleren</Btn></div>
           :<p className="text-xs text-amber-800 font-semibold">Bevestigd — je kunt nu opslaan.</p>}
@@ -3204,7 +3249,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
-                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?openEditPlan(b):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
+                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
@@ -3275,7 +3320,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();openEditPlan(row);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime})`}>
+                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime}) · klik = werkgegevens · rechtsklik = planning bewerken`}>
                     {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
                     <span className="truncate">{seg.prev?"\u00A0":proj.projectnaam.slice(0,4)+".."}</span>
                   </button>
@@ -3361,19 +3406,22 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
-      onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
+      onSave={async es=>{setProjMenu(null);await commitPlanning(es,undefined,true);}} onClose={()=>setProjMenu(null)}/>}
     {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
       projectId={planModal.projectId} editId={planModal.editId}
-      onSave={async e=>{
-        const prev=availability.find(a=>a.id===e.id);
-        // Bij bewerken blijven volgorde en markering behouden; bij een andere dag/medewerker vervallen ze
-        const same=prev&&prev.employeeId===e.employeeId&&prev.date===e.date;
-        // Vaste vrije dag waarop nu een project komt: alleen deze datum is een uitzondering
-        const vv=vrijEx&&vrijEx.row.employeeId===e.employeeId&&vrijEx.row.date===e.date?vrijEx.periodeId:null;
+      onSave={async es=>{
         setVrijEx(null);setPlanModal(null);
-        await commitPlanning([{...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:prev?.reeksId,teamId:prev?.teamId,
-          vasteVrijExceptionIds:vv?[...new Set([...(prev?.vasteVrijExceptionIds||[]),vv])]:prev?.vasteVrijExceptionIds}],undefined,true);
+        const rows=es.map(e=>{
+          const prev=availability.find(a=>a.id===e.id);
+          // Bij bewerken blijven volgorde en markering behouden; bij een andere dag/medewerker vervallen ze
+          const same=prev&&prev.employeeId===e.employeeId&&prev.date===e.date;
+          // Vaste vrije dag waarop nu een project komt: alleen deze datum is een uitzondering
+          const vv=vrijEx&&vrijEx.row.employeeId===e.employeeId&&vrijEx.row.date===e.date?vrijEx.periodeId:null;
+          return {...e,volgorde:same?prev.volgorde:undefined,isFirstOfDay:same?prev.isFirstOfDay:false,reeksId:e.reeksId??prev?.reeksId,teamId:prev?.teamId,
+            vasteVrijExceptionIds:vv?[...new Set([...(prev?.vasteVrijExceptionIds||[]),vv])]:prev?.vasteVrijExceptionIds};
+        });
+        await commitPlanning(rows,undefined,true);
       }}
       onDelete={async id=>{const b=availability.find(a=>a.id===id);setPlanModal(null);if(b)await deletePlanRow(b);else await onDeletePlanning(id);}}
       onClose={async()=>{setPlanModal(null);await cancelVrijException();}}/>}

@@ -25,6 +25,8 @@ function searchTextOf(p: ProjectRecord): string {
 export interface ProjectIndex<P extends ProjectRecord> {
   getProjectById(id: string | undefined | null): P | undefined;
   getProjectByProjectNr(nr: string | undefined | null): P | undefined;
+  /** Werknummer is GEEN unieke sleutel: dit kan meerdere werken opleveren. */
+  getProjectsByWerknummer(wn: string | undefined | null): P[];
   getProjectSearchText(id: string): string;
   /** Stabiele basisvolgorde (invoegvolgorde); wordt nooit per render opnieuw gesorteerd. */
   getOrder(): readonly string[];
@@ -40,6 +42,7 @@ export interface ProjectIndex<P extends ProjectRecord> {
 export function createProjectIndex<P extends ProjectRecord>(): ProjectIndex<P> {
   const byId = new Map<string, P>();
   const byNr = new Map<string, P>();
+  const byWerknummer = new Map<string, string[]>();
   const searchIndex = new Map<string, string>();
   let order: string[] = [];
   let version = 0;
@@ -50,18 +53,35 @@ export function createProjectIndex<P extends ProjectRecord>(): ProjectIndex<P> {
     listeners.forEach((l) => l());
   };
   const nrKey = (nr?: string | null) => (nr ? String(nr).trim().toLowerCase() : "");
+  const wnKey = (wn?: string | null) => (wn ? String(wn).trim().toLowerCase() : "");
+  const dropWerknummer = (wn: string | undefined, id: string) => {
+    const key = wnKey(wn);
+    if (!key) return;
+    const list = byWerknummer.get(key);
+    if (!list) return;
+    const next = list.filter((x) => x !== id);
+    if (next.length) byWerknummer.set(key, next);
+    else byWerknummer.delete(key);
+  };
 
   const setEntry = (p: P) => {
     const prev = byId.get(p.id);
     if (prev) {
       const prevNr = nrKey(prev.projectnr);
       if (prevNr && byNr.get(prevNr)?.id === p.id) byNr.delete(prevNr);
+      dropWerknummer(prev.werknummer, p.id);
     } else {
       order.push(p.id);
     }
     byId.set(p.id, p);
     const nr = nrKey(p.projectnr);
     if (nr) byNr.set(nr, p);
+    const wn = wnKey(p.werknummer);
+    if (wn) {
+      const list = byWerknummer.get(wn);
+      if (list) { if (!list.includes(p.id)) list.push(p.id); }
+      else byWerknummer.set(wn, [p.id]);
+    }
     searchIndex.set(p.id, searchTextOf(p));
   };
 
@@ -70,6 +90,11 @@ export function createProjectIndex<P extends ProjectRecord>(): ProjectIndex<P> {
     getProjectByProjectNr: (nr) => {
       const key = nrKey(nr);
       return key ? byNr.get(key) : undefined;
+    },
+    getProjectsByWerknummer(wn) {
+      const key = wnKey(wn);
+      if (!key) return [];
+      return (byWerknummer.get(key) ?? []).map((id) => byId.get(id)).filter((p): p is P => !!p);
     },
     getProjectSearchText: (id) => searchIndex.get(id) ?? "",
     getOrder: () => order,
@@ -83,6 +108,7 @@ export function createProjectIndex<P extends ProjectRecord>(): ProjectIndex<P> {
       if (!prev) return;
       const nr = nrKey(prev.projectnr);
       if (nr && byNr.get(nr)?.id === id) byNr.delete(nr);
+      dropWerknummer(prev.werknummer, id);
       byId.delete(id);
       searchIndex.delete(id);
       order = order.filter((x) => x !== id);
@@ -91,6 +117,7 @@ export function createProjectIndex<P extends ProjectRecord>(): ProjectIndex<P> {
     rebuildProjectIndex(projects) {
       byId.clear();
       byNr.clear();
+      byWerknummer.clear();
       searchIndex.clear();
       order = [];
       projects.forEach(setEntry);
