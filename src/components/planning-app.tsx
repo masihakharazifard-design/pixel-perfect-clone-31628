@@ -3357,11 +3357,21 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
   // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
   // inplannen op exact dezelfde positie blijft staan.
-  const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
+  const openProjectsAll=useMemo(()=>{
+    const q=openZoek.trim().toLowerCase();
+    return visProjects.filter(p=>{
+      if(String(p.status||"").trim().toLowerCase()==="afgerond")return false;
+      if(!q)return true;
+      return `${p.werknummer} ${p.projectnr||""} ${p.projectnaam} ${p.opdrachtgever||""}`.toLowerCase().includes(q);
+    });
+  },[visProjects,openZoek]);
+  // Alleen de eerste 100 resultaten renderen; zoeken doorzoekt de volledige lijst.
+  const openProjects=openProjectsAll.slice(0,OPEN_LIMIT).map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
   });
+
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
