@@ -17,7 +17,18 @@ Er is dus geen verspreide database-code die eerst opgeschoond moet worden: de fa
 
 ## 1. Instelling
 
-`.env` krijgt `VITE_DEMO_AUTH_MODE=true`. Eén gedeelde constante `DEMO_MODE` in `src/lib/demo-mode.ts` leest deze vlag, zodat er nergens verspreide checks nodig zijn.
+`.env` krijgt `VITE_DEMO_AUTH_MODE=true` voor de lokale/demo-omgeving. Eén gedeelde constante `DEMO_MODE` in `src/lib/demo-mode.ts` leest deze vlag, zodat er nergens verspreide checks nodig zijn.
+
+Veiligheidsregel: de vlag hoort alleen in de demo-omgeving. Productie draait expliciet met `VITE_DEMO_AUTH_MODE=false`; de waarde wordt niet als "true" in een gedeelde productie-`.env` gezet, en de code gaat bij een ontbrekende waarde altijd uit van echte authenticatie (alleen de exacte string `"true"` zet demo aan).
+
+Zodra `DEMO_MODE` actief is, logt `demo-mode.ts` bij het opstarten één keer duidelijk in de console:
+
+```text
+MAASMOND PLANNING DRAAIT IN DEMO MODE — GEEN PRODUCTIEDATA
+```
+
+Zo is in elke build direct zichtbaar of de demo-login per ongeluk aanstaat.
+
 
 ## 2. Demo-login, strikt gescheiden van Supabase
 
