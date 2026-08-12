@@ -763,33 +763,6 @@ interface VacRow {
 }
 interface VacPreview { total:number; rows:VacRow[]; }
 
-function parseTimeCell(raw:unknown):string{
-  if(raw==null||raw==="")return "";
-  const s=String(raw).trim();
-  // Excel time serial (fraction of a day, 0.5 = 12:00)
-  const n=Number(s.replace(",","."));
-  if(!isNaN(n)&&n>0&&n<1){
-    const totalMin=Math.round(n*1440);
-    return fmtHM(Math.floor(totalMin/60),totalMin%60);
-  }
-  // "HH:MM" or "H:MM" or "HH.MM"
-  const m=/^(\d{1,2})[:\.](\d{2})/.exec(s);
-  if(m)return fmtHM(parseInt(m[1]),parseInt(m[2]));
-  return "";
-}
-function mapVacStatus(raw:string):AvailStatus{
-  const s=raw.toLowerCase().trim();
-  if(!s)return "Beschikbaar";
-  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
-  if(s.includes("ingepland")||s.includes("planned")||s.includes("gepland"))return "Ingepland";
-  if(s.includes("beschikbaar")||s.includes("available"))return "Beschikbaar";
-  if(s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
-  if(s.includes("ziek")||s.includes("sick")||s.includes("ill")||s.includes("arbeidsongeschikt"))return "Ziek";
-  if(s.includes("vrij")||s.includes("free")||s.includes("rtvz"))return "Vrij";
-  return "Vakantie";
-}
-
-
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
   onImport:(entries:AvailEntry[])=>void|Promise<void>;onClose:()=>void;
@@ -797,10 +770,14 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [preview,setPreview]=useState<VacPreview|null>(null);
   const [loading,setLoading]=useState(false);
+  const [progress,setProgress]=useState(0);
   const [parseError,setParseError]=useState("");
   const fileRef=useRef<HTMLInputElement>(null);
   const busyRef=useRef(false);
+  const workerRef=useRef<Worker|null>(null);
+  useEffect(()=>()=>{workerRef.current?.terminate();},[]);
   const [importing,setImporting]=useState(false);
+
 
   const matchEmployee=(name:string):{emp:Employee|null;ambiguous:boolean}=>{
     if(!name.trim())return{emp:null,ambiguous:false};
