@@ -4279,31 +4279,39 @@ export default function PlanningApp(){
       };
     };
 
-    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken
+    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken.
+    // Eén vooraf opgebouwde index i.p.v. per rij de hele lijst doorzoeken.
     const next=[...projects];
+    const idxByNr=new Map<string,number>();
+    next.forEach((p,i)=>{
+      const nr=normalizeProjectnr(p.projectnr);
+      if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
+    });
     const changed:Project[]=[];
+    let nieuw=0,bijgewerkt=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
-      const idx=nr?next.findIndex(p=>normalizeProjectnr(p.projectnr)===nr):-1;
+      const idx=nr?idxByNr.get(nr)??-1:-1;
       if(idx>=0){
         next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
-        changed.push(next[idx]);
+        changed.push(next[idx]);bijgewerkt++;
       }else{
         const created=createProjectFromImportRow(r);
-        next.push(created);changed.push(created);
+        next.push(created);changed.push(created);nieuw++;
+        if(nr)idxByNr.set(nr,next.length-1);
       }
     });
 
-    const prev=projects;
-    setProjects(next);
+    // Atomair: eerst opslaan, pas na bevestiging de centrale state bijwerken
     try{
       await upsertRows("projects",changed);
-      setDbError("");
-      toast.success(`${changed.length} werken geïmporteerd.`);
     }catch(e){
-      setProjects(prev);
       fail("Import kon niet worden opgeslagen:",e);
+      return;
     }
+    setProjects(next);
+    setDbError("");
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt.`);
   };
 
   // ===== Medewerkers =====
