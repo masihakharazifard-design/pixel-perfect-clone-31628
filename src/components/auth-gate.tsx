@@ -9,6 +9,9 @@ import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 // Er is geen demo-login en geen wachtwoordlogin meer.
 const TOEGESTAAN_DOMEIN = "maasmond.nl";
 
+// Tijdelijk: inloggen met Microsoft staat uit. Zet op false om de login weer te verplichten.
+const LOGIN_UITGESCHAKELD = true;
+
 export type AppRole = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
 const ROLE_LABELS: Record<AppRole, string> = {
   beheerder: "Beheerder",
@@ -104,7 +107,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   // Accounts buiten het Maasmond-domein krijgen geen toegang.
   useEffect(() => {
-    if (user && !domeinOk) {
+    if (!LOGIN_UITGESCHAKELD && user && !domeinOk) {
       setMelding("Alleen accounts van maasmond.nl hebben toegang tot deze planning.");
       void supabase.auth.signOut();
     }
@@ -130,7 +133,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [user, domeinOk]);
 
   if (!ready) return <div className="min-h-screen bg-[#F0F3F8]" />;
-  if (!user || !domeinOk) return <LoginScreen melding={melding} />;
+  if (!LOGIN_UITGESCHAKELD && (!user || !domeinOk)) return <LoginScreen melding={melding} />;
 
   const primary = (["beheerder", "planner", "projectleider", "financieel", "medewerker"] as AppRole[]).find((r) =>
     roles.includes(r),
