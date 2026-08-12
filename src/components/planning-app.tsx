@@ -4288,12 +4288,15 @@ export default function PlanningApp(){
       if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
     });
     const changed:Project[]=[];
-    let nieuw=0,bijgewerkt=0;
+    let nieuw=0,bijgewerkt=0,ongewijzigd=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
       const idx=nr?idxByNr.get(nr)??-1:-1;
       if(idx>=0){
-        next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
+        const cur=next[idx];
+        // Alleen daadwerkelijk gewijzigde werken worden weggeschreven
+        if(cur.projectleider===r.projectleider&&cur.werkzaamheden===r.werkzaamheden){ongewijzigd++;return;}
+        next[idx]={...cur,projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
         changed.push(next[idx]);bijgewerkt++;
       }else{
         const created=createProjectFromImportRow(r);
@@ -4311,7 +4314,8 @@ export default function PlanningApp(){
     }
     setProjects(next);
     setDbError("");
-    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt.`);
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt${ongewijzigd?`, ${ongewijzigd} ongewijzigd`:""}.`);
+
   };
 
   // ===== Medewerkers =====
