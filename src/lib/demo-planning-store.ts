@@ -70,21 +70,50 @@ function mutate(fn: (d: DemoData) => void): DemoData {
 }
 
 
-export function resetDemoData(): void {
-  write(makeDemoSeed());
+// ===== Projecten: altijd IndexedDB =====
+let migrated = false;
+
+/**
+ * Zet eenmalig de oude localStorage-projectenlijst om naar IndexedDB.
+ * De oude array verdwijnt pas nadat de transactie is afgerond; mislukt de
+ * migratie, dan blijft de oude data volledig onaangeroerd.
+ */
+async function ensureProjectsInIdb(): Promise<void> {
+  if (migrated) return;
+  const d = read() as DemoDataV2;
+  if (!d.projectsInIdb) {
+    const legacy = (d.projects ?? []) as Rec[];
+    if (legacy.length) await putDemoProjects(legacy);
+    mutate((data) => {
+      (data as DemoDataV2).projects = [] as DemoData["projects"];
+      (data as DemoDataV2).projectsInIdb = true;
+    });
+  }
+  migrated = true;
+}
+
+export async function resetDemoData(): Promise<void> {
+  const seed = makeDemoSeed() as DemoDataV2;
+  await resetDemoProjects(seed.projects as Rec[]);
+  seed.projects = [] as DemoData["projects"];
+  seed.projectsInIdb = true;
+  write(seed);
+  migrated = true;
 }
 
 export async function loadAll<P extends WithId, E extends WithId, A extends WithId, S>(): Promise<
   LoadAllResult<P, E, A, S>
 > {
+  await ensureProjectsInIdb();
   const d = read();
+  const projects = await loadDemoProjects<P & { id: string }>();
   return {
-    projects: d.projects as unknown as P[],
+    projects: projects as unknown as P[],
     employees: d.employees as unknown as E[],
     availability: d.availability as unknown as A[],
     settings: (d.settings as S) ?? null,
     settingsUpdatedAt: d.settingsUpdatedAt ?? null,
-    empty: d.projects.length === 0 && d.employees.length === 0 && d.availability.length === 0,
+    empty: projects.length === 0 && d.employees.length === 0 && d.availability.length === 0,
   };
 }
 
@@ -96,6 +125,11 @@ function listOf(d: DemoData, table: SyncTable): { id: string }[] {
 
 export async function upsertRows<T extends WithId>(table: SyncTable, items: T[]): Promise<T[]> {
   if (items.length === 0) return [];
+  if (table === "projects") {
+    await ensureProjectsInIdb();
+    await putDemoProjects(items.map((i) => ({ ...(i as unknown as Record<string, unknown>), id: i.id })));
+    return items;
+  }
   mutate((d) => {
     const list = listOf(d, table);
     // Index vooraf opbouwen: O(1) per rij i.p.v. de hele lijst doorzoeken.
@@ -121,13 +155,18 @@ export async function upsertRow<T extends WithId>(table: SyncTable, item: T): Pr
 
 export async function deleteRows(table: SyncTable, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
+  if (table === "projects") {
+    await ensureProjectsInIdb();
+    await deleteDemoProjects(ids);
+    return;
+  }
   mutate((d) => {
     const keep = listOf(d, table).filter((r) => !ids.includes(r.id));
-    if (table === "projects") d.projects = keep as DemoData["projects"];
-    else if (table === "employees") d.employees = keep as DemoData["employees"];
+    if (table === "employees") d.employees = keep as DemoData["employees"];
     else d.availability = keep as DemoData["availability"];
   });
 }
+
 
 export async function deleteRow(table: SyncTable, id: string): Promise<void> {
   await deleteRows(table, [id]);
