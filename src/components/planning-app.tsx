@@ -1015,6 +1015,8 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const [loading,setLoading]=useState(false);
   const [parseError,setParseError]=useState("");
   const fileRef=useRef<HTMLInputElement>(null);
+  const busyRef=useRef(false);
+  const [importing,setImporting]=useState(false);
 
   const matchEmployee=(name:string):{emp:Employee|null;ambiguous:boolean}=>{
     if(!name.trim())return{emp:null,ambiguous:false};
