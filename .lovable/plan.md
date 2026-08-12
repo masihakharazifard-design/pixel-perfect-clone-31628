@@ -50,5 +50,5 @@ De bestaande kolommapping en importregels blijven ongewijzigd: Projectnr. is de 
 ## Technische details
 
 - Nieuwe gedeelde workerberichten en importtypes komen in een kleine client-veilige module; de worker wordt gestart met `new Worker(new URL(..., import.meta.url), { type: "module" })`.
-- De projectworker retourneert één eindbericht met volledige importdata plus afzonderlijke begrensde preview; alleen de preview gaat React-state in en de volledige lijst rechtstreeks in de ref.
+- De worker stuurt de volledige dedupliceerde lijst (±7.000 regels) exact één keer terug in het eindbericht; die lijst gaat rechtstreeks naar een `useRef` en nooit naar preview-state. Progressberichten bevatten uitsluitend kleine metadata.
 - IndexedDB wordt met de browser-API geïmplementeerd zonder extra zware dependency; writes gebruiken één transactie en de bestaande demo-facade blijft de enige aanroepinterface voor de app.
