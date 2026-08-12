@@ -25,14 +25,18 @@ De bestaande kolommapping en importregels blijven ongewijzigd: Projectnr. is de 
    - Developmentmetingen tonen tijden voor ArrayBuffer, parse, transform, merge, persist en eerste state-commit; productiebundels loggen dit niet.
 
 5. **Demo-opslag geschikt maken voor grote datasets**
-   - Voor de definitieve demo-opslag wordt de JSON-grootte één keer buiten render gemeten.
-   - Kleine datasets behouden het huidige lokale opslagpad. Zodra de veilige grens wordt overschreden, worden projecten atomair in IndexedDB opgeslagen; localStorage houdt alleen de overige kleine demo-data en een verwijzing naar de projectopslag.
-   - Laden, resetten en mutaties ondersteunen beide opslagpaden zonder data stil weg te gooien. Een mislukte transactie laat de vorige dataset intact en geeft een duidelijke fout.
+   - Projecten staan in DEMO MODE altijd in IndexedDB, ongeacht de omvang; geen dynamische keuze tussen opslagvormen.
+   - localStorage houdt uitsluitend de demo-sessie, instellingen, medewerkers, availability, projectmeta/notities en de versie/verwijzing van de demo-opslag. `loadAll()` weet daardoor altijd waar projecten staan.
+   - Bestaat er nog een oude `projects`-array in `maasmond-demo-data`, dan wordt die één keer atomair naar IndexedDB gemigreerd; pas na een geslaagde IndexedDB-transactie verdwijnt de oude array uit localStorage. Bij een migratiefout blijft de oude data volledig onaangeroerd.
+   - Dunne helperlaag met `openDemoDb()`, `loadDemoProjects()`, `replaceDemoProjects(projects)` en `resetDemoProjects(seed)`. De verbinding wordt één keer geopend en hergebruikt, nooit per project of per rij.
+   - Excel-import in demo: worker → voorbereide projectregels → tijdelijke nieuwe projectenlijst → één IndexedDB-transactie → pas bij succes de in-memory store vervangen, één `setProjects(next)` en de succesmelding. Bij een fout aborteert de transactie, blijft de vorige projectdataset en React-state ongewijzigd, blijft de gebruiker ingelogd en verschijnt alleen een duidelijke foutmelding.
+   - `Demo resetten` vervangt de projects-store in één transactie door de actuele seed en werkt pas daarna de React-state bij.
 
 6. **Renderbegrenzing na import**
-   - Werken filtert over alle werken, maar rendert mobiel en desktop uitsluitend de huidige pagina van 50; filters zetten terug naar pagina 1. Navigatie toont Vorige, “Pagina X van Y” en Volgende.
+   - Werken past paginering toe ná filteren/zoeken maar vóór het renderen van de zware rijcomponenten: alle projecten → filter/zoekresultaat → `slice((page-1)*50, page*50)` → alleen die 50 renderen, mobiel en desktop. Filters zetten terug naar pagina 1; navigatie toont Vorige, “Pagina X van Y” en Volgende.
    - Openstaande werken krijgt een zoekveld, blijft alle passende data doorzoeken en rendert maximaal de eerste 100 resultaten met de melding “Verfijn je zoekopdracht om meer resultaten te zien.”
-   - Veelgebruikte projectlookups in planning en agenda worden vervangen door gememoiseerde `Map`-indexen waar dit herhaalde lineaire zoekacties voorkomt; bedrijfslogica blijft gelijk.
+   - Personeelsplanning en Agenda gebruiken gememoiseerde `Map`-indexen op projectId en projectnummer, zodat een wijziging van `projects` geen duizenden identieke `find()`-lookups veroorzaakt; bedrijfslogica blijft gelijk.
+
 
 ## Verificatie
 
