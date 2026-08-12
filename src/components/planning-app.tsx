@@ -1063,12 +1063,13 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     return out;
   };
 
-  const parseFile=(file:File)=>{
+  const parseFile=async(file:File)=>{
+    if(busyRef.current)return;
+    busyRef.current=true;
     setLoading(true);setParseError("");
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      try{
-        const wb=XLSX.read(ev.target?.result,{type:"array",cellDates:false,raw:true});
+    try{
+        const buf=await file.arrayBuffer();
+        const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
 
