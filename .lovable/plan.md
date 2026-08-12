@@ -55,7 +55,13 @@ De module-promise wordt één keer gecachet. Zo wordt `planning-store.ts` (en da
 
 De facade dekt de volledige publieke API: planning toevoegen/wijzigen/verwijderen, meerdere planningregels tegelijk (teamverplaatsing, resize, vaste vrije reeksen lopen allemaal via `savePlanningRows`/`upsertRows`/`deleteRow`), projectstatus, werken en medewerkers toevoegen/wijzigen, instellingen patchen, projectmeta, persoonlijke notities, archiveren/herstellen en de documentfuncties.
 
-`planning-app.tsx` importeert al alles op één regel; die import gaat naar de facade. Het Realtime-kanaal en de `supabase`-import in dat bestand worden achter dezelfde vlag gezet, zodat er in demo geen kanaal wordt geopend. Geen verborgen fallback naar Supabase.
+`planning-app.tsx` importeert al alles op één regel; die import gaat naar de facade. De statische import `import { supabase } from "@/integrations/supabase/client"` verdwijnt uit dit bestand. In de Realtime-`useEffect`:
+
+- `DEMO_MODE === true` → effect stopt direct, er wordt niets geladen;
+- anders wordt `@/integrations/supabase/client` pas dán dynamisch geïmporteerd en het bestaande `planning-sync`-kanaal aangemaakt;
+- de cleanup verwijdert het kanaal net als nu (ook als het effect al is opgeruimd voordat de dynamische import klaar is).
+
+Zo wordt de Supabase-client in demo-modus ook voor Realtime nooit geïnitialiseerd. Geen verborgen fallback naar Supabase.
 
 ## 4. Lokale demo-datalaag
 
