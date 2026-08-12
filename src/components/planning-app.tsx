@@ -1265,10 +1265,10 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       </div>}
 
       <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-        <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}}>Terug</Btn>
-        <Btn onClick={handleImport} disabled={totalNew===0}>
+        <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
+        <Btn onClick={handleImport} disabled={importing||totalNew===0}>
           <Check className="w-4 h-4"/>
-          {totalNew} tijdblok{totalNew!==1?"ken":""} importeren
+          {importing?"Bezig met importeren…":`${totalNew} tijdblok${totalNew!==1?"ken":""} importeren`}
         </Btn>
       </div>
     </div>
