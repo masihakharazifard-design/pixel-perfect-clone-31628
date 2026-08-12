@@ -1978,6 +1978,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </div>
       </div>;})}
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      <Pager/>
     </div>
     {/* Desktop table view */}
     <div className="hidden md:block bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
@@ -2048,6 +2049,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </tbody>
       </table>
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      <Pager/>
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
     {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={async rows=>{await onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
