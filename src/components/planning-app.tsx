@@ -1922,7 +1922,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     <div className="flex items-center justify-between gap-3">
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
-        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
+        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>clearFilters()} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
         <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.15)] text-[#6B7A99] text-sm font-medium">
@@ -1935,7 +1935,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-[#1A2744]">Filteren</span>
-        {activeCount>0&&<button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
+        {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Afdeling</label><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></div>
@@ -1956,7 +1956,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
-      {filtered.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+      {paged.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
@@ -2017,7 +2017,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           </tr>
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {filtered.map(p=>{
+          {paged.map(p=>{
             const pl=plName(p,employees);
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
