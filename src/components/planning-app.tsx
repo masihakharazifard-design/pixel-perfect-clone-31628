@@ -2438,11 +2438,14 @@ function findConflictsMulti(av:AvailEntry[],employees:Employee[],getProject:(id?
 }
 
 // ===== KLEUREN BEHEREN =====
-function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
-  settings:AppSettings;projects:Project[];teams:{key:string;label:string}[];
+function ColorManagerModal({settings,teams,onSave,onClose}:{
+  settings:AppSettings;teams:{key:string;label:string}[];
   onSave:(s:AppSettings)=>void;onClose:()=>void;
 }){
   const [s,setS]=useState<AppSettings>(settings);
+  // Werken worden opgezocht via de zoekindex; nooit een volledige projectenlijst renderen.
+  const [projZoek,setProjZoek]=useState("");
+  const projectHits=useMemo(()=>searchIndexedProjects(projZoek,40),[projZoek]);
   const statusColors=s.statusColors||{};
   const projectColors=s.projectColors||{};
   const teamColors=s.teamColors||{};
@@ -2480,9 +2483,12 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Feestdagen",[row("holiday","Landelijke feestdag",holidayColorOf(s),
         c=>setS(p=>({...p,holidayColor:c})),
         ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
-      {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+      {section("Werken",<><input value={projZoek} onChange={e=>setProjZoek(e.target.value)} placeholder="Zoek werk…"
+        className="w-full py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
+        {projZoek.trim()&&projectHits.length===0&&<p className="text-xs text-[#B8C3D9]">Geen werken gevonden.</p>}
+        {projectHits.map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
-        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
+        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};})))}</>)}
     </div>
     <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
       <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
@@ -3408,7 +3414,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
       onClose={()=>setAbsModal(null)}/>}
-    {showColors&&<ColorManagerModal settings={settings} projects={projects} teams={teams.map(t=>({key:t.key,label:t.label}))}
+    {showColors&&<ColorManagerModal settings={settings} teams={teams.map(t=>({key:t.key,label:t.label}))}
       onSave={s=>onSaveSettings(s)} onClose={()=>setShowColors(false)}/>}
     {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#1A2744] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
       Kies de einddag voor de afwezigheid
@@ -3478,7 +3484,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           ?"Er is nu een werk dat eerder begint. Wilt u dit werk automatisch als eerste uitvoeren markeren?"
           :"Dit project als eerste uitvoeren?"}</p>
         <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
-          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
+          {getIndexedProject(firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const f=firstAsk;setFirstAsk(null);if(f.kind==="reorder"&&f.fallback)await commitPlanning(f.fallback);}}>Nee</Btn>
@@ -3892,12 +3898,25 @@ export default function PlanningApp(){
 
   // ===== PLANNINGREGELS = enige bron van waarheid =====
   // Projecten krijgen hun medewerkers en periode uit de planningregels.
-  const viewProjects=useMemo(()=>projects.map(p=>{
-    const rows=projectPlans(avail,p.id);
-    if(!rows.length)return p;
-    const per=planPeriod(rows);
-    return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
-  }),[projects,avail]);
+  // Indexen over de planningregels: één opbouw per wijziging, daarna uitsluitend O(1) lookups.
+  const availIndexes=useMemo(()=>buildAvailabilityIndexes(avail),[avail]);
+  // Afgeleide waarden worden alleen berekend voor projecten die daadwerkelijk planningregels
+  // hebben — nooit door de volledige projectenlijst tegen alle planningregels te scannen.
+  const derivedByProject=useMemo(()=>{
+    const map=new Map<string,{medewerkers:string[];startdatum:string;afloopdatum:string}>();
+    availIndexes.planByProjectId.forEach((rows,pid)=>{
+      const per=planPeriod(rows);
+      if(!per)return;
+      map.set(pid,{medewerkers:(availIndexes.plannedEmployeeIdsByProject.get(pid)||[]).slice().sort(),startdatum:per.start,afloopdatum:per.end});
+    });
+    return map;
+  },[availIndexes]);
+  const viewProjects=useMemo(()=>{
+    if(derivedByProject.size===0)return projects;
+    return projects.map(p=>{const d=derivedByProject.get(p.id);return d?{...p,...d}:p;});
+  },[projects,derivedByProject]);
+  // Centrale projectindex synchroon houden: alle schermen lezen hieruit met O(1) lookups.
+  useEffect(()=>{projectIndex.rebuildProjectIndex(viewProjects);},[viewProjects]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
   // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
