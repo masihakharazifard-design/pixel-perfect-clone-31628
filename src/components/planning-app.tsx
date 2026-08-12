@@ -8,12 +8,13 @@ import {
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
 } from "lucide-react";
-import * as XLSX from "xlsx";
+
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
 
 
 // ===== TYPES =====
@@ -188,7 +189,7 @@ function nid(){return Math.random().toString(36).slice(2,9);}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
 function abbrevName(naam:string):string{const parts=naam.split(" ");return parts.length<=1?naam:parts[0][0]+". "+parts.slice(1).join(" ");}
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
-function normalizeProjectnr(v:unknown):string{return String(v??"").trim();}
+
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
@@ -543,121 +544,22 @@ function ConfirmModal({message,onConfirm,onCancel,confirmLabel="Verwijderen",con
 }
 
 // ===== EXCEL IMPORT MODAL =====
-interface ImportRow {
-  projectnr:string;       // Projectnr. — unique key for dedup
-  projectnaam:string;     // First Omschrijving column
-  opdrachtgever:string;   // Naam opdrachtgever
-  contactpersoon:string;  // Contactpersoon
-  projectleider:string;   // Kolom K (index 10)
-  startdatum:string;      // Startdatum + Starttijd (ISO datetime)
-  einddatum:string;       // Einddatum + Eindtijd (ISO datetime)
-  datumOpdracht:string;   // Datum opdracht (alleen informatief)
-  werknummer:string;      // Werknr. (may be empty)
-  werkzaamheden:string;   // Kolom J (index 9) — exacte tekst
-  rawDept:string;         // Kolom J — bron voor afdelingsherkenning
-  afdelingen:Afdeling[];  // Resolved departments
-  turnkey:boolean;
-  rowIndex:number;        // 1-based Excel row number for error messages
-  invalidReason:string;   // Non-empty = invalid row
-}
+// Parsing gebeurt volledig in een Web Worker (src/workers/excel-import.worker.ts).
+// De UI houdt alleen tellingen en maximaal 20 voorbeeldregels per lijst in state;
+// de volledige regels blijven in een ref en komen nooit in de React-state.
 interface ImportPreview {
-  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number; duplicaten:number;
+  total:number; duplicaten:number;
+  nieuwCount:number; bestaandCount:number; ongeldigCount:number;
+  nieuwSample:ImportRow[]; bestaandSample:ImportRow[]; ongeldigSample:ImportRow[];
 }
 
 // Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
 const PREVIEW_LIMIT=20;
-// Rijen per verwerkingsblok; tussen blokken krijgt de browser even lucht
-const CHUNK=500;
-const yieldToBrowser=()=>new Promise<void>(res=>{
-  if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>res());
-  else setTimeout(res,0);
-});
+// Maximaal aantal gerenderde regels in "Openstaande werken" en rijen per pagina in Werken
+const OPEN_LIMIT=100;
+const PAGE_SIZE=50;
 
-
-// Resolve raw department string → Afdeling[]
-function resolveDept(raw:string):{afdelingen:Afdeling[];turnkey:boolean}{
-  const s=raw.toLowerCase().trim();
-  if(!s)return{afdelingen:["Stoffering"],turnkey:false};
-  if(s==="turnkey")return{afdelingen:["Stoffering","Schilderwerk","Zonwering"],turnkey:true};
-  if(s.includes("combinatie")||s.includes("combi")){
-    // multiple — include all that match
-    const out:Afdeling[]=[];
-    if(s.includes("stof"))out.push("Stoffering");
-    if(s.includes("schild"))out.push("Schilderwerk");
-    if(s.includes("zon"))out.push("Zonwering");
-    return{afdelingen:out.length?out:["Stoffering","Schilderwerk","Zonwering"],turnkey:false};
-  }
-  if(s.includes("schild"))return{afdelingen:["Schilderwerk"],turnkey:false};
-  if(s.includes("stof"))return{afdelingen:["Stoffering"],turnkey:false};
-  if(s.includes("zon"))return{afdelingen:["Zonwering"],turnkey:false};
-  // Unknown value → default Stoffering, not invalid
-  return{afdelingen:["Stoffering"],turnkey:false};
-}
-
-// Parse a cell value that may be an Excel date serial, a formatted date string, or plain text
-function parseXlDate(raw:string|number|null|undefined):string{
-  if(raw==null||raw==="")return "";
-  // Excel date serial (number > 1 and looks like an integer or float)
-  const n=typeof raw==="number"?raw:Number(String(raw).replace(",","."));
-  if(!isNaN(n)&&n>1&&n<200000){
-    // Convert Excel serial (days since 1900-01-01, accounting for Lotus 1900 bug)
-    const d=new Date(Math.round((n-25569)*86400000));
-    if(!isNaN(d.getTime()))return d.toISOString();
-  }
-  const s=String(raw).trim();
-  if(!s)return "";
-  // Try DD-MM-YYYY
-  const dm=/^(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{2,4})$/.exec(s);
-  if(dm){
-    const [,d,m,y]=dm;
-    const year=y.length===2?2000+parseInt(y):parseInt(y);
-    const dt=new Date(year,parseInt(m)-1,parseInt(d));
-    if(!isNaN(dt.getTime()))return dt.toISOString();
-  }
-  // ISO or other parseable format
-  const dt=new Date(s);
-  if(!isNaN(dt.getTime()))return dt.toISOString();
-  return "";
-}
-
-// Parse a time cell: "08:30", "8.30", "8", or an Excel time fraction (0–1) → {h,m} or null
-function parseXlTime(raw:unknown):{h:number;m:number}|null{
-  if(raw==null||raw==="")return null;
-  if(typeof raw==="number"){
-    const frac=raw-Math.floor(raw);
-    if(raw>0&&raw<1||frac>0){
-      const mins=Math.round(frac*24*60);
-      return{h:Math.floor(mins/60)%24,m:mins%60};
-    }
-    if(raw>=0&&raw<=23)return{h:Math.round(raw),m:0};
-    return null;
-  }
-  const s=String(raw).trim();
-  const m=/^(\d{1,2})[:.\uff1a]?(\d{2})?$/.exec(s);
-  if(!m)return null;
-  const h=parseInt(m[1]);const mi=m[2]?parseInt(m[2]):0;
-  if(isNaN(h)||h>23||mi>59)return null;
-  return{h,m:mi};
-}
-
-// Combine an ISO date with a time (defaults applied) → ISO datetime string
-function combineDT(iso:string,time:{h:number;m:number}|null,defH:number,defM=0):string{
-  if(!iso)return "";
-  const d=new Date(iso);
-  if(isNaN(d.getTime()))return "";
-  d.setHours(time?time.h:defH,time?time.m:defM,0,0);
-  return d.toISOString();
-}
-
-// Cell value → trimmed string, empty if null/undefined
-function cellStr(v:unknown):string{
-  if(v==null)return "";
-  return String(v).trim();
-}
-
-// Vaste kolomposities in het projectimportbestand (alleen projectimport)
-const COL_WERKZAAMHEDEN=9;  // Excel kolom J
-const COL_PROJECTLEIDER=10; // Excel kolom K
+const createImportWorker=()=>new Worker(new URL("../workers/excel-import.worker.ts",import.meta.url),{type:"module"});
 
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
@@ -669,183 +571,63 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
   const [progress,setProgress]=useState(0);
   const [importing,setImporting]=useState(false);
   const [parseError,setParseError]=useState<string>("");
+  const [warning,setWarning]=useState<string>("");
   const busyRef=useRef(false);
   const fileRef=useRef<HTMLInputElement>(null);
+  // Volledige importregels (±7.000) — bewust buiten de React-state
+  const rowsRef=useRef<ImportRow[]>([]);
+  const workerRef=useRef<Worker|null>(null);
+  useEffect(()=>()=>{workerRef.current?.terminate();},[]);
 
   const parseFile=async(file:File)=>{
     if(busyRef.current)return;
     busyRef.current=true;
-    setLoading(true);
-    setProgress(0);
-    setParseError("");
+    setLoading(true);setProgress(0);setParseError("");setWarning("");
+    rowsRef.current=[];
+    const finish=()=>{
+      setLoading(false);busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+      workerRef.current?.terminate();workerRef.current=null;
+    };
     try{
-      // Bestand één keer lezen, één keer parsen, alleen het eerste werkblad
       const buf=await file.arrayBuffer();
-      const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      // Read as array-of-arrays to preserve column positions (handles duplicate headers)
-      const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
-
-      // ── Find header row ──────────────────────────────────────────────────
-      // Look for the row containing "Projectnr." (case-insensitive, trimmed)
-      let headerRowIdx=-1;
-      for(let i=0;i<Math.min(raw.length,30);i++){
-        const row=raw[i] as unknown[];
-        if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
-            .match(/^projectnr?$/))){
-          headerRowIdx=i;break;
-        }
-      }
-      if(headerRowIdx===-1){
-        setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
-        return;
-      }
-
-      const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-
-      // ── Column index resolution (positional, handles duplicate headers) ──
-      // Track first occurrence of "omschrijving" (Projectnaam)
-      let omschrijvingCount=0;
-      let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
-      let col_contactpersoon=-1,col_datum_opdracht=-1;
-      let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
-
-      headerRow.forEach((h,i)=>{
-        const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
-        if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
-        else if(h==="omschrijving"){
-          omschrijvingCount++;
-          if(omschrijvingCount===1)col_omschr1=i;
-        }
-        else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
-        else if(norm==="contactpersoon")col_contactpersoon=i;
-        else if(norm==="datumopdracht")col_datum_opdracht=i;
-        else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
-        else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
-        else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
-        else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
-        else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
-      });
-
-      // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
-      if(col_werknr===-1){
-        col_werknr=headerRow.findIndex(h=>{
-          const n=h.replace(/\s+/g,"").replace(/\./g,"");
-          return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
+      const worker=createImportWorker();
+      workerRef.current=worker;
+      worker.onmessage=(ev:MessageEvent<ImportWorkerResponse>)=>{
+        const msg=ev.data;
+        if(msg.type==="progress"){setProgress(msg.pct);return;}
+        if(msg.type==="error"){setParseError(msg.message);finish();return;}
+        if(msg.type!=="projects")return;
+        rowsRef.current=[...msg.nieuw,...msg.bestaand];
+        setWarning(msg.warning);
+        setPreview({
+          total:msg.total,duplicaten:msg.duplicaten,
+          nieuwCount:msg.nieuw.length,bestaandCount:msg.bestaand.length,ongeldigCount:msg.ongeldig.length,
+          nieuwSample:msg.nieuw.slice(0,PREVIEW_LIMIT),
+          bestaandSample:msg.bestaand.slice(0,PREVIEW_LIMIT),
+          ongeldigSample:msg.ongeldig.slice(0,PREVIEW_LIMIT),
         });
-      }
-
-      if(col_projectnr===-1){
-        setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
-        return;
-      }
-
-      // ── Parse data rows (in blokken, zonder state-update per rij) ────────
-      const existingProjectNumbers=new Set(
-        projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
-      );
-
-      const allRows:ImportRow[]=[];
-      const dataRows=raw.slice(headerRowIdx+1);
-
-      for(let start=0;start<dataRows.length;start+=CHUNK){
-        const end=Math.min(start+CHUNK,dataRows.length);
-        for(let idx=start;idx<end;idx++){
-          const row=dataRows[idx] as unknown[];
-          // Skip completely empty rows
-          if(!row||row.every(c=>c==null||cellStr(c)===""))continue;
-
-          const absRow=headerRowIdx+2+idx; // 1-based Excel row number
-
-          const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
-          const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
-          // Kolom J (index 9) = Werkzaamheden én bron voor afdelingsherkenning
-          const rawDeptCell=cellStr(row[COL_WERKZAAMHEDEN]);
-          const opdrachtgever=col_opdrachtgever>=0?cellStr(row[col_opdrachtgever]):"";
-          const contactpersoon=col_contactpersoon>=0?cellStr(row[col_contactpersoon]):"";
-          // Kolom K (index 10) = Projectleider
-          const calculator=cellStr(row[COL_PROJECTLEIDER]);
-          const startdatumRaw=col_startdatum>=0?row[col_startdatum]:null;
-          const einddatumRaw=col_einddatum>=0?row[col_einddatum]:null;
-          const starttijd=col_starttijd>=0?parseXlTime(row[col_starttijd]):null;
-          const eindtijd=col_eindtijd>=0?parseXlTime(row[col_eindtijd]):null;
-          const datumOpdrachtRaw=col_datum_opdracht>=0?row[col_datum_opdracht]:null;
-          const werknrRaw=col_werknr>=0?cellStr(row[col_werknr]):"";
-
-          // Validation: alleen Projectnr. is verplicht
-          let invalidReason="";
-          if(!projectnr&&!projectnaam)continue; // skip truly blank rows silently
-          if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
-
-          const{afdelingen,turnkey}=resolveDept(rawDeptCell);
-
-          // Start = Startdatum + Starttijd (default 08:00); Eind = Einddatum (of Startdatum) + Eindtijd (default 17:00)
-          const startISO=combineDT(parseXlDate(startdatumRaw as string|number|null),starttijd,8,0);
-          const eindBase=parseXlDate(einddatumRaw as string|number|null)||parseXlDate(startdatumRaw as string|number|null);
-          const eindISO=combineDT(eindBase,eindtijd,17,0);
-
-          allRows.push({
-            projectnr,
-            projectnaam:projectnaam||projectnr,
-
-            opdrachtgever,
-            contactpersoon,
-            projectleider:calculator,
-            startdatum:startISO,
-            einddatum:eindISO,
-            datumOpdracht:parseXlDate(datumOpdrachtRaw as string|number|null),
-            werknummer:werknrRaw||projectnr,
-            werkzaamheden:rawDeptCell,
-            rawDept:rawDeptCell,
-            afdelingen,
-            turnkey,
-            rowIndex:absRow,
-            invalidReason,
-          });
-        }
-        setProgress(Math.round((end/Math.max(dataRows.length,1))*100));
-        if(end<dataRows.length)await yieldToBrowser();
-      }
-
-      const ongeldig=allRows.filter(r=>r.invalidReason);
-      const geldig=allRows.filter(r=>!r.invalidReason&&r.projectnr);
-
-      // Dubbele Projectnr.-regels binnen hetzelfde bestand samenvoegen (laatste wint)
-      const importedByProjectNr=new Map<string,ImportRow>();
-      let duplicaten=0;
-      geldig.forEach(r=>{
-        const nr=normalizeProjectnr(r.projectnr);
-        if(importedByProjectNr.has(nr))duplicaten++;
-        importedByProjectNr.set(nr,r);
-      });
-
-      const nieuw:ImportRow[]=[],bestaand:ImportRow[]=[];
-      importedByProjectNr.forEach((r,nr)=>{
-        (existingProjectNumbers.has(nr)?bestaand:nieuw).push(r);
-      });
-
-      setPreview({nieuw,bestaand,ongeldig,total:allRows.length,duplicaten});
-      setStep("preview");
+        setStep("preview");
+        finish();
+      };
+      worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");finish();};
+      const req:ImportWorkerRequest={
+        mode:"projects",buffer:buf,
+        existingProjectNumbers:projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean),
+      };
+      worker.postMessage(req,[buf]);
     }catch(err){
       console.error(err);
       setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
-    }finally{
-      setLoading(false);
-      busyRef.current=false;
-      if(fileRef.current)fileRef.current.value="";
+      finish();
     }
   };
 
   const handleImport=async()=>{
-    if(!preview||importing)return;
+    if(!preview||importing||rowsRef.current.length===0)return;
     setImporting(true);
-    try{await onImport([...preview.nieuw,...preview.bestaand]);}
+    try{await onImport(rowsRef.current);}
     finally{setImporting(false);}
-  };
-
-
-  const DEPT_LABELS:Record<string,string>={
-    Stoffering:"Stof",Schilderwerk:"Schilder",Zonwering:"Zon",
   };
 
   return <Modal title="Excel importeren" onClose={onClose} width="max-w-2xl">
@@ -891,29 +673,30 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>
       </>}
       {step==="preview"&&preview&&<>
+        {warning&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
           <div className="bg-[#F0F3F8] rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-[#1A2744]">{preview.total}</p>
             <p className="text-[10px] text-[#6B7A99] font-medium">Rijen gelezen</p>
           </div>
           <div className="bg-emerald-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-emerald-700">{preview.nieuw.length}</p>
+            <p className="text-xl font-bold text-emerald-700">{preview.nieuwCount}</p>
             <p className="text-[10px] text-emerald-600 font-medium">Nieuw</p>
           </div>
           <div className="bg-amber-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-amber-700">{preview.bestaand.length}</p>
+            <p className="text-xl font-bold text-amber-700">{preview.bestaandCount}</p>
             <p className="text-[10px] text-amber-600 font-medium">Wordt bijgewerkt</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-red-700">{preview.ongeldig.length}</p>
+            <p className="text-xl font-bold text-red-700">{preview.ongeldigCount}</p>
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
         {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} projectnummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
-        {preview.nieuw.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuw.length})</p>
+        {preview.nieuwCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuw.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
+            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
               <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.projectnr}</span>
               <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
@@ -924,40 +707,41 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               }
               {r.startdatum&&<span className="text-[#B8C3D9] flex-shrink-0">{fmtDate(r.startdatum)}</span>}
             </div>)}
-            {preview.nieuw.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuw.length-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.nieuwCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuwCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
-        {preview.bestaand.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaand.length})</p>
+        {preview.bestaandCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaand.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
+            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
               <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
             </div>)}
-            {preview.bestaand.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaand.length-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
-        {preview.ongeldig.length>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldig.length})</p>
+        {preview.ongeldigCount>0&&<div>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldig.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
+            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
               <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
-            {preview.ongeldig.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldig.length-PREVIEW_LIMIT} andere regels met een fout.</p>}
+            {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={importing||preview.nieuw.length+preview.bestaand.length===0}>
+          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");rowsRef.current=[];}} disabled={importing}>Terug</Btn>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount+preview.bestaandCount===0}>
             <Download className="w-4 h-4"/>
-            {importing?"Bezig met importeren…":`${preview.nieuw.length+preview.bestaand.length} project${preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren`}
+            {importing?"Bezig met importeren…":`${preview.nieuwCount+preview.bestaandCount} project${preview.nieuwCount+preview.bestaandCount!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
     </div>
   </Modal>;
 }
+
 
 // ===== VACATION IMPORT MODAL =====
 interface VacRow {
@@ -979,33 +763,6 @@ interface VacRow {
 }
 interface VacPreview { total:number; rows:VacRow[]; }
 
-function parseTimeCell(raw:unknown):string{
-  if(raw==null||raw==="")return "";
-  const s=String(raw).trim();
-  // Excel time serial (fraction of a day, 0.5 = 12:00)
-  const n=Number(s.replace(",","."));
-  if(!isNaN(n)&&n>0&&n<1){
-    const totalMin=Math.round(n*1440);
-    return fmtHM(Math.floor(totalMin/60),totalMin%60);
-  }
-  // "HH:MM" or "H:MM" or "HH.MM"
-  const m=/^(\d{1,2})[:\.](\d{2})/.exec(s);
-  if(m)return fmtHM(parseInt(m[1]),parseInt(m[2]));
-  return "";
-}
-function mapVacStatus(raw:string):AvailStatus{
-  const s=raw.toLowerCase().trim();
-  if(!s)return "Beschikbaar";
-  if(s.includes("niet beschikbaar")||s.includes("unavail")||s.includes("afwezig"))return "Niet beschikbaar";
-  if(s.includes("ingepland")||s.includes("planned")||s.includes("gepland"))return "Ingepland";
-  if(s.includes("beschikbaar")||s.includes("available"))return "Beschikbaar";
-  if(s.includes("vakantie")||s.includes("holiday")||s.includes("leave")||s.includes("verlof"))return "Vakantie";
-  if(s.includes("ziek")||s.includes("sick")||s.includes("ill")||s.includes("arbeidsongeschikt"))return "Ziek";
-  if(s.includes("vrij")||s.includes("free")||s.includes("rtvz"))return "Vrij";
-  return "Vakantie";
-}
-
-
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
   onImport:(entries:AvailEntry[])=>void|Promise<void>;onClose:()=>void;
@@ -1013,10 +770,14 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [preview,setPreview]=useState<VacPreview|null>(null);
   const [loading,setLoading]=useState(false);
+  const [progress,setProgress]=useState(0);
   const [parseError,setParseError]=useState("");
   const fileRef=useRef<HTMLInputElement>(null);
   const busyRef=useRef(false);
+  const workerRef=useRef<Worker|null>(null);
+  useEffect(()=>()=>{workerRef.current?.terminate();},[]);
   const [importing,setImporting]=useState(false);
+
 
   const matchEmployee=(name:string):{emp:Employee|null;ambiguous:boolean}=>{
     if(!name.trim())return{emp:null,ambiguous:false};
@@ -1066,94 +827,50 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
   const parseFile=async(file:File)=>{
     if(busyRef.current)return;
     busyRef.current=true;
-    setLoading(true);setParseError("");
+    setLoading(true);setProgress(0);setParseError("");
+    const finish=()=>{
+      setLoading(false);busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+      workerRef.current?.terminate();workerRef.current=null;
+    };
     try{
-        const buf=await file.arrayBuffer();
-        const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
-
-        // Find header row: look for row containing "medewerker", "naam" or "startdatum"
-        let headerIdx=-1;
-        for(let i=0;i<Math.min(raw.length,20);i++){
-          const row=raw[i] as unknown[];
-          const cells=row.map(c=>cellStr(c).toLowerCase());
-          if(cells.some(c=>c==="medewerker"||c==="naam"||c.includes("startdatum"))){headerIdx=i;break;}
-        }
-        if(headerIdx===-1){
-          // Try looser: any row with "naam" somewhere
-          for(let i=0;i<Math.min(raw.length,20);i++){
-            const row=raw[i] as unknown[];
-            if(row.some(c=>cellStr(c).toLowerCase().includes("naam"))){headerIdx=i;break;}
-          }
-        }
-        if(headerIdx===-1){setParseError("Geen headerrij gevonden. Voeg een rij toe met 'Medewerker', 'Naam' of 'Startdatum'.");setLoading(false);return;}
-
-        const headers=(raw[headerIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-        const ci=(names:string[])=>{for(const n of names){const i=headers.indexOf(n);if(i>=0)return i;}return -1;};
-        const colNaam=ci(["medewerker","naam","name","employee","werknemer"]);
-        const colStart=ci(["startdatum","start datum","start","van"]);
-        const colEind=ci(["einddatum","eind datum","eind","end","tot","t/m"]);
-        const colStartT=ci(["starttijd","start tijd","begintijd","van tijd","time start"]);
-        const colEindT=ci(["eindtijd","eind tijd","eindigd","tot tijd","time end"]);
-        const colType=ci(["type","reden","status","soort","categorie"]);
-        const colNote=ci(["notitie","opmerking","note","toelichting"]);
-
-        if(colNaam===-1&&colStart===-1){setParseError("Kolommen 'Medewerker/Naam' en 'Startdatum' niet gevonden in de header.");setLoading(false);return;}
-
-        const rows:VacRow[]=[];
-        raw.slice(headerIdx+1).forEach((rawRow,relIdx)=>{
-          const row=rawRow as unknown[];
-          if(!row||row.every(c=>c==null||cellStr(c)===""))return;
-          const absRow=headerIdx+2+relIdx;
-
-          const rawName=colNaam>=0?cellStr(row[colNaam]):"";
-          const rawStart=colStart>=0?row[colStart]:null;
-          const rawEind=colEind>=0?row[colEind]:null;
-          const rawStartT=colStartT>=0?row[colStartT]:null;
-          const rawEindT=colEindT>=0?row[colEindT]:null;
-          const rawType=colType>=0?cellStr(row[colType]):"";
-          const rawNote=colNote>=0?cellStr(row[colNote]):"";
-
-          const startISO=parseXlDate(rawStart as string|number|null);
-          const eindISO=parseXlDate(rawEind as string|number|null)||startISO;
-          const startTime=parseTimeCell(rawStartT)||"08:00";
-          const endTime=parseTimeCell(rawEindT)||"17:00";
-          const hasExplicitTimes=!!(parseTimeCell(rawStartT)||parseTimeCell(rawEindT));
-          const status=mapVacStatus(rawType);
-          const note=rawNote;
-
-          let invalidReason="";
-          if(!rawName&&colNaam>=0)invalidReason=`Rij ${absRow}: Medewerker naam ontbreekt`;
-          else if(!startISO)invalidReason=`Rij ${absRow}: Startdatum ontbreekt of ongeldig`;
-
-          const startDate=startISO?startISO.split("T")[0]:"";
-          const endDate=eindISO?eindISO.split("T")[0]:startDate;
-
-          const{emp,ambiguous}=matchEmployee(rawName);
+      const buf=await file.arrayBuffer();
+      const worker=createImportWorker();
+      workerRef.current=worker;
+      worker.onmessage=(ev:MessageEvent<ImportWorkerResponse>)=>{
+        const msg=ev.data;
+        if(msg.type==="progress"){setProgress(msg.pct);return;}
+        if(msg.type==="error"){setParseError(msg.message);finish();return;}
+        if(msg.type!=="avail")return;
+        // Medewerkermatching, duplicaten en conflicten: alleen op de hoofdthread mogelijk
+        const rows:VacRow[]=msg.rows.map((b:VacBaseRow)=>{
+          const{emp,ambiguous}=matchEmployee(b.rawName);
           let conflicts:{date:string;project:Project}[]=[];
           let duplicateDates:string[]=[];
           let entriesToCreate:AvailEntry[]=[];
-
-          if(!invalidReason&&emp&&startDate){
-            const allEntries=buildEntries(emp,startDate,endDate,startTime,endTime,status,note);
+          const status=b.status as AvailStatus;
+          if(!b.invalidReason&&emp&&b.startDate){
+            const allEntries=buildEntries(emp,b.startDate,b.endDate,b.startTime,b.endTime,status,b.note);
             entriesToCreate=allEntries.filter(e=>!isDuplicate(e));
             duplicateDates=allEntries.filter(e=>isDuplicate(e)).map(e=>e.date);
-            conflicts=findConflicts(emp,startDate,endDate);
+            conflicts=findConflicts(emp,b.startDate,b.endDate);
           }
-
-          rows.push({rowIndex:absRow,rawName,matchedEmployee:emp,ambiguous,startDate,endDate,startTime,endTime,hasExplicitTimes,status,note,invalidReason,conflicts,duplicateDates,entriesToCreate});
+          return{...b,status,matchedEmployee:emp,ambiguous,conflicts,duplicateDates,entriesToCreate};
         });
-
-        setPreview({total:rows.length,rows});
+        setPreview({total:msg.total,rows});
         setStep("preview");
-    }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
-    finally{
-      setLoading(false);
-      busyRef.current=false;
-      if(fileRef.current)fileRef.current.value="";
+        finish();
+      };
+      worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand.");finish();};
+      const req:ImportWorkerRequest={mode:"avail",buffer:buf};
+      worker.postMessage(req,[buf]);
+    }catch(err){
+      console.error(err);
+      setParseError("Fout bij het lezen van het bestand.");
+      finish();
     }
   };
+
 
   const handleImport=async()=>{
     if(!preview||importing)return;
@@ -1173,7 +890,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
-      {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
+      {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#6B7A99]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div></div>}
       {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
       <div className="bg-[#F0F3F8] rounded-xl p-4 text-xs space-y-2">
         <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
@@ -1874,16 +1591,17 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
   const [del,setDel]=useState<string|null>(null);
   const [showImport,setShowImport]=useState(false);
-  const set=(k:keyof ColFilters)=>(v:string)=>setFilters(prev=>({...prev,[k]:v}));
+  const [page,setPage]=useState(1);
+  const set=(k:keyof ColFilters)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const clearFilters=()=>{setPage(1);setFilters(EMPTY_FILTERS);};
   const activeCount=Object.values(filters).filter(Boolean).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
   // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
-  const plOptions=[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
-    .sort((a,b)=>a[1].localeCompare(b[1]));
+  const plOptions=useMemo(()=>[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1])),[projects,employees]);
 
-  const filtered=projects.filter(p=>{
-    const pl=employees.find(e=>e.id===p.projectleider);
+  const filtered=useMemo(()=>projects.filter(p=>{
     const afds=getAllAfds(p);
     if(filters.werknummer&&!p.werknummer.toLowerCase().includes(filters.werknummer.toLowerCase()))return false;
     if(filters.projectnaam&&!p.projectnaam.toLowerCase().includes(filters.projectnaam.toLowerCase()))return false;
@@ -1899,15 +1617,26 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     if(filters.medewerker&&!p.medewerkers.includes(filters.medewerker))return false;
     if(filters.status&&p.status!==filters.status)return false;
     return true;
-  });
+  }),[projects,filters]);
 
-  const uniquePlaatsen=[...new Set(projects.map(p=>p.plaats))].sort();
+  // Paginering ná filteren, vóór het renderen van de rijen
+  const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const curPage=Math.min(page,pageCount);
+  const paged=useMemo(()=>filtered.slice((curPage-1)*PAGE_SIZE,curPage*PAGE_SIZE),[filtered,curPage]);
+  const Pager=()=>filtered.length>PAGE_SIZE?<div className="flex items-center justify-between gap-3 py-2">
+    <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.max(1,curPage-1))} disabled={curPage<=1}>Vorige</Btn>
+    <span className="text-xs text-[#6B7A99]">Pagina {curPage} van {pageCount}</span>
+    <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.min(pageCount,curPage+1))} disabled={curPage>=pageCount}>Volgende</Btn>
+  </div>:null;
+
+  const uniquePlaatsen=useMemo(()=>[...new Set(projects.map(p=>p.plaats))].sort(),[projects]);
+
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
-        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
+        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>clearFilters()} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
         <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.15)] text-[#6B7A99] text-sm font-medium">
@@ -1920,7 +1649,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-[#1A2744]">Filteren</span>
-        {activeCount>0&&<button onClick={()=>setFilters(EMPTY_FILTERS)} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
+        {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Afdeling</label><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></div>
@@ -1941,7 +1670,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
-      {filtered.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
+      {paged.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
@@ -1963,6 +1692,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </div>
       </div>;})}
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      <Pager/>
     </div>
     {/* Desktop table view */}
     <div className="hidden md:block bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
@@ -2002,7 +1732,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           </tr>
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {filtered.map(p=>{
+          {paged.map(p=>{
             const pl=plName(p,employees);
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
@@ -2033,6 +1763,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </tbody>
       </table>
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      <Pager/>
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
     {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={async rows=>{await onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
@@ -2897,8 +2628,12 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
   // Eén projectbron voor de hele pagina: alles volgt activeAfds
   const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
-  const visProj=(id?:string)=>id?visProjects.find(p=>p.id===id):undefined;
+  // Gememoiseerde index: geen lineaire find() per cel bij duizenden werken
+  const visProjById=useMemo(()=>new Map(visProjects.map(p=>[p.id,p])),[visProjects]);
+  const visProj=(id?:string)=>id?visProjById.get(id):undefined;
+  const [openZoek,setOpenZoek]=useState("");
   const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
+
   const FILTER_MSG="Dit werk valt niet meer binnen de actieve afdelingsfilter.";
   // Guard: geen projectactie op een project of medewerker die buiten de filter valt
   const canAct=(projectId?:string|null,empId?:string|null)=>{
@@ -3357,11 +3092,21 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
   // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
   // inplannen op exact dezelfde positie blijft staan.
-  const openProjects=visProjects.filter(p=>String(p.status||"").trim().toLowerCase()!=="afgerond").map(p=>{
+  const openProjectsAll=useMemo(()=>{
+    const q=openZoek.trim().toLowerCase();
+    return visProjects.filter(p=>{
+      if(String(p.status||"").trim().toLowerCase()==="afgerond")return false;
+      if(!q)return true;
+      return `${p.werknummer} ${p.projectnr||""} ${p.projectnaam} ${p.opdrachtgever||""}`.toLowerCase().includes(q);
+    });
+  },[visProjects,openZoek]);
+  // Alleen de eerste 100 resultaten renderen; zoeken doorzoekt de volledige lijst.
+  const openProjects=openProjectsAll.slice(0,OPEN_LIMIT).map(p=>{
     const n=assignedEmpIds(availability,p.id).length;
     const nodig=benodigd(p);
     return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
   });
+
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
   planRows(availability).forEach(a=>{
@@ -3576,10 +3321,13 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#6B7A99]">{openProjects.length} werk{openProjects.length!==1?"en":""} · sleep naar een cel</span>
+          <input value={openZoek} onChange={e=>setOpenZoek(e.target.value)} placeholder="Zoek werk…"
+            className="py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
+          <span className="text-xs text-[#6B7A99]">{openProjectsAll.length} werk{openProjectsAll.length!==1?"en":""} · sleep naar een cel</span>
         </div>
       </div>
-      {openProjects.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
+      {openProjectsAll.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
+
       :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
         {openProjects.map(({p,st,n,nodig,rest})=>(
           <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
@@ -3597,6 +3345,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
             <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
           </div>
         ))}
+        {openProjectsAll.length>OPEN_LIMIT&&<p className="px-4 py-2 text-xs text-[#6B7A99]">Verfijn je zoekopdracht om meer resultaten te zien.</p>}
       </div>}
     </div>
 
@@ -4288,12 +4037,15 @@ export default function PlanningApp(){
       if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
     });
     const changed:Project[]=[];
-    let nieuw=0,bijgewerkt=0;
+    let nieuw=0,bijgewerkt=0,ongewijzigd=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
       const idx=nr?idxByNr.get(nr)??-1:-1;
       if(idx>=0){
-        next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
+        const cur=next[idx];
+        // Alleen daadwerkelijk gewijzigde werken worden weggeschreven
+        if(cur.projectleider===r.projectleider&&cur.werkzaamheden===r.werkzaamheden){ongewijzigd++;return;}
+        next[idx]={...cur,projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
         changed.push(next[idx]);bijgewerkt++;
       }else{
         const created=createProjectFromImportRow(r);
@@ -4311,7 +4063,8 @@ export default function PlanningApp(){
     }
     setProjects(next);
     setDbError("");
-    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt.`);
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt${ongewijzigd?`, ${ongewijzigd} ongewijzigd`:""}.`);
+
   };
 
   // ===== Medewerkers =====
