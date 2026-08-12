@@ -28,20 +28,30 @@ function read(): DemoData {
   return seed;
 }
 
-function write(data: DemoData): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    /* opslag vol of geblokkeerd: demo blijft in het geheugen werken */
+export class DemoStorageFullError extends Error {
+  constructor() {
+    super("De Excel-import kon niet worden opgeslagen omdat de lokale demo-opslag vol is.");
+    this.name = "DemoStorageFullError";
   }
+}
+
+function write(data: DemoData): void {
+  // Eerst wegschrijven; mislukt dit (opslag vol), dan blijft de bestaande
+  // dataset ongewijzigd en gaat de fout naar de aanroeper.
+  localStorage.setItem(KEY, JSON.stringify(data));
 }
 
 function mutate(fn: (d: DemoData) => void): DemoData {
   const d = read();
   fn(d);
-  write(d);
+  try {
+    write(d);
+  } catch {
+    throw new DemoStorageFullError();
+  }
   return d;
 }
+
 
 export function resetDemoData(): void {
   write(makeDemoSeed());
