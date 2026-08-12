@@ -28,10 +28,12 @@ Dashboard, Werken, Agenda en Openstaande werken gebruiken al dezelfde `ProjectDe
 In het inplanvenster komt boven het bestaande zoekveld een veld "Werknummer".
 
 - Invoer wordt genormaliseerd met `String(value).trim()` en na ~150 ms debounce exact opgezocht.
-- De lookup gaat via een nieuwe `projectsByWerknummer`-index in de centrale projectindex, naast `projectsById` en `projectsByProjectNr`. Dat blijft O(1), ook bij tienduizenden werken.
-- Bij een match wordt het bestaande project direct geselecteerd (dezelfde `projectId` als via zoeken) en verschijnt eronder de informatie uit het projectrecord: werknummer, projectnummer, projectnaam, werkzaamheden, calculator (letterlijke tekst, geen medewerker-matching), afdeling, opdrachtgever en status — read-only in dit venster.
-- Zonder match: `Geen bestaand werk gevonden met dit werknummer.` Opslaan blijft geblokkeerd tot een bestaand werk is gekozen; er wordt nooit een nieuw of leeg werk aangemaakt vanuit dit venster.
-- De bestaande zoekfunctie (werknummer, projectnummer, projectnaam, werkzaamheden) blijft ongewijzigd naast dit veld.
+- De lookup gaat via een nieuwe index `projectsByWerknummer: Map<string, Project[]>` in de centrale projectindex, naast `projectsById` en `projectsByProjectNr`. `projectnr` blijft de unieke sleutel van een werk; werknummer is uitsluitend een snelle zoek-/koppelroute en geen uniek ID. Lookup blijft O(1) — geen `projects.find()` of volledige scan tijdens typen.
+- Geen match: `Geen bestaand werk gevonden met dit werknummer.` Opslaan blijft geblokkeerd.
+- Precies één match: dat project wordt automatisch geselecteerd met de bestaande `projectId`, en projectnummer, projectnaam, werkzaamheden, calculator (letterlijke tekst, geen medewerker-matching), afdeling, opdrachtgever en status verschijnen read-only.
+- Meerdere matches: nooit automatisch kiezen. Melding `Meerdere werken gevonden met dit werknummer. Kies het juiste werk.` plus een compacte keuzelijst met projectnr., werknummer, projectnaam, werkzaamheden, calculator en afdeling; na keuze wordt die bestaande `projectId` gekoppeld.
+- Er wordt vanuit dit venster in geen enkel geval een nieuw of leeg werk aangemaakt.
+- De bestaande zoekfunctie (werknummer, projectnummer, projectnaam, werkzaamheden) blijft ongewijzigd naast dit veld en levert dezelfde `projectId` op.
 
 ## 8. Synchronisatie
 
@@ -39,7 +41,7 @@ De meerdaagse regels zijn gewone `availability`-regels, dus Agenda, beschikbaarh
 
 ## Technische details
 
-- `src/lib/project-index.ts`: `byWerknummer`-map toevoegen (incrementeel bijwerken in `setEntry`/`removeProjectFromIndex`/`rebuild`) plus `getProjectByWerknummer`.
+- `src/lib/project-index.ts`: `byWerknummer: Map<string, string[]>` (project-ids) toevoegen, incrementeel bijgewerkt in `setEntry`/`removeProjectFromIndex`/`rebuild`, plus `getProjectsByWerknummer`.
 - `src/components/planning-app.tsx`:
   - `PlanEmployeeModal`: state voor `endDate` + werknummerveld, per-dag conflictcontrole, `onSave` levert een array van regels; aanroepers (`projMenu`, `planModal`) slaan op via `commitPlanning`/`onSaveManyPlanning`.
   - Blokklik in de dagcel roept `onOpenProject(proj)` aan in plaats van `openEditPlan(row)`.
