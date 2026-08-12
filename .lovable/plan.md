@@ -4,9 +4,20 @@ Met `VITE_DEMO_AUTH_MODE=true` werkt de hele Maasmond Planning zonder Supabase: 
 
 De productiedatabase en de beveiliging worden niet aangepast: geen RLS uit, geen anon-toegang, geen `USING (true)`, geen service-role key in de frontend.
 
+## 0. Resultaat van de controle op directe database-aanroepen
+
+Ik heb de hele appcode doorzocht op `supabase.from`, `supabase.rpc`, `supabase.storage` en `supabase.channel`. Uitkomst:
+
+- `planning-app.tsx` doet nog maar één directe aanroep: het Realtime-kanaal (`supabase.channel("planning-sync")`). Alle overige datatoegang loopt al via één import uit `planning-store.ts`: `loadAll`, `upsertRow`, `upsertRows`, `deleteRow`, `savePlanningRows`, `setProjectStatusDb`, `patchSettings`, `loadProjectMeta`, `saveProjectMeta`, `loadPersonalNotes`, `savePersonalNote`, `deletePersonalNote`.
+- `auth-gate.tsx` gebruikt Supabase alleen voor login/sessie en het lezen van `user_roles`.
+- Documentupload/-verwijdering (`uploadProjectDocument`, `listProjectDocuments`, `projectDocumentUrl`, `deleteProjectDocument`) en `archiveRecord`/`deleteRows` bestaan wel in de store maar worden op dit moment nergens vanuit de UI aangeroepen.
+- De MCP-tools (`src/lib/mcp/tools/*`) lezen rechtstreeks uit Supabase, maar dat is server/agent-code buiten de app-UI; die blijft ongewijzigd.
+
+Er is dus geen verspreide database-code die eerst opgeschoond moet worden: de facade kan de volledige bestaande API één-op-één overnemen.
+
 ## 1. Instelling
 
-`.env` krijgt `VITE_DEMO_AUTH_MODE=true`. Eén gedeelde constante `DEMO_MODE` in een klein bestand (`src/lib/demo-mode.ts`) leest deze vlag, zodat er nergens verspreide checks nodig zijn.
+`.env` krijgt `VITE_DEMO_AUTH_MODE=true`. Eén gedeelde constante `DEMO_MODE` in `src/lib/demo-mode.ts` leest deze vlag, zodat er nergens verspreide checks nodig zijn.
 
 ## 2. Demo-login
 
@@ -14,33 +25,35 @@ In `src/components/auth-gate.tsx` wordt DEMO MODE als eerste gecontroleerd, vó�
 
 - bestaande demosessie in `localStorage` (`maasmond-demo-session`) → app opent direct, ook na refresh;
 - geen demosessie → hetzelfde inlogscherm met E-mailadres, Code en knop Inloggen (één stap, geen validatie);
-- op Inloggen → demosessie opslaan → app opent meteen. Geen OTP, geen magic link, geen e-mail, geen Microsoft/tenantcontrole.
-- de demo-gebruiker krijgt alleen in de frontend `roles: ["beheerder"]`; er wordt niets naar `user_roles` geschreven en `bootstrapMyRole()` wordt niet aangeroepen.
+- op Inloggen → demosessie opslaan → app opent meteen. Geen OTP, geen magic link, geen e-mail, geen Microsoft/tenantcontrole, geen enkele Supabase-auth-aanroep;
+- de demo-gebruiker krijgt alleen in de frontend `roles: ["beheerder"]`; er wordt niets naar `user_roles` geschreven en `bootstrapMyRole()` wordt niet aangeroepen;
 - uitloggen wist `maasmond-demo-session` en toont het inlogscherm; `maasmond-demo-data` blijft bewaard.
 
 De bestaande echte inlogcode blijft ongewijzigd in het bestand staan voor later.
 
-## 3. Lokale demo-datalaag
+## 3. Centrale store-facade met volledige API
 
-Nieuw bestand `src/lib/demo-planning-store.ts` met exact dezelfde functienamen en types als de huidige store, zodat de schermen niet hoeven te veranderen: `loadAll`, `upsertRow`, `upsertRows`, `deleteRow`, `deleteRows`, `savePlanningRows`, `setProjectStatusDb`, `archiveRecord`, `patchSettings`, `loadProjectMeta`, `saveProjectMeta`, `loadProjectDocuments`-equivalenten en de persoonlijke notities.
-
-Alles leest en schrijft naar `localStorage` onder `maasmond-demo-data` (werken, medewerkers, planning/availability, instellingen, projectkleuren, vaste vrije dagen, projectmeta, notities). Documenten/uploads en auditlog doen in demo niets richting de server.
-
-Nieuw bestand `src/lib/demo-seed.ts` bevat de startdataset, gebaseerd op de bestaande veilige voorbeelddata `INIT_PROJ`, `INIT_EMP` en `INIT_AVAIL` uit `planning-app.tsx` plus standaardinstellingen. Bij de eerste demo-login zonder bestaande `maasmond-demo-data` wordt hiermee geïnitialiseerd; bestaat de data al, dan wordt die geladen. Deze data gaat nooit naar Supabase.
-
-## 4. Eén centrale keuze
-
-Nieuw bestand `src/lib/store.ts` doet:
+Nieuw bestand `src/lib/store.ts`:
 
 ```
 export const store = DEMO_MODE ? demoPlanningStore : supabasePlanningStore
 ```
 
-`src/components/planning-app.tsx` importeert nu al alle datafuncties op één regel; die ene import gaat naar de facade. Verder blijft de schermcode ongewijzigd. In demo-modus worden de Supabase Realtime-abonnementen niet opgezet (er is geen tweede gebruiker); de UI werkt op de lokale state zoals nu.
+De facade biedt de volledige publieke API die de app gebruikt of kan gebruiken: planning toevoegen/wijzigen/verwijderen, meerdere planningregels tegelijk (teamverplaatsing, resize, vaste vrije reeksen lopen allemaal via `savePlanningRows`/`upsertRows`/`deleteRow`), projectstatus, werken en medewerkers toevoegen/wijzigen, instellingen patchen, projectmeta, persoonlijke notities, archiveren/herstellen en de documentfuncties.
+
+`planning-app.tsx` importeert al alles op één regel; die import gaat naar de facade. Verder blijft de schermcode ongewijzigd. Het Realtime-kanaal wordt in demo-modus volledig overgeslagen (de `useEffect` doet niets als `DEMO_MODE` aan staat). Geen verborgen fallback naar Supabase: de demo-store raakt de netwerklaag nooit aan.
+
+## 4. Lokale demo-datalaag
+
+Nieuw bestand `src/lib/demo-planning-store.ts` met exact dezelfde functienamen, signaturen en types als de Supabase-store. Alles leest en schrijft naar `localStorage` onder `maasmond-demo-data`: werken, medewerkers, planning/availability, instellingen, projectkleuren, vaste vrije dagen, projectmeta, persoonlijke notities en een lokaal demo-auditlog (voor "Recente wijzigingen", mocht de UI dat tonen).
+
+Documentupload in demo: de store slaat kleine bestanden lokaal op als data-URL in `maasmond-demo-data`; lukt dat niet (te groot), dan verschijnt de melding "Documentupload is niet beschikbaar in de demo-omgeving". Een upload lijkt nooit gelukt terwijl er niets is opgeslagen.
+
+Nieuw bestand `src/lib/demo-seed.ts` bevat de startdataset, gebaseerd op de bestaande voorbeelddata `INIT_PROJ`, `INIT_EMP` en `INIT_AVAIL` uit `planning-app.tsx` plus standaardinstellingen. Bij de eerste demo-login zonder bestaande `maasmond-demo-data` wordt hiermee geïnitialiseerd; bestaat de data al, dan wordt die geladen. Deze data gaat nooit naar Supabase.
 
 ## 5. Wijzigen tijdens de demo
 
-Omdat alle bestaande mutaties door dezelfde functies lopen, blijven ze werken en worden ze lokaal bewaard: medewerker inplannen, project slepen, resizen, uit planning verwijderen, vaste vrije dag toevoegen, medewerkervolgorde wijzigen, werkstatus wijzigen, projectkleur wijzigen, medewerker toevoegen/wijzigen, werk toevoegen/wijzigen. Na refresh staat alles er nog.
+Omdat alle mutaties door dezelfde functies lopen, blijven ze werken en worden ze lokaal bewaard: medewerker inplannen, project slepen, resizen, uit planning verwijderen, vaste vrije dag toevoegen, medewerkervolgorde wijzigen, werkstatus wijzigen, projectkleur wijzigen, medewerker toevoegen/wijzigen, werk toevoegen/wijzigen. Na refresh staat alles er nog.
 
 ## 6. Demo resetten
 
@@ -48,11 +61,10 @@ Alleen zichtbaar in demo-modus: onder Instellingen een knop **Demo resetten** me
 
 ## 7. Test in de browser
 
-Ik loop het scenario door met een echte browser: inloggen met willekeurige gegevens, Werken/Medewerkers/Personeelsplanning/Agenda controleren, medewerker inplannen, project slepen, projectkleur wijzigen, refreshen, uitloggen, opnieuw inloggen, en Demo resetten. Ik controleer daarbij dat er geen enkele schrijfactie richting de echte database gaat.
+Ik loop het scenario door met een echte browser: inloggen met willekeurige gegevens, Werken/Medewerkers/Personeelsplanning/Agenda controleren, medewerker inplannen, project slepen, projectkleur wijzigen, refreshen, uitloggen, opnieuw inloggen, en Demo resetten. Daarbij lees ik het netwerkverkeer uit en controleer ik dat er tijdens de hele demosessie geen enkel verzoek naar de database gaat voor werken, medewerkers, planning, instellingen, RPC's, opslag of auditlog.
 
 ## Technische notities
 
 - `DEMO_MODE = import.meta.env.VITE_DEMO_AUTH_MODE === "true"`.
-- Demo-store is synchroon van binnen maar biedt dezelfde `Promise`-signatuur aan, zodat aanroepende code identiek blijft.
-- Schrijven naar `localStorage` gebeurt gebundeld per mutatie; lezen gebeurt één keer bij `loadAll`.
+- Demo-store is synchroon van binnen maar biedt dezelfde `Promise`-signatuur, zodat aanroepende code identiek blijft.
 - Geen wijzigingen aan migraties, RLS-policies, RPC's of `src/integrations/supabase/*`.
