@@ -561,8 +561,18 @@ interface ImportRow {
   invalidReason:string;   // Non-empty = invalid row
 }
 interface ImportPreview {
-  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number;
+  nieuw:ImportRow[]; bestaand:ImportRow[]; ongeldig:ImportRow[]; total:number; duplicaten:number;
 }
+
+// Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
+const PREVIEW_LIMIT=20;
+// Rijen per verwerkingsblok; tussen blokken krijgt de browser even lucht
+const CHUNK=500;
+const yieldToBrowser=()=>new Promise<void>(res=>{
+  if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>res());
+  else setTimeout(res,0);
+});
+
 
 // Resolve raw department string → Afdeling[]
 function resolveDept(raw:string):{afdelingen:Afdeling[];turnkey:boolean}{
@@ -651,96 +661,101 @@ const COL_PROJECTLEIDER=10; // Excel kolom K
 
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
-  onImport:(rows:ImportRow[])=>void;onClose:()=>void;
+  onImport:(rows:ImportRow[])=>void|Promise<void>;onClose:()=>void;
 }){
   const [preview,setPreview]=useState<ImportPreview|null>(null);
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [loading,setLoading]=useState(false);
+  const [progress,setProgress]=useState(0);
+  const [importing,setImporting]=useState(false);
   const [parseError,setParseError]=useState<string>("");
+  const busyRef=useRef(false);
   const fileRef=useRef<HTMLInputElement>(null);
 
-  const parseFile=(file:File)=>{
+  const parseFile=async(file:File)=>{
+    if(busyRef.current)return;
+    busyRef.current=true;
     setLoading(true);
+    setProgress(0);
     setParseError("");
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      try{
-        const wb=XLSX.read(ev.target?.result,{type:"array",cellDates:false,raw:true});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        // Read as array-of-arrays to preserve column positions (handles duplicate headers)
-        const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
+    try{
+      // Bestand één keer lezen, één keer parsen, alleen het eerste werkblad
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      // Read as array-of-arrays to preserve column positions (handles duplicate headers)
+      const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
 
-        // ── Find header row ──────────────────────────────────────────────────
-        // Look for the row containing "Projectnr." (case-insensitive, trimmed)
-        let headerRowIdx=-1;
-        for(let i=0;i<Math.min(raw.length,30);i++){
-          const row=raw[i] as unknown[];
-          if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
-              .match(/^projectnr?$/))){
-            headerRowIdx=i;break;
-          }
+      // ── Find header row ──────────────────────────────────────────────────
+      // Look for the row containing "Projectnr." (case-insensitive, trimmed)
+      let headerRowIdx=-1;
+      for(let i=0;i<Math.min(raw.length,30);i++){
+        const row=raw[i] as unknown[];
+        if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
+            .match(/^projectnr?$/))){
+          headerRowIdx=i;break;
         }
-        if(headerRowIdx===-1){
-          setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
-          setLoading(false);return;
+      }
+      if(headerRowIdx===-1){
+        setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
+        return;
+      }
+
+      const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
+
+      // ── Column index resolution (positional, handles duplicate headers) ──
+      // Track first occurrence of "omschrijving" (Projectnaam)
+      let omschrijvingCount=0;
+      let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
+      let col_contactpersoon=-1,col_datum_opdracht=-1;
+      let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
+
+      headerRow.forEach((h,i)=>{
+        const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
+        if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
+        else if(h==="omschrijving"){
+          omschrijvingCount++;
+          if(omschrijvingCount===1)col_omschr1=i;
         }
+        else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
+        else if(norm==="contactpersoon")col_contactpersoon=i;
+        else if(norm==="datumopdracht")col_datum_opdracht=i;
+        else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
+        else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
+        else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
+        else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
+        else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
+      });
 
-        const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-
-        // ── Column index resolution (positional, handles duplicate headers) ──
-        // Track first occurrence of "omschrijving" (Projectnaam)
-        let omschrijvingCount=0;
-        let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
-        let col_contactpersoon=-1,col_datum_opdracht=-1;
-        let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
-
-        headerRow.forEach((h,i)=>{
-          const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
-          if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
-          else if(h==="omschrijving"){
-            omschrijvingCount++;
-            if(omschrijvingCount===1)col_omschr1=i;
-          }
-          else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
-          else if(norm==="contactpersoon")col_contactpersoon=i;
-          else if(norm==="datumopdracht")col_datum_opdracht=i;
-          else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
-          else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
-          else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
-          else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
-          else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
+      // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
+      if(col_werknr===-1){
+        col_werknr=headerRow.findIndex(h=>{
+          const n=h.replace(/\s+/g,"").replace(/\./g,"");
+          return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
         });
+      }
 
+      if(col_projectnr===-1){
+        setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
+        return;
+      }
 
+      // ── Parse data rows (in blokken, zonder state-update per rij) ────────
+      const existingProjectNumbers=new Set(
+        projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
+      );
 
-        // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
-        if(col_werknr===-1){
-          col_werknr=headerRow.findIndex(h=>{
-            const n=h.replace(/\s+/g,"").replace(/\./g,"");
-            return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
-          });
-        }
+      const allRows:ImportRow[]=[];
+      const dataRows=raw.slice(headerRowIdx+1);
 
-
-        if(col_projectnr===-1){
-          setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
-          setLoading(false);return;
-        }
-
-        // ── Parse data rows ──────────────────────────────────────────────────
-        const existingProjectNumbers=new Set(
-          projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
-        );
-
-        const allRows:ImportRow[]=[];
-        const dataRows=raw.slice(headerRowIdx+1);
-
-        dataRows.forEach((rawRow,relIdx)=>{
-          const row=rawRow as unknown[];
+      for(let start=0;start<dataRows.length;start+=CHUNK){
+        const end=Math.min(start+CHUNK,dataRows.length);
+        for(let idx=start;idx<end;idx++){
+          const row=dataRows[idx] as unknown[];
           // Skip completely empty rows
-          if(!row||row.every(c=>c==null||cellStr(c)===""))return;
+          if(!row||row.every(c=>c==null||cellStr(c)===""))continue;
 
-          const absRow=headerRowIdx+2+relIdx; // 1-based Excel row number
+          const absRow=headerRowIdx+2+idx; // 1-based Excel row number
 
           const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
           const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
@@ -759,7 +774,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
           // Validation: alleen Projectnr. is verplicht
           let invalidReason="";
-          if(!projectnr&&!projectnaam)return; // skip truly blank rows silently
+          if(!projectnr&&!projectnaam)continue; // skip truly blank rows silently
           if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
 
           const{afdelingen,turnkey}=resolveDept(rawDeptCell);
@@ -787,25 +802,47 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             rowIndex:absRow,
             invalidReason,
           });
-        });
-
-        const ongeldig=allRows.filter(r=>r.invalidReason);
-        const valid=allRows.filter(r=>!r.invalidReason&&r.projectnr);
-        const nieuw=valid.filter(r=>!existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
-        const bestaand=valid.filter(r=>existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
-
-        setPreview({nieuw,bestaand,ongeldig,total:allRows.length});
-        setStep("preview");
-      }catch(err){
-        console.error(err);
-        setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
+        }
+        setProgress(Math.round((end/Math.max(dataRows.length,1))*100));
+        if(end<dataRows.length)await yieldToBrowser();
       }
+
+      const ongeldig=allRows.filter(r=>r.invalidReason);
+      const geldig=allRows.filter(r=>!r.invalidReason&&r.projectnr);
+
+      // Dubbele Projectnr.-regels binnen hetzelfde bestand samenvoegen (laatste wint)
+      const importedByProjectNr=new Map<string,ImportRow>();
+      let duplicaten=0;
+      geldig.forEach(r=>{
+        const nr=normalizeProjectnr(r.projectnr);
+        if(importedByProjectNr.has(nr))duplicaten++;
+        importedByProjectNr.set(nr,r);
+      });
+
+      const nieuw:ImportRow[]=[],bestaand:ImportRow[]=[];
+      importedByProjectNr.forEach((r,nr)=>{
+        (existingProjectNumbers.has(nr)?bestaand:nieuw).push(r);
+      });
+
+      setPreview({nieuw,bestaand,ongeldig,total:allRows.length,duplicaten});
+      setStep("preview");
+    }catch(err){
+      console.error(err);
+      setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
+    }finally{
       setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+      busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+    }
   };
 
-  const handleImport=()=>{if(!preview)return;onImport([...preview.nieuw,...preview.bestaand]);};
+  const handleImport=async()=>{
+    if(!preview||importing)return;
+    setImporting(true);
+    try{await onImport([...preview.nieuw,...preview.bestaand]);}
+    finally{setImporting(false);}
+  };
+
 
   const DEPT_LABELS:Record<string,string>={
     Stoffering:"Stof",Schilderwerk:"Schilder",Zonwering:"Zon",
@@ -815,14 +852,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
     <div className="p-4 md:p-6 space-y-4">
       {step==="upload"&&<>
         <p className="text-sm text-[#6B7A99]">Upload uw originele Excel-bestand. De importer leest de kolommen op positie — u hoeft niets te hernoemen of te herordenen.</p>
-        <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
+        <div className={`border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center transition-colors ${loading?"opacity-60 cursor-not-allowed":"hover:border-[#0ABFB8] cursor-pointer"}`} onClick={()=>{if(!loading)fileRef.current?.click();}}>
           <Table2 className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
           <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
           <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-            onChange={e=>{if(e.target.files?.[0])parseFile(e.target.files[0]);}}/>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading}
+            onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
         </div>
-        {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
+        {loading&&<div className="space-y-2">
+          <p className="text-center text-sm text-[#6B7A99]">Excelbestand verwerken… {progress}%</p>
+          <div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div>
+        </div>}
         {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
         <div className="bg-[#F0F3F8] rounded-xl p-4 space-y-3 text-xs">
           <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
@@ -869,10 +909,11 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
+        {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} projectnummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuw.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuw.length})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuw.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
+            {preview.nieuw.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
               <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.projectnr}</span>
               <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
@@ -883,31 +924,34 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               }
               {r.startdatum&&<span className="text-[#B8C3D9] flex-shrink-0">{fmtDate(r.startdatum)}</span>}
             </div>)}
+            {preview.nieuw.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuw.length-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.bestaand.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaand.length})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaand.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
+            {preview.bestaand.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
               <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
             </div>)}
+            {preview.bestaand.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaand.length-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.ongeldig.length>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldig.length})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldig.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
+            {preview.ongeldig.slice(0,PREVIEW_LIMIT).map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
               <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
+            {preview.ongeldig.length>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldig.length-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={preview.nieuw.length+preview.bestaand.length===0}>
+          <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuw.length+preview.bestaand.length===0}>
             <Download className="w-4 h-4"/>
-            {preview.nieuw.length+preview.bestaand.length} project{preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren
+            {importing?"Bezig met importeren…":`${preview.nieuw.length+preview.bestaand.length} project${preview.nieuw.length+preview.bestaand.length!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
@@ -964,13 +1008,15 @@ function mapVacStatus(raw:string):AvailStatus{
 
 function VacationImportModal({employees,projects,availability,onImport,onClose}:{
   employees:Employee[];projects:Project[];availability:AvailEntry[];
-  onImport:(entries:AvailEntry[])=>void;onClose:()=>void;
+  onImport:(entries:AvailEntry[])=>void|Promise<void>;onClose:()=>void;
 }){
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [preview,setPreview]=useState<VacPreview|null>(null);
   const [loading,setLoading]=useState(false);
   const [parseError,setParseError]=useState("");
   const fileRef=useRef<HTMLInputElement>(null);
+  const busyRef=useRef(false);
+  const [importing,setImporting]=useState(false);
 
   const matchEmployee=(name:string):{emp:Employee|null;ambiguous:boolean}=>{
     if(!name.trim())return{emp:null,ambiguous:false};
@@ -1017,12 +1063,13 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     return out;
   };
 
-  const parseFile=(file:File)=>{
+  const parseFile=async(file:File)=>{
+    if(busyRef.current)return;
+    busyRef.current=true;
     setLoading(true);setParseError("");
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      try{
-        const wb=XLSX.read(ev.target?.result,{type:"array",cellDates:false,raw:true});
+    try{
+        const buf=await file.arrayBuffer();
+        const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
 
@@ -1100,16 +1147,20 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
         setPreview({total:rows.length,rows});
         setStep("preview");
-      }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
+    }catch(err){console.error(err);setParseError("Fout bij het lezen van het bestand.");}
+    finally{
       setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+      busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+    }
   };
 
-  const handleImport=()=>{
-    if(!preview)return;
+  const handleImport=async()=>{
+    if(!preview||importing)return;
     const all=preview.rows.flatMap(r=>r.matchedEmployee&&!r.ambiguous&&!r.invalidReason?r.entriesToCreate:[]);
-    onImport(all);
+    setImporting(true);
+    try{await onImport(all);}
+    finally{setImporting(false);}
   };
 
   if(!preview||step==="upload")return <Modal title="Beschikbaarheid importeren" onClose={onClose} width="max-w-xl">
@@ -1120,7 +1171,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <Calendar className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
         <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
         <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={e=>{if(e.target.files?.[0])parseFile(e.target.files[0]);}}/>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
       {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
       {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
@@ -1214,10 +1265,10 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       </div>}
 
       <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
-        <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}}>Terug</Btn>
-        <Btn onClick={handleImport} disabled={totalNew===0}>
+        <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
+        <Btn onClick={handleImport} disabled={importing||totalNew===0}>
           <Check className="w-4 h-4"/>
-          {totalNew} tijdblok{totalNew!==1?"ken":""} importeren
+          {importing?"Bezig met importeren…":`${totalNew} tijdblok${totalNew!==1?"ken":""} importeren`}
         </Btn>
       </div>
     </div>
@@ -1816,7 +1867,7 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
 function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
-  onImport:(rows:ImportRow[])=>void;
+  onImport:(rows:ImportRow[])=>void|Promise<void>;
   onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
@@ -1984,7 +2035,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
-    {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={rows=>{onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
+    {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={async rows=>{await onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
   </div>;
 }
 
@@ -4228,31 +4279,39 @@ export default function PlanningApp(){
       };
     };
 
-    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken
+    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken.
+    // Eén vooraf opgebouwde index i.p.v. per rij de hele lijst doorzoeken.
     const next=[...projects];
+    const idxByNr=new Map<string,number>();
+    next.forEach((p,i)=>{
+      const nr=normalizeProjectnr(p.projectnr);
+      if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
+    });
     const changed:Project[]=[];
+    let nieuw=0,bijgewerkt=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
-      const idx=nr?next.findIndex(p=>normalizeProjectnr(p.projectnr)===nr):-1;
+      const idx=nr?idxByNr.get(nr)??-1:-1;
       if(idx>=0){
         next[idx]={...next[idx],projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
-        changed.push(next[idx]);
+        changed.push(next[idx]);bijgewerkt++;
       }else{
         const created=createProjectFromImportRow(r);
-        next.push(created);changed.push(created);
+        next.push(created);changed.push(created);nieuw++;
+        if(nr)idxByNr.set(nr,next.length-1);
       }
     });
 
-    const prev=projects;
-    setProjects(next);
+    // Atomair: eerst opslaan, pas na bevestiging de centrale state bijwerken
     try{
       await upsertRows("projects",changed);
-      setDbError("");
-      toast.success(`${changed.length} werken geïmporteerd.`);
     }catch(e){
-      setProjects(prev);
       fail("Import kon niet worden opgeslagen:",e);
+      return;
     }
+    setProjects(next);
+    setDbError("");
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt.`);
   };
 
   // ===== Medewerkers =====

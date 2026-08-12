@@ -24,24 +24,38 @@ function read(): DemoData {
     /* beschadigde demo-data: terugvallen op de seed */
   }
   const seed = makeDemoSeed();
-  write(seed);
+  try {
+    write(seed);
+  } catch {
+    /* opslag vol bij initialisatie: demo draait dan in het geheugen */
+  }
   return seed;
 }
 
-function write(data: DemoData): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    /* opslag vol of geblokkeerd: demo blijft in het geheugen werken */
+export class DemoStorageFullError extends Error {
+  constructor() {
+    super("De Excel-import kon niet worden opgeslagen omdat de lokale demo-opslag vol is.");
+    this.name = "DemoStorageFullError";
   }
+}
+
+function write(data: DemoData): void {
+  // Eerst wegschrijven; mislukt dit (opslag vol), dan blijft de bestaande
+  // dataset ongewijzigd en gaat de fout naar de aanroeper.
+  localStorage.setItem(KEY, JSON.stringify(data));
 }
 
 function mutate(fn: (d: DemoData) => void): DemoData {
   const d = read();
   fn(d);
-  write(d);
+  try {
+    write(d);
+  } catch {
+    throw new DemoStorageFullError();
+  }
   return d;
 }
+
 
 export function resetDemoData(): void {
   write(makeDemoSeed());
@@ -71,10 +85,17 @@ export async function upsertRows<T extends WithId>(table: SyncTable, items: T[])
   if (items.length === 0) return [];
   mutate((d) => {
     const list = listOf(d, table);
+    // Index vooraf opbouwen: O(1) per rij i.p.v. de hele lijst doorzoeken.
+    const idxById = new Map<string, number>();
+    list.forEach((r, i) => idxById.set(r.id, i));
     items.forEach((item) => {
-      const i = list.findIndex((r) => r.id === item.id);
-      if (i >= 0) list[i] = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
-      else list.push({ ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string });
+      const row = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
+      const i = idxById.get(item.id);
+      if (i !== undefined) list[i] = row;
+      else {
+        list.push(row);
+        idxById.set(item.id, list.length - 1);
+      }
     });
   });
   return items;
