@@ -566,6 +566,9 @@ interface ImportPreview {
 
 // Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
 const PREVIEW_LIMIT=20;
+// Maximaal aantal gerenderde regels in "Openstaande werken" en rijen per pagina in Werken
+const OPEN_LIMIT=100;
+const PAGE_SIZE=50;
 // Rijen per verwerkingsblok; tussen blokken krijgt de browser even lucht
 const CHUNK=500;
 const yieldToBrowser=()=>new Promise<void>(res=>{
