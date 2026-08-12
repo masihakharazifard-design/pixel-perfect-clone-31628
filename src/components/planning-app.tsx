@@ -1877,16 +1877,17 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
   const [del,setDel]=useState<string|null>(null);
   const [showImport,setShowImport]=useState(false);
-  const set=(k:keyof ColFilters)=>(v:string)=>setFilters(prev=>({...prev,[k]:v}));
+  const [page,setPage]=useState(1);
+  const set=(k:keyof ColFilters)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const clearFilters=()=>{setPage(1);setFilters(EMPTY_FILTERS);};
   const activeCount=Object.values(filters).filter(Boolean).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
   // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
-  const plOptions=[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
-    .sort((a,b)=>a[1].localeCompare(b[1]));
+  const plOptions=useMemo(()=>[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1])),[projects,employees]);
 
-  const filtered=projects.filter(p=>{
-    const pl=employees.find(e=>e.id===p.projectleider);
+  const filtered=useMemo(()=>projects.filter(p=>{
     const afds=getAllAfds(p);
     if(filters.werknummer&&!p.werknummer.toLowerCase().includes(filters.werknummer.toLowerCase()))return false;
     if(filters.projectnaam&&!p.projectnaam.toLowerCase().includes(filters.projectnaam.toLowerCase()))return false;
@@ -1902,9 +1903,20 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     if(filters.medewerker&&!p.medewerkers.includes(filters.medewerker))return false;
     if(filters.status&&p.status!==filters.status)return false;
     return true;
-  });
+  }),[projects,filters]);
 
-  const uniquePlaatsen=[...new Set(projects.map(p=>p.plaats))].sort();
+  // Paginering ná filteren, vóór het renderen van de rijen
+  const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const curPage=Math.min(page,pageCount);
+  const paged=useMemo(()=>filtered.slice((curPage-1)*PAGE_SIZE,curPage*PAGE_SIZE),[filtered,curPage]);
+  const Pager=()=>filtered.length>PAGE_SIZE?<div className="flex items-center justify-between gap-3 py-2">
+    <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.max(1,curPage-1))} disabled={curPage<=1}>Vorige</Btn>
+    <span className="text-xs text-[#6B7A99]">Pagina {curPage} van {pageCount}</span>
+    <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.min(pageCount,curPage+1))} disabled={curPage>=pageCount}>Volgende</Btn>
+  </div>:null;
+
+  const uniquePlaatsen=useMemo(()=>[...new Set(projects.map(p=>p.plaats))].sort(),[projects]);
+
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
