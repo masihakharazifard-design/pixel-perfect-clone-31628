@@ -33,7 +33,7 @@ Wie wel inlogt maar (nog) geen rol heeft, ziet: "Je account is aangemeld, maar h
 - Databasemigratie: `bootstrap_my_role()` past zich aan zodat de "eerste gebruiker wordt beheerder"-tak vervalt en `@maasmond.nl` de rol `planner` krijgt. Verder geen schemawijzigingen.
 - Auth-instelling: e-mail-signups blijven aan, bevestiging via de OTP-mail zelf; geen anonieme login. `shouldCreateUser: true` blijft staan omdat de server het domein afdwingt.
 - E-mailtemplate voor passwordless login bevat zowel de inloglink als de 6-cijferige code (`{{ .Token }}`), zodat de gebruiker kan kiezen. Magic link blijft werken.
-- Server-side domeincontrole: een `Before User Created` Auth Hook (Postgres-functie in `public`, security definer) weigert elk nieuw account waarvan het e-mailadres niet op `@maasmond.nl` eindigt. De clientcontrole blijft alleen voor snelle feedback. Bestaande gebruikers worden niet geraakt.
+- Server-side domeincontrole: een `Before User Created` Auth Hook (Postgres-functie in `public`, zonder `SECURITY DEFINER`) weigert elk nieuw account waarvan het e-mailadres niet op `@maasmond.nl` eindigt. Alleen `supabase_auth_admin` krijgt uitvoerrechten; die rechten worden voor `anon` en `authenticated` (en `public`) ingetrokken. De clientcontrole blijft alleen voor snelle feedback. Bestaande gebruikers worden niet geraakt.
 - Auth-URL's controleren: productie-URL (Site URL) en de toegestane redirect-URL's voor preview en productie instellen zodat de magic link correct terugkomt.
 - RLS, GRANTs, rollen-RPC's, auditlog en Realtime blijven ongewijzigd. Geen `USING (true)`, geen anon-toegang.
 
