@@ -661,7 +661,7 @@ const COL_PROJECTLEIDER=10; // Excel kolom K
 
 function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
-  onImport:(rows:ImportRow[])=>void;onClose:()=>void;
+  onImport:(rows:ImportRow[])=>void|Promise<void>;onClose:()=>void;
 }){
   const [preview,setPreview]=useState<ImportPreview|null>(null);
   const [step,setStep]=useState<"upload"|"preview">("upload");
