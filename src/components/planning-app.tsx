@@ -3952,12 +3952,21 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
         <div className="w-8 h-8 rounded-lg" style={{backgroundColor:form.deptColors[a].bg}}/>
       </div>)}
     </div>}
+    {DEMO_MODE&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-3">
+      <div>
+        <p className="font-semibold text-[#1A2744]">Demo-omgeving</p>
+        <p className="text-xs text-[#6B7A99]">Alle gegevens staan alleen lokaal in deze browser. Resetten zet de voorbeelddata terug.</p>
+      </div>
+      <button onClick={()=>{if(window.confirm("Weet je zeker dat je alle demo-gegevens wilt terugzetten?")){void resetDemoData().then(()=>window.location.reload());}}}
+        className="px-4 py-2 rounded-xl border border-[#FF6B5B] text-[#FF6B5B] text-sm font-semibold hover:bg-[#FFE8E5]">Demo resetten</button>
+    </div>}
     <div className="flex gap-3">
       <Btn onClick={save}>
         {saved?<><Check className="w-4 h-4"/>Opgeslagen!</>:<>Instellingen opslaan</>}
       </Btn>
       {saved&&<p className="text-sm text-emerald-600 flex items-center gap-1"><Check className="w-4 h-4"/>Wijzigingen opgeslagen</p>}
     </div>
+
   </div>;
 }
 
