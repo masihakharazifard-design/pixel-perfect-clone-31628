@@ -1171,7 +1171,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <Calendar className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
         <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
         <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={e=>{if(e.target.files?.[0])parseFile(e.target.files[0]);}}/>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
       {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
       {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
