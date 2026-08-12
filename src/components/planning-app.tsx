@@ -2581,8 +2581,10 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
   </>;
 }
 
-function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onResizePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
-  projects:Project[];employees:Employee[];availability:AvailEntry[];
+// Krijgt bewust NIET de volledige projectenlijst als prop: alle projectdata komt
+// uit de centrale projectindex met O(1) lookups.
+function PersoneelsplanningView({employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onResizePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
+  employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
   onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onSaveManyPlanning:(e:AvailEntry[])=>Promise<boolean>;
   onResizePlanning:(e:AvailEntry[],removeIds:string[])=>Promise<boolean>;
