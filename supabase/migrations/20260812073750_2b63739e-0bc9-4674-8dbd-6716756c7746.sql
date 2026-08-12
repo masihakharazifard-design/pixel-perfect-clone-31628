@@ -1,0 +1,1 @@
+ALTER FUNCTION public.before_user_created_maasmond(jsonb) SET search_path = public;

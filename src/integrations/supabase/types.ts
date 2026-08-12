@@ -236,6 +236,7 @@ export type Database = {
         Args: { _archiveren: boolean; _record_id: string; _tabel: string }
         Returns: undefined
       }
+      before_user_created_maasmond: { Args: { event: Json }; Returns: Json }
       bootstrap_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]

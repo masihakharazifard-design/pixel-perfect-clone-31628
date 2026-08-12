@@ -6,9 +6,9 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Inloggen — Maasmond planning" },
-      { name: "description", content: "Log in met uw Microsoft-werkaccount voor Maasmond planning." },
+      { name: "description", content: "Log in met uw Maasmond e-mailadres voor Maasmond planning." },
       { property: "og:title", content: "Inloggen — Maasmond planning" },
-      { property: "og:description", content: "Log in met uw Microsoft-werkaccount voor Maasmond planning." },
+      { property: "og:description", content: "Log in met uw Maasmond e-mailadres voor Maasmond planning." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
