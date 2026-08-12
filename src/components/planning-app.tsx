@@ -1867,7 +1867,7 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
 function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
-  onImport:(rows:ImportRow[])=>void;
+  onImport:(rows:ImportRow[])=>void|Promise<void>;
   onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
