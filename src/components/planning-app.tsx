@@ -666,91 +666,96 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
   const [preview,setPreview]=useState<ImportPreview|null>(null);
   const [step,setStep]=useState<"upload"|"preview">("upload");
   const [loading,setLoading]=useState(false);
+  const [progress,setProgress]=useState(0);
+  const [importing,setImporting]=useState(false);
   const [parseError,setParseError]=useState<string>("");
+  const busyRef=useRef(false);
   const fileRef=useRef<HTMLInputElement>(null);
 
-  const parseFile=(file:File)=>{
+  const parseFile=async(file:File)=>{
+    if(busyRef.current)return;
+    busyRef.current=true;
     setLoading(true);
+    setProgress(0);
     setParseError("");
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      try{
-        const wb=XLSX.read(ev.target?.result,{type:"array",cellDates:false,raw:true});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        // Read as array-of-arrays to preserve column positions (handles duplicate headers)
-        const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
+    try{
+      // Bestand één keer lezen, één keer parsen, alleen het eerste werkblad
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:"array",cellDates:false,raw:true,sheets:0});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      // Read as array-of-arrays to preserve column positions (handles duplicate headers)
+      const raw=XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:null,raw:true});
 
-        // ── Find header row ──────────────────────────────────────────────────
-        // Look for the row containing "Projectnr." (case-insensitive, trimmed)
-        let headerRowIdx=-1;
-        for(let i=0;i<Math.min(raw.length,30);i++){
-          const row=raw[i] as unknown[];
-          if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
-              .match(/^projectnr?$/))){
-            headerRowIdx=i;break;
-          }
+      // ── Find header row ──────────────────────────────────────────────────
+      // Look for the row containing "Projectnr." (case-insensitive, trimmed)
+      let headerRowIdx=-1;
+      for(let i=0;i<Math.min(raw.length,30);i++){
+        const row=raw[i] as unknown[];
+        if(row.some(c=>cellStr(c).toLowerCase().replace(/\s/g,"").replace(/\.$/,"")
+            .match(/^projectnr?$/))){
+          headerRowIdx=i;break;
         }
-        if(headerRowIdx===-1){
-          setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
-          setLoading(false);return;
+      }
+      if(headerRowIdx===-1){
+        setParseError("Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand.");
+        return;
+      }
+
+      const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
+
+      // ── Column index resolution (positional, handles duplicate headers) ──
+      // Track first occurrence of "omschrijving" (Projectnaam)
+      let omschrijvingCount=0;
+      let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
+      let col_contactpersoon=-1,col_datum_opdracht=-1;
+      let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
+
+      headerRow.forEach((h,i)=>{
+        const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
+        if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
+        else if(h==="omschrijving"){
+          omschrijvingCount++;
+          if(omschrijvingCount===1)col_omschr1=i;
         }
+        else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
+        else if(norm==="contactpersoon")col_contactpersoon=i;
+        else if(norm==="datumopdracht")col_datum_opdracht=i;
+        else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
+        else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
+        else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
+        else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
+        else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
+      });
 
-        const headerRow=(raw[headerRowIdx] as unknown[]).map(h=>cellStr(h).toLowerCase().trim());
-
-        // ── Column index resolution (positional, handles duplicate headers) ──
-        // Track first occurrence of "omschrijving" (Projectnaam)
-        let omschrijvingCount=0;
-        let col_projectnr=-1,col_omschr1=-1,col_opdrachtgever=-1;
-        let col_contactpersoon=-1,col_datum_opdracht=-1;
-        let col_startdatum=-1,col_einddatum=-1,col_starttijd=-1,col_eindtijd=-1,col_werknr=-1;
-
-        headerRow.forEach((h,i)=>{
-          const norm=h.replace(/\s+/g,"").replace(/\.$/,"");
-          if(norm==="projectnr"&&col_projectnr===-1)col_projectnr=i;
-          else if(h==="omschrijving"){
-            omschrijvingCount++;
-            if(omschrijvingCount===1)col_omschr1=i;
-          }
-          else if(norm==="naamopdrachtgever"||norm==="opdrachtgever")col_opdrachtgever=i;
-          else if(norm==="contactpersoon")col_contactpersoon=i;
-          else if(norm==="datumopdracht")col_datum_opdracht=i;
-          else if(norm==="startdatum"&&col_startdatum===-1)col_startdatum=i;
-          else if((norm==="einddatum"||norm==="afloopdatum"||norm==="eindedatum")&&col_einddatum===-1)col_einddatum=i;
-          else if(norm==="starttijd"&&col_starttijd===-1)col_starttijd=i;
-          else if((norm==="eindtijd"||norm==="eindetijd")&&col_eindtijd===-1)col_eindtijd=i;
-          else if(norm==="werknr"||norm==="werknummer"||norm==="wnr"||(/werk/.test(norm)&&/(nr|nummer)/.test(norm)))col_werknr=i;
+      // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
+      if(col_werknr===-1){
+        col_werknr=headerRow.findIndex(h=>{
+          const n=h.replace(/\s+/g,"").replace(/\./g,"");
+          return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
         });
+      }
 
+      if(col_projectnr===-1){
+        setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
+        return;
+      }
 
+      // ── Parse data rows (in blokken, zonder state-update per rij) ────────
+      const existingProjectNumbers=new Set(
+        projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
+      );
 
-        // Fallback: no dedicated Werknr. column found → scan any header mentioning "werk" + nr/nummer
-        if(col_werknr===-1){
-          col_werknr=headerRow.findIndex(h=>{
-            const n=h.replace(/\s+/g,"").replace(/\./g,"");
-            return n!=="projectnr"&&/werk/.test(n)&&/(nr|nummer)/.test(n);
-          });
-        }
+      const allRows:ImportRow[]=[];
+      const dataRows=raw.slice(headerRowIdx+1);
 
-
-        if(col_projectnr===-1){
-          setParseError("Kolom 'Projectnr.' niet gevonden in de headerrij.");
-          setLoading(false);return;
-        }
-
-        // ── Parse data rows ──────────────────────────────────────────────────
-        const existingProjectNumbers=new Set(
-          projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean)
-        );
-
-        const allRows:ImportRow[]=[];
-        const dataRows=raw.slice(headerRowIdx+1);
-
-        dataRows.forEach((rawRow,relIdx)=>{
-          const row=rawRow as unknown[];
+      for(let start=0;start<dataRows.length;start+=CHUNK){
+        const end=Math.min(start+CHUNK,dataRows.length);
+        for(let idx=start;idx<end;idx++){
+          const row=dataRows[idx] as unknown[];
           // Skip completely empty rows
-          if(!row||row.every(c=>c==null||cellStr(c)===""))return;
+          if(!row||row.every(c=>c==null||cellStr(c)===""))continue;
 
-          const absRow=headerRowIdx+2+relIdx; // 1-based Excel row number
+          const absRow=headerRowIdx+2+idx; // 1-based Excel row number
 
           const projectnr=col_projectnr>=0?cellStr(row[col_projectnr]):"";
           const projectnaam=col_omschr1>=0?cellStr(row[col_omschr1]):"";
@@ -769,7 +774,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
 
           // Validation: alleen Projectnr. is verplicht
           let invalidReason="";
-          if(!projectnr&&!projectnaam)return; // skip truly blank rows silently
+          if(!projectnr&&!projectnaam)continue; // skip truly blank rows silently
           if(!projectnr)invalidReason=`Rij ${absRow}: Projectnr. ontbreekt`;
 
           const{afdelingen,turnkey}=resolveDept(rawDeptCell);
@@ -797,25 +802,47 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             rowIndex:absRow,
             invalidReason,
           });
-        });
-
-        const ongeldig=allRows.filter(r=>r.invalidReason);
-        const valid=allRows.filter(r=>!r.invalidReason&&r.projectnr);
-        const nieuw=valid.filter(r=>!existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
-        const bestaand=valid.filter(r=>existingProjectNumbers.has(normalizeProjectnr(r.projectnr)));
-
-        setPreview({nieuw,bestaand,ongeldig,total:allRows.length});
-        setStep("preview");
-      }catch(err){
-        console.error(err);
-        setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
+        }
+        setProgress(Math.round((end/Math.max(dataRows.length,1))*100));
+        if(end<dataRows.length)await yieldToBrowser();
       }
+
+      const ongeldig=allRows.filter(r=>r.invalidReason);
+      const geldig=allRows.filter(r=>!r.invalidReason&&r.projectnr);
+
+      // Dubbele Projectnr.-regels binnen hetzelfde bestand samenvoegen (laatste wint)
+      const importedByProjectNr=new Map<string,ImportRow>();
+      let duplicaten=0;
+      geldig.forEach(r=>{
+        const nr=normalizeProjectnr(r.projectnr);
+        if(importedByProjectNr.has(nr))duplicaten++;
+        importedByProjectNr.set(nr,r);
+      });
+
+      const nieuw:ImportRow[]=[],bestaand:ImportRow[]=[];
+      importedByProjectNr.forEach((r,nr)=>{
+        (existingProjectNumbers.has(nr)?bestaand:nieuw).push(r);
+      });
+
+      setPreview({nieuw,bestaand,ongeldig,total:allRows.length,duplicaten});
+      setStep("preview");
+    }catch(err){
+      console.error(err);
+      setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");
+    }finally{
       setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+      busyRef.current=false;
+      if(fileRef.current)fileRef.current.value="";
+    }
   };
 
-  const handleImport=()=>{if(!preview)return;onImport([...preview.nieuw,...preview.bestaand]);};
+  const handleImport=async()=>{
+    if(!preview||importing)return;
+    setImporting(true);
+    try{await onImport([...preview.nieuw,...preview.bestaand]);}
+    finally{setImporting(false);}
+  };
+
 
   const DEPT_LABELS:Record<string,string>={
     Stoffering:"Stof",Schilderwerk:"Schilder",Zonwering:"Zon",
