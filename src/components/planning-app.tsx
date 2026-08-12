@@ -8,7 +8,7 @@ import {
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
   Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
 } from "lucide-react";
-import * as XLSX from "xlsx";
+
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
@@ -890,7 +890,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
-      {loading&&<p className="text-center text-sm text-[#6B7A99]">Bestand verwerken...</p>}
+      {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#6B7A99]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div></div>}
       {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
       <div className="bg-[#F0F3F8] rounded-xl p-4 text-xs space-y-2">
         <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
