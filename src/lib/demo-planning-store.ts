@@ -81,10 +81,17 @@ export async function upsertRows<T extends WithId>(table: SyncTable, items: T[])
   if (items.length === 0) return [];
   mutate((d) => {
     const list = listOf(d, table);
+    // Index vooraf opbouwen: O(1) per rij i.p.v. de hele lijst doorzoeken.
+    const idxById = new Map<string, number>();
+    list.forEach((r, i) => idxById.set(r.id, i));
     items.forEach((item) => {
-      const i = list.findIndex((r) => r.id === item.id);
-      if (i >= 0) list[i] = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
-      else list.push({ ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string });
+      const row = { ...(item as unknown as Record<string, unknown>), id: item.id } as { id: string };
+      const i = idxById.get(item.id);
+      if (i !== undefined) list[i] = row;
+      else {
+        list.push(row);
+        idxById.set(item.id, list.length - 1);
+      }
     });
   });
   return items;
