@@ -2035,7 +2035,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
-    {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={rows=>{onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
+    {showImport&&<ExcelImportModal projects={projects} employees={employees} onImport={async rows=>{await onImport(rows);setShowImport(false);}} onClose={()=>setShowImport(false)}/>}
   </div>;
 }
 
