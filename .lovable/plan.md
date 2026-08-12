@@ -41,7 +41,7 @@ De meerdaagse regels zijn gewone `availability`-regels, dus Agenda, beschikbaarh
 
 ## Technische details
 
-- `src/lib/project-index.ts`: `byWerknummer`-map toevoegen (incrementeel bijwerken in `setEntry`/`removeProjectFromIndex`/`rebuild`) plus `getProjectByWerknummer`.
+- `src/lib/project-index.ts`: `byWerknummer: Map<string, string[]>` (project-ids) toevoegen, incrementeel bijgewerkt in `setEntry`/`removeProjectFromIndex`/`rebuild`, plus `getProjectsByWerknummer`.
 - `src/components/planning-app.tsx`:
   - `PlanEmployeeModal`: state voor `endDate` + werknummerveld, per-dag conflictcontrole, `onSave` levert een array van regels; aanroepers (`projMenu`, `planModal`) slaan op via `commitPlanning`/`onSaveManyPlanning`.
   - Blokklik in de dagcel roept `onOpenProject(proj)` aan in plaats van `openEditPlan(row)`.
