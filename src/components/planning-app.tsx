@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, createContext, useContext } from "react";
 import {
   LayoutDashboard, FolderOpen, CalendarDays, Users, Clock3,
   Receipt, Settings, ChevronLeft, ChevronRight, Plus, Pencil,
@@ -15,6 +15,10 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
+import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
+import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";
+import { createIndexOpenProjectsProvider, OPEN_PROJECTS_LIMIT, type OpenProjectsProvider } from "@/lib/open-projects";
+import { OpenProjectsPanel } from "@/components/open-projects-panel";
 
 
 // ===== TYPES =====
@@ -35,6 +39,24 @@ interface Project {
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
   eersteVanDag?:boolean;
+}
+// ===== CENTRALE PROJECTINDEX =====
+// Eén gedeelde index voor de hele app: O(1) lookups op id/werknummer en een vooraf
+// opgebouwde zoekindex. Componenten krijgen nooit de volledige projectenlijst als prop.
+const projectIndex=createProjectIndex<Project>();
+const getIndexedProject=(id?:string|null):Project|undefined=>projectIndex.getProjectById(id);
+/** Zoeken via de vooraf opgebouwde zoekindex; stopt zodra `limit` treffers gevonden zijn. */
+function searchIndexedProjects(q:string,limit=20):Project[]{
+  const s=q.trim().toLowerCase();
+  if(!s)return [];
+  const out:Project[]=[];
+  for(const id of projectIndex.getOrder()){
+    if(!projectIndex.getProjectSearchText(id).includes(s))continue;
+    const p=projectIndex.getProjectById(id);
+    if(p)out.push(p);
+    if(out.length>=limit)break;
+  }
+  return out;
 }
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
@@ -255,16 +277,18 @@ function overlaps(aS:string,aE:string,bS:string,bE:string){return aS<bE&&bS<aE;}
 interface PlanConflict{employee:string;label:string;time:string;status:AvailStatus;date:string;kind:"blocking"|"warning";type?:"planning_overlap";}
 // Blokkerend: Bezet, Vakantie, Ziek, Vrij, Niet beschikbaar.
 // Waarschuwing: de medewerker staat al op een ánder project in hetzelfde tijdvak.
-function findConflicts(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
+// `rows` bevat uitsluitend de regels van deze medewerker op deze dag (O(1)-lookup),
+// en `getProject` is een O(1)-lookup op de centrale projectindex.
+function findConflicts(rows:AvailEntry[],employees:Employee[],getProject:(id?:string|null)=>Project|undefined,empId:string,date:string,start:string,end:string,ignoreId?:string):PlanConflict[]{
   const emp=employees.find(e=>e.id===empId);
   const naam=emp?emp.naam:"Medewerker";
   const out:PlanConflict[]=[];
-  av.filter(a=>a.employeeId===empId&&a.date===date&&a.id!==ignoreId).forEach(a=>{
+  rows.filter(a=>a.id!==ignoreId).forEach(a=>{
     if(!overlaps(start,end,a.startTime,a.endTime))return;
     const blocking:AvailStatus[]=["Niet beschikbaar","Vakantie","Ziek","Vrij","Bezet"];
     if(blocking.includes(a.status)){out.push({employee:naam,label:a.status,time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"blocking"});return;}
     if(a.status==="Ingepland"){
-      const p=projects.find(x=>x.id===a.projectId);
+      const p=getProject(a.projectId);
       out.push({employee:naam,label:p?`${p.werknummer} – ${p.projectnaam}`:(a.note||"Bestaande planning"),time:`${a.startTime}–${a.endTime}`,status:a.status,date:a.date,kind:"warning",type:"planning_overlap"});
     }
   });
@@ -302,30 +326,14 @@ function generatedProjectColor(i:number):string{
 }
 function stableIdx(s:string):number{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%997;}
 const FALLBACK_PROJECT_COLOR="#64748B";
-// Centrale helper voor alle Personeelsplanning-weergaven
+// Centrale helper voor alle Personeelsplanning-weergaven.
+// O(1): handmatig opgeslagen kleur, anders een deterministische kleur uit alleen projectId.
+// Er wordt nooit automatisch een kleur voor de volledige projectenlijst berekend of opgeslagen.
 function projectPlanningColorOf(projectId:string|undefined|null,projectColors:Record<string,string>={}):string{
   if(!projectId)return FALLBACK_PROJECT_COLOR;
   return projectColors[projectId]||generatedProjectColor(stableIdx(projectId));
 }
-// Vult ontbrekende kleuren aan en lost duplicaten op over de VOLLEDIGE projectenlijst.
-// Een bestaande unieke kleur blijft altijd staan; bij een botsing houdt het eerste project (stabiele volgorde) zijn kleur.
-function ensureProjectColors(projects:{id:string}[],current:Record<string,string>):Record<string,string>{
-  const next:Record<string,string>={...current};
-  const used=new Set<string>();
-  let changed=false;let i=0;
-  const freeColor=()=>{
-    let c=generatedProjectColor(i++);let guard=0;
-    while(used.has(c.toLowerCase())&&guard++<5000)c=generatedProjectColor(i++);
-    return c;
-  };
-  projects.forEach(p=>{
-    const cur=(next[p.id]||"").toLowerCase();
-    if(cur&&!used.has(cur)){used.add(cur);return;}
-    const c=freeColor();
-    next[p.id]=c;used.add(c.toLowerCase());changed=true;
-  });
-  return changed?next:current;
-}
+
 // Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
 function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
   const out:{employee:E;rows:AvailEntry[]}[]=[];
@@ -2264,8 +2272,8 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
 }
 
 // ===== MEDEWERKER INPLANNEN =====
-function PlanEmployeeModal({employees,projects,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
-  employees:Employee[];projects:Project[];availability:AvailEntry[];
+function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];
   empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
   onSave:(entry:AvailEntry)=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
 }){
@@ -2274,14 +2282,12 @@ function PlanEmployeeModal({employees,projects,availability,empId,date,startTime
   const [st,setSt]=useState(startTime);
   const [et,setEt]=useState(endTime);
   const [q,setQ]=useState("");
-  const [sel,setSel]=useState<Project|null>(projectId?projects.find(p=>p.id===projectId)||null:null);
+  const [sel,setSel]=useState<Project|null>(projectId?getIndexedProject(projectId)||null:null);
   const [busy,setBusy]=useState(false);
-  const results=q.trim().length===0?[]:projects.filter(p=>{
-    const s=q.trim().toLowerCase();
-    return (p.werknummer||"").toLowerCase().includes(s)||(p.projectnr||"").toLowerCase().includes(s)||
-      (p.projectnaam||"").toLowerCase().includes(s)||(p.werkzaamheden||"").toLowerCase().includes(s);
-  }).slice(0,20);
-  const conflicts=sel?findConflicts(availability,employees,projects,emp,d,st,et,editId):[];
+  // Zoeken via de vooraf opgebouwde zoekindex, met harde limiet: nooit de volledige lijst mappen.
+  const results=useMemo(()=>searchIndexedProjects(q,20),[q]);
+  const dayRows=useMemo(()=>availability.filter(a=>a.employeeId===emp&&a.date===d),[availability,emp,d]);
+  const conflicts=sel?findConflicts(dayRows,employees,getIndexedProject,emp,d,st,et,editId):[];
   const blockers=blockingOnly(conflicts);
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
@@ -2382,8 +2388,8 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
 
 // ===== AFWEZIGHEID (vakantie, ziek, vrij, bezet) =====
 interface AbsenceDraft{periodeId?:string;employeeId:string;startDate:string;endDate:string;startTime:string;endTime:string;status:AvailStatus;note:string;wholeDay:boolean;}
-function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onClose}:{
-  employees:Employee[];availability:AvailEntry[];projects:Project[];draft:AbsenceDraft;
+function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
+  employees:Employee[];availability:AvailEntry[];draft:AbsenceDraft;
   onSave:(d:AbsenceDraft)=>Promise<void>;onDelete?:(periodeId:string)=>Promise<void>;onClose:()=>void;
 }){
   const [f,setF]=useState<AbsenceDraft>(draft);
@@ -2392,7 +2398,7 @@ function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onC
   const st=f.wholeDay?"00:00":f.startTime,et=f.wholeDay?"23:59":f.endTime;
   const days=(f.startDate&&f.endDate&&f.startDate<=f.endDate)?getDatesInRange(new Date(f.startDate),new Date(f.endDate)):[];
   const own=f.periodeId?availability.filter(a=>a.periodeId===f.periodeId).map(a=>a.id):[];
-  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,projects,f.employeeId,d,st,et,own));
+  const conflicts=days.flatMap(d=>findConflictsMulti(availability,employees,getIndexedProject,f.employeeId,d,st,et,own));
   const canSave=!!f.employeeId&&days.length>0&&st<et&&!busy;
   return <Modal title={f.periodeId?"Afwezigheid bewerken":"Afwezigheid toevoegen"} onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-4">
@@ -2427,16 +2433,19 @@ function AbsenceModal({employees,availability,projects,draft,onSave,onDelete,onC
   </Modal>;
 }
 // Conflicten voor een dag, meerdere eigen records uitgesloten (bij het bewerken van een periode)
-function findConflictsMulti(av:AvailEntry[],employees:Employee[],projects:Project[],empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
-  return findConflicts(av.filter(a=>!ignoreIds.includes(a.id)),employees,projects,empId,date,start,end);
+function findConflictsMulti(av:AvailEntry[],employees:Employee[],getProject:(id?:string|null)=>Project|undefined,empId:string,date:string,start:string,end:string,ignoreIds:string[]):PlanConflict[]{
+  return findConflicts(av.filter(a=>a.employeeId===empId&&a.date===date&&!ignoreIds.includes(a.id)),employees,getProject,empId,date,start,end);
 }
 
 // ===== KLEUREN BEHEREN =====
-function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
-  settings:AppSettings;projects:Project[];teams:{key:string;label:string}[];
+function ColorManagerModal({settings,teams,onSave,onClose}:{
+  settings:AppSettings;teams:{key:string;label:string}[];
   onSave:(s:AppSettings)=>void;onClose:()=>void;
 }){
   const [s,setS]=useState<AppSettings>(settings);
+  // Werken worden opgezocht via de zoekindex; nooit een volledige projectenlijst renderen.
+  const [projZoek,setProjZoek]=useState("");
+  const projectHits=useMemo(()=>searchIndexedProjects(projZoek,40),[projZoek]);
   const statusColors=s.statusColors||{};
   const projectColors=s.projectColors||{};
   const teamColors=s.teamColors||{};
@@ -2474,9 +2483,12 @@ function ColorManagerModal({settings,projects,teams,onSave,onClose}:{
       {section("Feestdagen",[row("holiday","Landelijke feestdag",holidayColorOf(s),
         c=>setS(p=>({...p,holidayColor:c})),
         ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
-      {projects.length>0&&section("Werken",projects.slice(0,40).map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
+      {section("Werken",<><input value={projZoek} onChange={e=>setProjZoek(e.target.value)} placeholder="Zoek werk…"
+        className="w-full py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
+        {projZoek.trim()&&projectHits.length===0&&<p className="text-xs text-[#B8C3D9]">Geen werken gevonden.</p>}
+        {projectHits.map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
-        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};}))))}
+        ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};})))}</>)}
     </div>
     <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
       <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
@@ -2569,8 +2581,10 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
   </>;
 }
 
-function PersoneelsplanningView({projects,employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onResizePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
-  projects:Project[];employees:Employee[];availability:AvailEntry[];
+// Krijgt bewust NIET de volledige projectenlijst als prop: alle projectdata komt
+// uit de centrale projectindex met O(1) lookups.
+function PersoneelsplanningView({employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onResizePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
+  employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
   onSavePlanning:(e:AvailEntry)=>Promise<boolean>;onSaveManyPlanning:(e:AvailEntry[])=>Promise<boolean>;
   onResizePlanning:(e:AvailEntry[],removeIds:string[])=>Promise<boolean>;
@@ -2606,18 +2620,8 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const teamColors=settings.teamColors||{};
   const statusColors=settings.statusColors||{};
   const projectColors=settings.projectColors||{};
-  // Kleurbeheer over de VOLLEDIGE projectenlijst (nooit afhankelijk van filters/weergave).
-  // Alleen ontbrekende kleuren en duplicaten worden aangevuld; in één gebundelde save.
-  const savingColorsRef=useRef("");
-  useEffect(()=>{
-    const next=ensureProjectColors(projects,projectColors);
-    if(next===projectColors)return;
-    const sig=JSON.stringify(next);
-    if(savingColorsRef.current===sig)return;
-    savingColorsRef.current=sig;
-    onSaveSettings({...settings,projectColors:next});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[projects,settings.projectColors]);
+  // Geen kleurcontrole meer over de volledige projectenlijst bij het openen van dit scherm.
+  // Handmatige kleuren blijven leidend; ontbrekende kleuren komen deterministisch uit projectId.
   const borderColors=settings.borderColors||{};
   const badgeColors=settings.badgeColors||{};
   const holColor=holidayColorOf(settings);
@@ -2626,12 +2630,18 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // employees → employeePlanningOrder → filters → render
   const orderedEmployees=useMemo(()=>sortEmployeesByPlanningOrder(employees,settings.employeePlanningOrder||[]),[employees,settings.employeePlanningOrder]);
   const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
-  // Eén projectbron voor de hele pagina: alles volgt activeAfds
-  const visProjects=useMemo(()=>projects.filter(p=>activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[projects,afdKey]);
-  // Gememoiseerde index: geen lineaire find() per cel bij duizenden werken
-  const visProjById=useMemo(()=>new Map(visProjects.map(p=>[p.id,p])),[visProjects]);
-  const visProj=(id?:string)=>id?visProjById.get(id):undefined;
-  const [openZoek,setOpenZoek]=useState("");
+  // Eén projectbron voor de hele pagina: O(1) lookup via de centrale projectindex,
+  // gecombineerd met een goedkope afdelingscontrole. De volledige projectenlijst wordt
+  // hier nooit gefilterd of gekopieerd, zodat 10.000+ werken de grid niet vertragen.
+  const projVersion=useProjectIndexVersion(projectIndex);
+  const projectVisible=useCallback((p?:Project|null)=>!!p&&(activeAfds.length===0||getAllAfds(p).some(a=>activeAfds.includes(a))),[afdKey]);
+  const visProj=useCallback((id?:string|null):Project|undefined=>{
+    const p=getIndexedProject(id);
+    return projectVisible(p)?p:undefined;
+    // projVersion zorgt dat lookups na een projectwijziging opnieuw evalueren
+  },[projectVisible,projVersion]);
+  // Availability-indexen: één opbouw per wijziging van de planningregels
+  const avIdx=useMemo(()=>buildAvailabilityIndexes(availability),[availability]);
   const visEmpIds=useMemo(()=>new Set(visEmp.map(e=>e.id)),[employees,afdKey]);
 
   const FILTER_MSG="Dit werk valt niet meer binnen de actieve afdelingsfilter.";
@@ -2712,7 +2722,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const navigate=(dir:number)=>{const d=new Date(refDate);if(view==="dag")d.setDate(d.getDate()+dir);else if(view==="week")d.setDate(d.getDate()+dir*7);else if(view==="maand")d.setMonth(d.getMonth()+dir);else d.setMonth(d.getMonth()+dir*3);setRefDate(d);};
 
   // Alles komt uit dezelfde planningregels (availability met projectId)
-  const rowsFor=(empId:string,ds:string)=>planRows(availability).filter(a=>a.employeeId===empId&&a.date===ds).sort(byVolgorde);
+  const rowsFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!!a.projectId&&a.status==="Ingepland").sort(byVolgorde);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
     return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
@@ -2720,7 +2730,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const getEmpProjsWeek=(empId:string,wk:Date)=>{
     const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
     const seen=new Set<string>();const out:Project[]=[];
-    planRows(availability).filter(a=>a.employeeId===empId&&days.includes(a.date)).forEach(a=>{
+    days.flatMap(d=>rowsFor(empId,d)).forEach(a=>{
       const p=visProj(a.projectId);
       if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
     });
@@ -2728,7 +2738,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   };
 
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
-  const absFor=(empId:string,ds:string)=>availability.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===ds&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  const absFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   // Kleur van een planningregel: uitsluitend op projectId (teamkleur telt hier niet mee).
   const rowColor=(a:AvailEntry)=>projectPlanningColorOf(a.projectId,projectColors);
 
@@ -2750,7 +2760,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
       }else setRangeStart({empId,date:ds});
       return;
     }
-    const vv=availability.find(a=>a.employeeId===empId&&a.date===ds&&a.serieType==="vastevrij"&&!!a.periodeId&&a.status==="Vrij");
+    const vv=avIdx.forEmployeeDate(empId,ds).find(a=>a.serieType==="vastevrij"&&!!a.periodeId&&a.status==="Vrij");
     if(vv){setVrijAsk(vv);return;}
     openPlan(empId,ds);
   };
@@ -2758,8 +2768,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   // ===== Opslaan met conflictcontrole (blokkerend vs. waarschuwing) =====
   const evaluate=(entries:AvailEntry[],extraIgnore:string[]=[]):PlanConflict[]=>{
     const ids=[...entries.map(e=>e.id),...extraIgnore];
-    const base=availability.filter(a=>!ids.includes(a.id));
-    return entries.flatMap(e=>findConflicts(base,employees,projects,e.employeeId,e.date,e.startTime,e.endTime));
+    return entries.flatMap(e=>findConflicts(avIdx.forEmployeeDate(e.employeeId,e.date).filter(a=>!ids.includes(a.id)),employees,getIndexedProject,e.employeeId,e.date,e.startTime,e.endTime));
   };
   const commitPlanning=async(entries:AvailEntry[],removeIds?:string[],checkFirst=false)=>{
     // Laatste controle: nooit opslaan voor een project buiten de actieve filter
@@ -3049,7 +3058,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
 
   const getDayBlocks=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    const abs=availability.filter(a=>a.employeeId===empId&&a.date===ds&&!planRows([a]).length)
+    const abs=avIdx.forEmployeeDate(empId,ds).filter(a=>!planRows([a]).length)
       .map(av=>({av,proj:undefined as Project|undefined})).sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
     const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!!x.proj);
     return [...abs,...plans];
@@ -3070,6 +3079,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
+  // Datums van de zichtbare periode: de basis voor alle periode-afhankelijke berekeningen.
+  const visibleDateStrings=useMemo(()=>(
+    periodStart&&periodEnd?getDatesInRange(new Date(periodStart),new Date(periodEnd)):[]
+  ),[periodStart?.getTime(),periodEnd?.getTime()]);
+
   // ===== Doorlopende meerdaagse balken =====
   // Alleen regels met hetzelfde reeksId (of aantoonbaar dezelfde doortrekactie) worden
   // visueel aan elkaar geplakt. Zonder reeksId blijft elke regel een los blok.
@@ -3088,30 +3102,37 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     return{prev:visDates.has(pd)&&linkedOn(row,pd),next:visDates.has(nd)&&linkedOn(row,nd)};
   };
 
-  // Openstaande projecten = planningslijst: uitsluitend de status "Afgerond" verbergt een project.
-  // Inplannen, slepen, datums, aantallen en badges beïnvloeden de zichtbaarheid nooit.
-  // Geen sortering: de volgorde van visProjects blijft leidend, zodat een regel na het
-  // inplannen op exact dezelfde positie blijft staan.
-  const openProjectsAll=useMemo(()=>{
-    const q=openZoek.trim().toLowerCase();
-    return visProjects.filter(p=>{
-      if(String(p.status||"").trim().toLowerCase()==="afgerond")return false;
-      if(!q)return true;
-      return `${p.werknummer} ${p.projectnr||""} ${p.projectnaam} ${p.opdrachtgever||""}`.toLowerCase().includes(q);
-    });
-  },[visProjects,openZoek]);
-  // Alleen de eerste 100 resultaten renderen; zoeken doorzoekt de volledige lijst.
-  const openProjects=openProjectsAll.slice(0,OPEN_LIMIT).map(p=>{
-    const n=assignedEmpIds(availability,p.id).length;
+  // ===== Openstaande werken =====
+  // Querygebaseerd (max 100 resultaten renderen, alles blijft vindbaar) en losgekoppeld
+  // van de planning-render: het paneel hertekent niet mee met celinteracties.
+  const openProjectsProvider=useMemo<OpenProjectsProvider<Project>>(()=>createIndexOpenProjectsProvider<Project>({
+    index:projectIndex,
+    isHidden:p=>String(p.status||"").trim().toLowerCase()==="afgerond",
+    getAfdelingen:p=>getAllAfds(p as Project),
+  }),[]);
+  // Verandert alleen na een echte planningwijziging (nieuwe availability-referentie).
+  const planningVersionRef=useRef(0);
+  const planningVersion=useMemo(()=>++planningVersionRef.current,[avIdx]);
+  // Zware renderdata wordt uitsluitend voor de zichtbare (max 100) rijen opgebouwd.
+  const openRowData=useCallback((p:Project)=>{
+    const n=avIdx.plannedCountByProject.get(p.id)||0;
     const nodig=benodigd(p);
-    return{p,st:planStatusOf(p,availability),n,nodig,rest:Math.max(0,nodig-n)};
-  });
+    const st=planStatusOf(p,availability);
+    const rest=Math.max(0,nodig-n);
+    return{
+      title:`${p.werknummer} – ${p.projectnaam}`,
+      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.werkzaamheden||"—"}`,
+      color:projectPlanningColorOf(p.id,projectColors),
+      badgeStyle:badgeStyle(st,badgeColors),
+      statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
+      countLabel:`${n}/${nodig}`,
+    };
+  },[avIdx,projectColors,badgeColors,availability]);
 
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
-  planRows(availability).forEach(a=>{
-    const d=new Date(a.date);const ps=new Date(periodStart);ps.setHours(0,0,0,0);const pe=new Date(periodEnd);pe.setHours(23,59,59,999);
-    if(d<ps||d>pe)return;
+  // Alleen de zichtbare periode wordt verwerkt (nooit alle planningregels).
+  planRows(avIdx.forDates(visibleDateStrings)).forEach(a=>{
     const ids=teamForDay(availability,a.projectId||"",a.date);
     if(ids.length<2)return;
     const key=teamKey(a.projectId||"",a.date,ids);
@@ -3316,38 +3337,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>
     )}
 
-    {/* ===== Openstaande projecten ===== */}
-    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-      <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
-        <div className="flex items-center gap-3">
-          <input value={openZoek} onChange={e=>setOpenZoek(e.target.value)} placeholder="Zoek werk…"
-            className="py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
-          <span className="text-xs text-[#6B7A99]">{openProjectsAll.length} werk{openProjectsAll.length!==1?"en":""} · sleep naar een cel</span>
-        </div>
-      </div>
-      {openProjectsAll.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
-
-      :<div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
-        {openProjects.map(({p,st,n,nodig,rest})=>(
-          <div key={p.id} draggable onDragStart={()=>setDragProject(p.id)} onDragEnd={()=>setDragProject(null)}
-            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragProject===p.id?"opacity-50":""}`}>
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}}/>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate">{p.werknummer} – {p.projectnaam}</p>
-              <p className="text-xs text-[#6B7A99] truncate">{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)} · {p.werkzaamheden||"—"}</p>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>
-              {PLAN_STATUS_LABEL[st]}{rest>0?` · nog ${rest}`:""}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={badgeStyle(st,badgeColors)}>{n}/{nodig}</span>
-            <button onClick={()=>onOpenProject(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
-            <button onClick={()=>setProjMenu(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
-          </div>
-        ))}
-        {openProjectsAll.length>OPEN_LIMIT&&<p className="px-4 py-2 text-xs text-[#6B7A99]">Verfijn je zoekopdracht om meer resultaten te zien.</p>}
-      </div>}
-    </div>
+    {/* ===== Openstaande werken ===== */}
+    <OpenProjectsPanel<Project> openProjectsProvider={openProjectsProvider} afdelingenKey={afdKey}
+      projectVersion={projVersion} planningVersion={planningVersion} getRowData={openRowData}
+      onOpen={onOpenProject} onPlan={p=>setProjMenu(p)}
+      onDragStartProject={id=>setDragProject(id)} onDragEndProject={()=>setDragProject(null)}/>
 
     <div className="flex items-center gap-4 flex-wrap">
       {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
@@ -3364,11 +3358,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
     </div>}
 
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
-    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
+    {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={visEmp[0]?.id||employees[0]?.id||""} date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
       startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
       onSave={async e=>{setProjMenu(null);await commitPlanning([e],undefined,true);}} onClose={()=>setProjMenu(null)}/>}
-    {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} projects={visProjects} availability={availability}
+    {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
       projectId={planModal.projectId} editId={planModal.editId}
       onSave={async e=>{
@@ -3418,11 +3412,11 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
         </div>
       </div>
     </Modal>}
-    {absModal&&<AbsenceModal employees={employees} availability={availability} projects={projects} draft={absModal}
+    {absModal&&<AbsenceModal employees={employees} availability={availability} draft={absModal}
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
       onClose={()=>setAbsModal(null)}/>}
-    {showColors&&<ColorManagerModal settings={settings} projects={projects} teams={teams.map(t=>({key:t.key,label:t.label}))}
+    {showColors&&<ColorManagerModal settings={settings} teams={teams.map(t=>({key:t.key,label:t.label}))}
       onSave={s=>onSaveSettings(s)} onClose={()=>setShowColors(false)}/>}
     {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#1A2744] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
       Kies de einddag voor de afwezigheid
@@ -3492,7 +3486,7 @@ function PersoneelsplanningView({projects,employees,availability,settings,onSave
           ?"Er is nu een werk dat eerder begint. Wilt u dit werk automatisch als eerste uitvoeren markeren?"
           :"Dit project als eerste uitvoeren?"}</p>
         <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
-          {projects.find(p=>p.id===firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
+          {getIndexedProject(firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const f=firstAsk;setFirstAsk(null);if(f.kind==="reorder"&&f.fallback)await commitPlanning(f.fallback);}}>Nee</Btn>
@@ -3906,12 +3900,25 @@ export default function PlanningApp(){
 
   // ===== PLANNINGREGELS = enige bron van waarheid =====
   // Projecten krijgen hun medewerkers en periode uit de planningregels.
-  const viewProjects=useMemo(()=>projects.map(p=>{
-    const rows=projectPlans(avail,p.id);
-    if(!rows.length)return p;
-    const per=planPeriod(rows);
-    return{...p,medewerkers:assignedEmpIds(avail,p.id),startdatum:per?per.start:p.startdatum,afloopdatum:per?per.end:p.afloopdatum};
-  }),[projects,avail]);
+  // Indexen over de planningregels: één opbouw per wijziging, daarna uitsluitend O(1) lookups.
+  const availIndexes=useMemo(()=>buildAvailabilityIndexes(avail),[avail]);
+  // Afgeleide waarden worden alleen berekend voor projecten die daadwerkelijk planningregels
+  // hebben — nooit door de volledige projectenlijst tegen alle planningregels te scannen.
+  const derivedByProject=useMemo(()=>{
+    const map=new Map<string,{medewerkers:string[];startdatum:string;afloopdatum:string}>();
+    availIndexes.planByProjectId.forEach((rows,pid)=>{
+      const per=planPeriod(rows);
+      if(!per)return;
+      map.set(pid,{medewerkers:(availIndexes.plannedEmployeeIdsByProject.get(pid)||[]).slice().sort(),startdatum:per.start,afloopdatum:per.end});
+    });
+    return map;
+  },[availIndexes]);
+  const viewProjects=useMemo(()=>{
+    if(derivedByProject.size===0)return projects;
+    return projects.map(p=>{const d=derivedByProject.get(p.id);return d?{...p,...d}:p;});
+  },[projects,derivedByProject]);
+  // Centrale projectindex synchroon houden: alle schermen lezen hieruit met O(1) lookups.
+  useEffect(()=>{projectIndex.rebuildProjectIndex(viewProjects);},[viewProjects]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
   // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
@@ -4141,7 +4148,7 @@ export default function PlanningApp(){
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
           {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
-          {nav==="personeelsplanning"&&<PersoneelsplanningView projects={viewProjects} employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
