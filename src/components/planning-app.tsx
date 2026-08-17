@@ -215,6 +215,13 @@ function abbrevName(naam:string):string{const parts=naam.split(" ");return parts
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
 
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
+function tooltipText(row:AvailEntry,proj:Project,employees:Employee[]):string{
+  const first=row.isFirstOfDay?"Als eerste uitvoeren · ":"";
+  const desc=proj.werkzaamheden||proj.projectnaam||"—";
+  const calc=plName(proj,employees)||"—";
+  const afds=getAllAfds(proj).join(", ");
+  return `${first}${proj.werknummer}\n${desc}\n${calc} · ${afds}\nklik = werkgegevens · rechtsklik = planning bewerken`;
+}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
 function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
@@ -2313,7 +2320,7 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
   const [confirmed,setConfirmed]=useState(false);
   const needsConfirm=warnings.length>0&&!confirmed;
   const dateOk=!!d&&(!multi||!dEnd||dEnd>=d);
-  const canSave=!!sel&&!!emp&&dateOk&&days.length>0&&st<et&&blockers.length===0&&!needsConfirm&&!busy;
+  const canSave=!!sel&&!!emp&&dateOk&&days.length>0&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
@@ -2329,15 +2336,11 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
 
   return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
         <div className={multi?"grid grid-cols-2 gap-2":""}>
           <Input label={multi?"Startdatum":"Datum"} value={d} onChange={setD} type="date"/>
           {multi&&<Input label="Einddatum" value={dEnd} onChange={v=>setDEnd(v<d?d:v)} type="date"/>}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Input label="Begintijd" value={st} onChange={setSt} type="time"/>
-          <Input label="Eindtijd" value={et} onChange={setEt} type="time"/>
         </div>
       </div>
       {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">Deze medewerker wordt op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
@@ -2391,7 +2394,6 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
           ?<div className="flex gap-2 pt-1"><Btn size="sm" onClick={()=>setConfirmed(true)}>Planning toch opslaan</Btn><Btn size="sm" variant="secondary" onClick={onClose}>Annuleren</Btn></div>
           :<p className="text-xs text-amber-800 font-semibold">Bevestigd — je kunt nu opslaan.</p>}
       </div>}
-      {st>=et&&<p className="text-xs text-red-600">Eindtijd moet na de begintijd liggen.</p>}
       <div className="flex justify-between gap-2 pt-1">
         <div>{editId&&onDelete&&<Btn variant="danger" onClick={async()=>{setBusy(true);await onDelete(editId);setBusy(false);}} disabled={busy}><Trash2 className="w-3.5 h-3.5"/>Planning verwijderen</Btn>}</div>
         <div className="flex gap-2">
@@ -3257,7 +3259,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] truncate flex-1">{proj?`${proj.werknummer} – ${proj.projectnaam}`:(b.note||"")}</span>
+                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
@@ -3320,9 +3322,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium truncate hover:opacity-80 transition-opacity flex items-center gap-0.5 w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={`${row.isFirstOfDay?"Als eerste uitvoeren · ":""}${proj.werknummer} – ${proj.projectnaam} (${row.startTime}–${row.endTime}) · klik = werkgegevens · rechtsklik = planning bewerken`}>
-                    {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor"/>}
-                    <span className="truncate">{seg.prev?"\u00A0":proj.projectnaam.slice(0,4)+".."}</span>
+                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""} ${view==="maand"?"truncate":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={tooltipText(row, proj, employees)}>
+                    {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0 mb-0.5" fill="currentColor"/>}
+                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(view==="maand"?proj.werknummer:`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`)}</span>
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
@@ -3370,8 +3372,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer} – ${p.projectnaam}`}>
-                  {p.projectnaam.slice(0,7)}
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.werkzaamheden||p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                  {p.werknummer}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
