@@ -215,6 +215,13 @@ function abbrevName(naam:string):string{const parts=naam.split(" ");return parts
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
 
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
+function tooltipText(row:PlanningRow,proj:Project,employees:Employee[]):string{
+  const first=row.isFirstOfDay?"Als eerste uitvoeren · ":"";
+  const desc=proj.werkzaamheden||proj.projectnaam||"—";
+  const calc=plName(proj,employees)||"—";
+  const afds=getAllAfds(proj).join(", ");
+  return `${first}${proj.werknummer}\n${desc}\n${calc} · ${afds}\nklik = werkgegevens · rechtsklik = planning bewerken`;
+}
 function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
 function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
