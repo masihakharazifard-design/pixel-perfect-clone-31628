@@ -42,8 +42,8 @@ Ongewijzigd: linksklik opent de centrale `ProjectDetail`, rechtsklik opent het b
 ## Technische details
 
 - `src/components/planning-app.tsx`:
-  - Weekgrid-blok (regel ~3323–3325): `truncate` en `slice(0,4)+".."` vervangen door meerregelig label + uitgebreide `title`.
-  - Maand-/kwartaalblok (regel ~3373): label naar werknummer + uitgebreide `title`.
-  - Dagweergave-regel (~3260): volledige label-tekst, geen `truncate`.
+  - Weekgrid-blok (regel ~3323–3325): `truncate` en `slice(0,4)+".."` vervangen door meerregelig label `Werknummer – Werkzaamheden` (fallback op projectnaam) + uitgebreide `title`.
+  - Maand-/kwartaalblok (regel ~3373): label beperkt tot volledig werknummer + uitgebreide `title` met projectnaam, werkzaamheden, calculator, afdeling.
+  - Dagweergave-regel (~3260): volledige label `Werknummer – Werkzaamheden`, geen `truncate`.
   - `PlanEmployeeModal`: tijdvelden uit de UI, `st`/`et` intern vast op de doorgegeven waarden (default `08:00`/`17:00`), `canSave` zonder tijdvergelijking, `st>=et`-melding weg.
 - Geen wijziging in `availability`-schema, opslaglaag, indexen of Agenda-code.
