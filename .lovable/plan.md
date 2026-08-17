@@ -4,10 +4,11 @@ Alleen weergave en invoer van projectblokken in Personeelsplanning wijzigen. Pla
 
 ## 1. Volledige omschrijving in het blok
 
-Nu toont een ingepland blok in de week-/maandweergave alleen `projectnaam.slice(0,4)+".."` (bijv. `I260..`). Dat wordt vervangen door een herkenbaar label:
+Nu toont een ingepland blok in de weekweergave alleen `projectnaam.slice(0,4)+".."` (bijv. `I260..`). Dat wordt vervangen door:
 
-- `Werknummer – Projectnaam`, en als de projectnaam ontbreekt `Werknummer – Werkzaamheden`.
-- Ontbreekt beide, dan alleen het werknummer.
+- **Dag- en Weekweergave:** `Werknummer – Werkzaamheden`. Als Werkzaamheden ontbreekt: `Werknummer – Projectnaam`. Als beide ontbreken: alleen `Werknummer`.
+- **Maand- en Kwartaalweergave:** compact, minimaal het volledige werknummer; omschrijving, projectnaam, calculator en afdeling blijven via tooltip beschikbaar.
+- De tekst wordt niet meer met `slice(...)`, `truncate` of `...` afgekapt. Tekst mag over meerdere regels doorlopen (`white-space: normal`, `overflow-wrap: anywhere`).
 
 ## 2. Tekst mag doorlopen
 
