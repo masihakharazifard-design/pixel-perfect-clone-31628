@@ -215,7 +215,7 @@ function abbrevName(naam:string):string{const parts=naam.split(" ");return parts
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
 
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
-function tooltipText(row:PlanningRow,proj:Project,employees:Employee[]):string{
+function tooltipText(row:AvailEntry,proj:Project,employees:Employee[]):string{
   const first=row.isFirstOfDay?"Als eerste uitvoeren · ":"";
   const desc=proj.werkzaamheden||proj.projectnaam||"—";
   const calc=plName(proj,employees)||"—";
