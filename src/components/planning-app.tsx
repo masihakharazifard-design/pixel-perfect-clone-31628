@@ -3373,7 +3373,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
                 {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.werkzaamheden||p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
-                  {p.werknummer}
+                  {p.projectnaam||p.werknummer}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
