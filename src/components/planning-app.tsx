@@ -3259,7 +3259,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`:(b.note||"")}</span>
+                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
