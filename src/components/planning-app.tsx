@@ -3324,7 +3324,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
                   onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""} ${view==="maand"?"truncate":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={tooltipText(row, proj, employees)}>
                     {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0 mb-0.5" fill="currentColor"/>}
-                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(view==="maand"?proj.werknummer:`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`)}</span>
+                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
