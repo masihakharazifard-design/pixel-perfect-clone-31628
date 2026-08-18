@@ -3259,7 +3259,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`:(b.note||"")}</span>
+                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
@@ -3324,7 +3324,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
                   onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""} ${view==="maand"?"truncate":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={tooltipText(row, proj, employees)}>
                     {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0 mb-0.5" fill="currentColor"/>}
-                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(view==="maand"?proj.werknummer:`${proj.werknummer} – ${proj.werkzaamheden||proj.projectnaam||""}`)}</span>
+                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
@@ -3373,7 +3373,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
                 {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.werkzaamheden||p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
-                  {p.werknummer}
+                  {p.projectnaam||p.werknummer}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
