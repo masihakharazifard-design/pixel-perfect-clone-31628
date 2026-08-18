@@ -34,7 +34,7 @@ Tijdelijke development-metingen (`Facturatie mount`, `filtering`, `totals`, `sor
 
 ## Technische details
 
-- `src/lib/facturatie-query.ts` (nieuw): provider bovenop `projectIndex`, zelfde vorm als `createIndexOpenProjectsProvider` met scan-cap en `{ items, total, hasMore }`.
+- `src/lib/facturatie-query.ts` (nieuw): provider bovenop `projectIndex` / IndexedDB met expliciete `sortField` + `sortDirection`, globale filtering en sortering vóór `offset/limit`, en een `summary`-aggregate. Geen resultaat-afkappende scan-cap.
 - `src/components/facturatie-view.tsx` (nieuw): `FacturatieView` + gememoiseerde `FacturatieRow`, verplaatst uit `planning-app.tsx`.
-- `src/components/planning-app.tsx`: `FacturatieView` krijgt de provider in plaats van `viewProjects`; bestaande `FacturatieTermijnen` blijft ongewijzigd in gebruik voor het projectdetail-tabblad en wordt in de lijst alleen voor zichtbare rijen gerenderd.
-- Opslaglaag: batchvariant voor het lezen van projectmeta van maximaal 50 id's (demo/IndexedDB en Supabase-pad delen dezelfde interface).
+- `src/components/planning-app.tsx`: `FacturatieView` krijgt de provider in plaats van `viewProjects`; `FacturatieTermijnen` krijgt een optionele `meta`-prop en slaat zijn eigen load over wanneer die is meegegeven — ProjectDetail blijft ongewijzigd werken.
+- Opslaglaag: `loadProjectMetaBatch(projectIds)` toegevoegd (demo/IndexedDB en Supabase-pad delen dezelfde interface).
