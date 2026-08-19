@@ -3912,6 +3912,20 @@ export default function PlanningApp(){
   },[projects,derivedByProject]);
   // Centrale projectindex synchroon houden: alle schermen lezen hieruit met O(1) lookups.
   useEffect(()=>{projectIndex.rebuildProjectIndex(viewProjects);},[viewProjects]);
+  // ===== Facturatie =====
+  // Querygebaseerd: filters + sortering globaal in de querylaag, daarna pas 50 rijen.
+  // Facturatie krijgt nooit de volledige projectenlijst als prop.
+  const facturatieProvider=useMemo<FacturatieProvider>(()=>createIndexFacturatieProvider<Project>({
+    index:projectIndex,
+    toItem:p=>({
+      id:p.id,werknummer:p.werknummer||"",projectnr:p.projectnr||"",
+      projectnaam:p.projectnaam||"",opdrachtgever:p.opdrachtgever||"",
+      calculator:p.projectleider||"",afdeling:getAllAfds(p as Project)[0],status:p.status||"",
+    }),
+  }),[]);
+  const facturatieDataVersion=useProjectIndexVersion(projectIndex);
+  const facturatieAccent=useCallback((afd:string)=>(dcMap[afd as Afdeling]||dcMap.Stoffering).bg,[dcMap]);
+  const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-slate-100 text-slate-600",[]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
   // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
@@ -4144,7 +4158,7 @@ export default function PlanningApp(){
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
-          {nav==="facturatie"&&<FacturatieView projects={viewProjects}/>}
+          {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
         </div>
       </div>
