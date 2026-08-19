@@ -3924,7 +3924,7 @@ export default function PlanningApp(){
     }),
   }),[]);
   const facturatieDataVersion=useProjectIndexVersion(projectIndex);
-  const facturatieAccent=useCallback((afd:string)=>(dcMap[afd as Afdeling]||dcMap.Stoffering).bg,[dcMap]);
+  const facturatieAccent=useCallback((afd:string)=>(settings.deptColors[afd as Afdeling]||DEFAULT_DC.Stoffering).bg,[settings.deptColors]);
   const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-slate-100 text-slate-600",[]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
