@@ -19,6 +19,9 @@ import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index"
 import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";
 import { createIndexOpenProjectsProvider, OPEN_PROJECTS_LIMIT, type OpenProjectsProvider } from "@/lib/open-projects";
 import { OpenProjectsPanel } from "@/components/open-projects-panel";
+import { FacturatieTermijnen } from "@/components/facturatie-termijnen";
+import { FacturatieView } from "@/components/facturatie-view";
+import { createIndexFacturatieProvider, type FacturatieProvider } from "@/lib/facturatie-query";
 
 
 // ===== TYPES =====
@@ -1310,38 +1313,6 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
     </div>
     {confirmDel&&<ConfirmModal message="Weet je zeker dat je dit project wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(project.id);onClose();}} onCancel={()=>setConfirmDel(false)}/>}
   </Modal>;
-}
-
-// Small reusable component for termijnen (also used in FacturatieView)
-function FacturatieTermijnen({projectId}:{projectId:string}){
-  const TERMIJNEN=["Eerste termijn","Tweede termijn","Derde termijn","Vierde termijn"];
-  const [status,setStatus]=useState<Record<string,boolean>>({});
-  useEffect(()=>{
-    let cancelled=false;
-    loadProjectMeta(projectId).then(m=>{if(!cancelled&&m)setStatus(m.termijnen||{});}).catch(()=>{});
-    return()=>{cancelled=true;};
-  },[projectId]);
-  const toggle=(key:string)=>{
-    setStatus(prev=>{
-      const next={...prev,[key]:!prev[key]};
-      void loadProjectMeta(projectId)
-        .then(m=>saveProjectMeta(projectId,{...EMPTY_META,...(m||{}),termijnen:next}))
-        .catch(()=>{});
-      return next;
-    });
-  };
-
-  return <div className="space-y-3">
-    {TERMIJNEN.map((t,i)=>{const key=`${projectId}-${i}`;const betaald=!!status[key];return(
-      <div key={i} className="flex items-center gap-4 p-4 border border-[rgba(26,39,68,0.08)] rounded-xl bg-white">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${betaald?"bg-[#0ABFB8] text-white":"bg-[#E8EDF5] text-[#1A2744]"}`}>{i+1}</div>
-        <div className="flex-1"><p className="font-semibold text-[#1A2744]">{t}</p><p className="text-xs text-[#6B7A99] mt-0.5">{betaald?"Betaald":"Nog niet gefactureerd"}</p></div>
-        <button onClick={()=>toggle(key)} className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all border ${betaald?"bg-[#E6F9F8] text-[#0ABFB8] border-[#0ABFB8]":"bg-[#E8EDF5] text-[#6B7A99] border-transparent hover:border-[#6B7A99]"}`}>
-          {betaald?"✓ Betaald":"Open"}
-        </button>
-      </div>
-    );})}
-  </div>;
 }
 
 // ===== EMPLOYEE FORM =====
@@ -3698,34 +3669,6 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
       </div>)}
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je deze medewerker wilt verwijderen? De medewerker wordt verwijderd uit alle werken en tijdblokken." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
-  </div>;
-}
-
-// ===== FACTURATIE =====
-function FacturatieView({projects}:{projects:Project[]}){
-  const dc=useDC();
-  const [filter,setFilter]=useState<string>("");
-  const facItems=projects.filter(p=>(!filter||p.status===filter));
-  return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-    <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Facturatie</h1><p className="text-[#6B7A99] text-xs md:text-sm">Termijnoverzicht per project</p></div>
-    <div className="flex gap-1.5 flex-wrap">
-      {["","Offerte","Bevestigd","In uitvoering","Afgerond","Gefactureerd"].map(s=><button key={s} onClick={()=>setFilter(s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter===s?"bg-[#1A2744] text-white":"bg-white border border-[rgba(26,39,68,0.1)] text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{s||"Alle"}</button>)}
-    </div>
-    <div className="space-y-4">
-      {facItems.map(p=>{
-        const afds=getAllAfds(p);
-        return <div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-          <div className="flex items-center gap-2 px-4 md:px-5 py-3 md:py-3.5 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
-            <span className="font-mono text-xs text-[#6B7A99] hidden sm:inline">{p.werknummer}</span>
-            <span className="font-semibold text-[#1A2744] text-sm truncate flex-1">{p.projectnaam}</span>
-            <span className="text-[#6B7A99] text-xs hidden md:inline">— {p.opdrachtgever}</span>
-            <div className="ml-auto flex-shrink-0"><StatusBadge status={p.status}/></div>
-          </div>
-          <FacturatieTermijnen projectId={p.id}/>
-        </div>;
-      })}
-      {facItems.length===0&&<p className="text-center text-[#6B7A99] py-12">Geen projecten gevonden</p>}
-    </div>
   </div>;
 }
 
