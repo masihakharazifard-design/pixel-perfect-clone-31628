@@ -257,6 +257,22 @@ export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | 
   return ((d.projectMeta as Record<string, ProjectMeta>)[projectId] as ProjectMeta) ?? null;
 }
 
+/**
+ * Eén gebundelde leesactie voor meerdere projecten (max. één pagina).
+ * Bewust GEEN Promise.all over loadProjectMeta: de volledige demo-opslag
+ * wordt één keer gelezen en daaruit wordt één Map opgebouwd.
+ */
+export async function loadProjectMetaBatch(projectIds: string[]): Promise<Map<string, ProjectMeta>> {
+  const out = new Map<string, ProjectMeta>();
+  if (!projectIds.length) return out;
+  const all = (read().projectMeta as Record<string, ProjectMeta>) ?? {};
+  for (const id of projectIds) {
+    const m = all[id];
+    if (m) out.set(id, m);
+  }
+  return out;
+}
+
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
   mutate((d) => {
     (d.projectMeta as Record<string, ProjectMeta>)[projectId] = { ...EMPTY_META, ...meta };

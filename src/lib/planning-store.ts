@@ -135,6 +135,24 @@ export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | 
   return (data?.data as unknown as ProjectMeta) ?? null;
 }
 
+/**
+ * Eén gebundelde query voor alle zichtbare projectIds (IN-filter),
+ * daarna client-side één Map. Nooit N losse reads.
+ */
+export async function loadProjectMetaBatch(projectIds: string[]): Promise<Map<string, ProjectMeta>> {
+  const out = new Map<string, ProjectMeta>();
+  if (!projectIds.length) return out;
+  const { data, error } = await supabase
+    .from("project_meta")
+    .select("id, data")
+    .in("id", projectIds);
+  if (error) throw error;
+  (data ?? []).forEach((row) => {
+    if (row?.id) out.set(row.id as string, (row.data as unknown as ProjectMeta) ?? null as unknown as ProjectMeta);
+  });
+  return out;
+}
+
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
   const { error } = await supabase
     .from("project_meta")

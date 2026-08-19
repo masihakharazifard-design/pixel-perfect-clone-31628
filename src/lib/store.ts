@@ -84,6 +84,11 @@ export async function loadProjectMeta(projectId: string): Promise<ProjectMeta | 
   return (await impl()).loadProjectMeta(projectId);
 }
 
+/** Eén gebundelde leesactie voor de zichtbare pagina; geen N individuele reads. */
+export async function loadProjectMetaBatch(projectIds: string[]): Promise<Map<string, ProjectMeta>> {
+  return (await impl()).loadProjectMetaBatch(projectIds);
+}
+
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
   return (await impl()).saveProjectMeta(projectId, meta);
 }
