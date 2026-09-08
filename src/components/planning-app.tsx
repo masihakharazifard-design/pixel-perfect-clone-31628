@@ -3561,19 +3561,19 @@ function NotitiesView(){
   const [busy,setBusy]=useState(false);
 
   useEffect(()=>{
-    if(!realUserId){setLoading(false);return;}
+    if(!noteOwnerId){setLoading(false);return;}
     let alive=true;
     loadPersonalNotes().then(n=>{if(alive)setNotes(n);}).catch(()=>toast.error("Notities konden niet worden geladen."))
       .finally(()=>{if(alive)setLoading(false);});
     return()=>{alive=false;};
-  },[realUserId]);
+  },[noteOwnerId]);
 
   const reset=()=>{setEditId(null);setTekst("");setDatum(TODAY_STR);};
   const save=async()=>{
-    if(!realUserId||!tekst.trim()||busy)return;
+    if(!noteOwnerId||!tekst.trim()||busy)return;
     setBusy(true);
     try{
-      const saved=await savePersonalNote(realUserId,datum,tekst.trim(),editId||undefined);
+      const saved=await savePersonalNote(noteOwnerId,datum,tekst.trim(),editId||undefined);
       setNotes(prev=>{const rest=prev.filter(n=>n.id!==saved.id);return [saved,...rest].sort((a,b)=>b.datum.localeCompare(a.datum));});
       reset();toast.success("Notitie opgeslagen.");
     }catch{toast.error("Notitie kon niet worden opgeslagen.");}
