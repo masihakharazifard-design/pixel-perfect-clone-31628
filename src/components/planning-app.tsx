@@ -3551,6 +3551,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 function NotitiesView(){
   const {user}=useAuth();
   const realUserId=user&&/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(user.id)?user.id:null;
+  // Zonder echt account (demo) worden notities lokaal op dit apparaat bewaard.
+  const noteOwnerId=realUserId??(DEMO_MODE?"demo-local":null);
   const [notes,setNotes]=useState<PersonalNote[]>([]);
   const [loading,setLoading]=useState(true);
   const [datum,setDatum]=useState(TODAY_STR);
