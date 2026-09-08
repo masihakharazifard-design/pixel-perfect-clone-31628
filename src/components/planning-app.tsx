@@ -3551,6 +3551,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 function NotitiesView(){
   const {user}=useAuth();
   const realUserId=user&&/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(user.id)?user.id:null;
+  // Zonder echt account (demo) worden notities lokaal op dit apparaat bewaard.
+  const noteOwnerId=realUserId??(DEMO_MODE?"demo-local":null);
   const [notes,setNotes]=useState<PersonalNote[]>([]);
   const [loading,setLoading]=useState(true);
   const [datum,setDatum]=useState(TODAY_STR);
@@ -3559,19 +3561,19 @@ function NotitiesView(){
   const [busy,setBusy]=useState(false);
 
   useEffect(()=>{
-    if(!realUserId){setLoading(false);return;}
+    if(!noteOwnerId){setLoading(false);return;}
     let alive=true;
     loadPersonalNotes().then(n=>{if(alive)setNotes(n);}).catch(()=>toast.error("Notities konden niet worden geladen."))
       .finally(()=>{if(alive)setLoading(false);});
     return()=>{alive=false;};
-  },[realUserId]);
+  },[noteOwnerId]);
 
   const reset=()=>{setEditId(null);setTekst("");setDatum(TODAY_STR);};
   const save=async()=>{
-    if(!realUserId||!tekst.trim()||busy)return;
+    if(!noteOwnerId||!tekst.trim()||busy)return;
     setBusy(true);
     try{
-      const saved=await savePersonalNote(realUserId,datum,tekst.trim(),editId||undefined);
+      const saved=await savePersonalNote(noteOwnerId,datum,tekst.trim(),editId||undefined);
       setNotes(prev=>{const rest=prev.filter(n=>n.id!==saved.id);return [saved,...rest].sort((a,b)=>b.datum.localeCompare(a.datum));});
       reset();toast.success("Notitie opgeslagen.");
     }catch{toast.error("Notitie kon niet worden opgeslagen.");}
@@ -3587,9 +3589,9 @@ function NotitiesView(){
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div>
       <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Persoonlijke notities</h1>
-      <p className="text-[#6B7A99] text-xs md:text-sm">Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account.</p>
+      <p className="text-[#6B7A99] text-xs md:text-sm">{noteOwnerId&&!realUserId?"Zonder account worden je notities op dit apparaat bewaard.":"Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account."}</p>
     </div>
-    {!realUserId
+    {!noteOwnerId
       ?<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-6 text-sm text-[#6B7A99]">
         Persoonlijke notities werken alleen met een echt account. Log in met je Microsoft-account om je eigen notities veilig op te slaan.
       </div>
