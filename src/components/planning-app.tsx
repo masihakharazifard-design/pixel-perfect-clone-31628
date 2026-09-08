@@ -145,6 +145,12 @@ const DUTCH_HOL = [
   {date:"2026-05-05",name:"Bevrijdingsdag"},{date:"2026-05-14",name:"Hemelvaartsdag"},
   {date:"2026-05-24",name:"Eerste Pinksterdag"},{date:"2026-05-25",name:"Tweede Pinksterdag"},
   {date:"2026-12-25",name:"Eerste Kerstdag"},{date:"2026-12-26",name:"Tweede Kerstdag"},
+  {date:"2027-01-01",name:"Nieuwjaarsdag"},{date:"2027-03-26",name:"Goede Vrijdag"},
+  {date:"2027-03-28",name:"Eerste Paasdag"},{date:"2027-03-29",name:"Tweede Paasdag"},
+  {date:"2027-04-27",name:"Koningsdag"},{date:"2027-05-05",name:"Bevrijdingsdag"},
+  {date:"2027-05-06",name:"Hemelvaartsdag"},{date:"2027-05-16",name:"Eerste Pinksterdag"},
+  {date:"2027-05-17",name:"Tweede Pinksterdag"},{date:"2027-12-25",name:"Eerste Kerstdag"},
+  {date:"2027-12-26",name:"Tweede Kerstdag"},
 ];
 interface SHol {start:string;end:string;name:string;regions:string[];}
 const SCHOOL_HOL:SHol[] = [
@@ -156,7 +162,27 @@ const SCHOOL_HOL:SHol[] = [
   {start:"2026-04-25",end:"2026-05-10",name:"Meivakantie",regions:["Noord","Midden","Zuid"]},
   {start:"2026-07-11",end:"2026-08-23",name:"Zomervakantie",regions:["Noord"]},
   {start:"2026-07-04",end:"2026-08-16",name:"Zomervakantie",regions:["Midden","Zuid"]},
+  // Schooljaar 2026-2027 (officiële data Rijksoverheid)
+  {start:"2026-10-10",end:"2026-10-18",name:"Herfstvakantie",regions:["Noord"]},
+  {start:"2026-10-17",end:"2026-10-25",name:"Herfstvakantie",regions:["Midden","Zuid"]},
+  {start:"2026-12-19",end:"2027-01-03",name:"Kerstvakantie",regions:["Noord","Midden","Zuid"]},
+  {start:"2027-02-13",end:"2027-02-21",name:"Voorjaarsvakantie",regions:["Zuid"]},
+  {start:"2027-02-20",end:"2027-02-28",name:"Voorjaarsvakantie",regions:["Noord","Midden"]},
+  {start:"2027-04-24",end:"2027-05-02",name:"Meivakantie",regions:["Noord","Midden","Zuid"]},
+  {start:"2027-07-10",end:"2027-08-22",name:"Zomervakantie",regions:["Noord"]},
+  {start:"2027-07-17",end:"2027-08-29",name:"Zomervakantie",regions:["Midden"]},
+  {start:"2027-07-24",end:"2027-09-05",name:"Zomervakantie",regions:["Zuid"]},
 ];
+// Laatst bekende vakantie-/feestdagdatum + waarschuwing als die bijna verlopen is.
+function holidayDataUntil():string{
+  const all=[...DUTCH_HOL.map(h=>h.date),...SCHOOL_HOL.map(h=>h.end)];
+  return all.sort().pop()||"";
+}
+function holidayDataExpiringSoon(months=3):boolean{
+  const last=holidayDataUntil();if(!last)return true;
+  const limit=new Date();limit.setMonth(limit.getMonth()+months);
+  return new Date(last+"T12:00")<=limit;
+}
 const DAYS_NL = ["Ma","Di","Wo","Do","Vr","Za","Zo"];
 const DAYS_FULL = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
 const MONTHS_NL = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Augustus","September","Oktober","November","December"];
