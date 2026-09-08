@@ -3589,9 +3589,9 @@ function NotitiesView(){
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div>
       <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Persoonlijke notities</h1>
-      <p className="text-[#6B7A99] text-xs md:text-sm">Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account.</p>
+      <p className="text-[#6B7A99] text-xs md:text-sm">{noteOwnerId&&!realUserId?"Zonder account worden je notities op dit apparaat bewaard.":"Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account."}</p>
     </div>
-    {!realUserId
+    {!noteOwnerId
       ?<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-6 text-sm text-[#6B7A99]">
         Persoonlijke notities werken alleen met een echt account. Log in met je Microsoft-account om je eigen notities veilig op te slaan.
       </div>
