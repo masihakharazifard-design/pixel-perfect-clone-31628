@@ -62,7 +62,13 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
     col_einddatum = -1,
     col_starttijd = -1,
     col_eindtijd = -1,
-    col_werknr = -1;
+    col_werknr = -1,
+    col_calccode = -1,
+    col_straat = -1,
+    col_plaatsobject = -1,
+    col_opmerkingen = -1,
+    col_status = -1,
+    col_ar = -1;
 
   headerRow.forEach((h, i) => {
     const norm = h.replace(/\s+/g, "").replace(/\.$/, "");
