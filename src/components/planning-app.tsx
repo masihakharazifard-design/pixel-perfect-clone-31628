@@ -1545,8 +1545,22 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
 }
 
 // ===== PROJECTEN VIEW =====
-type ColFilters = {werknummer:string;projectnaam:string;opdrachtgever:string;plaats:string;afdeling:string;projectleider:string;werkzaamheden:string;startFrom:string;startTo:string;eindFrom:string;eindTo:string;medewerker:string;status:string;};
-const EMPTY_FILTERS:ColFilters={werknummer:"",projectnaam:"",opdrachtgever:"",plaats:"",afdeling:"",projectleider:"",werkzaamheden:"",startFrom:"",startTo:"",eindFrom:"",eindTo:"",medewerker:"",status:""};
+// Kolomfilters van de Werken-tabel: vrije tekst voor de tekstkolommen,
+// multi-select voor Status, A/R en Type.
+type TextFilterKey="werknummer"|"calculatiecode"|"opdrachtgever"|"straat"|"plaatsobject"|"opmerkingen";
+type MultiFilterKey="status"|"ar"|"type";
+type ColFilters = Record<TextFilterKey,string> & Record<MultiFilterKey,string[]>;
+const EMPTY_FILTERS:ColFilters={werknummer:"",calculatiecode:"",opdrachtgever:"",straat:"",plaatsobject:"",opmerkingen:"",status:[],ar:[],type:[]};
+/** Type = afdelingsindeling van het werk (Turnkey/Combinatie bij meerdere afdelingen). */
+function typeLabel(p:Project):string{
+  const afds=getAllAfds(p);
+  if(afds.length>=3)return "Turnkey";
+  if(afds.length>1)return "Combinatie";
+  return afds[0]||"";
+}
+const projStraat=(p:Project)=>p.straatObject||p.adres||"";
+const projPlaatsObj=(p:Project)=>p.plaatsObject||p.plaats||"";
+const projOpm=(p:Project)=>p.opmerkingen||"";
 
 function ColHeader({label,active,children}:{label:string;active:boolean;children:React.ReactNode}){
   const [open,setOpen]=useState(false);
