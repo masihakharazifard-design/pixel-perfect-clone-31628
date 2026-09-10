@@ -759,7 +759,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
         </div>}
         {preview.bestaandCount>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaandCount})</p>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
