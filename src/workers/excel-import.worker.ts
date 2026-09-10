@@ -86,7 +86,16 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
     else if ((norm === "eindtijd" || norm === "eindetijd") && col_eindtijd === -1) col_eindtijd = i;
     else if (norm === "werknr" || norm === "werknummer" || norm === "wnr" || (/werk/.test(norm) && /(nr|nummer)/.test(norm)))
       col_werknr = i;
+    else if (/calculatiecode|calccode/.test(norm) && col_calccode === -1) col_calccode = i;
+    else if ((norm === "straatobject" || norm === "straat" || /^straat/.test(norm)) && col_straat === -1) col_straat = i;
+    else if ((norm === "plaatsobject" || norm === "plaats" || /^plaats/.test(norm)) && col_plaatsobject === -1)
+      col_plaatsobject = i;
+    else if (/^opmerking/.test(norm) && col_opmerkingen === -1) col_opmerkingen = i;
+    else if (norm === "status" && col_status === -1) col_status = i;
+    else if ((norm === "a/r" || norm === "ar" || norm === "a-r" || /^a\/r/.test(norm)) && col_ar === -1) col_ar = i;
   });
+
+  if (col_status === -1 && headerRow.length > COL_STATUS) col_status = COL_STATUS; // Excel kolom S
 
   if (col_werknr === -1) {
     col_werknr = headerRow.findIndex((h) => {
