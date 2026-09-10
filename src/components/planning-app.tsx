@@ -1586,6 +1586,17 @@ function ColSelect({value,onChange,options}:{value:string;onChange:(v:string)=>v
     {options.map(o=><option key={o} value={o}>{o}</option>)}
   </select>;
 }
+/** Multi-select filter met alleen de waarden die in de data voorkomen. */
+function ColMulti({values,onChange,options}:{values:string[];onChange:(v:string[])=>void;options:string[]}){
+  if(options.length===0)return <p className="text-xs text-[#6B7A99] px-1 py-1">Geen waarden</p>;
+  return <div className="max-h-56 overflow-y-auto space-y-1 min-w-40">
+    {values.length>0&&<button onClick={()=>onChange([])} className="text-[11px] text-[#0ABFB8] hover:underline px-1">Selectie wissen</button>}
+    {options.map(o=><label key={o} className="flex items-center gap-2 text-xs text-[#1A2744] px-1 py-0.5 cursor-pointer hover:bg-[#F0F3F8] rounded">
+      <input type="checkbox" checked={values.includes(o)} onChange={()=>onChange(values.includes(o)?values.filter(v=>v!==o):[...values,o])} className="accent-[#0ABFB8]"/>
+      <span className="truncate">{o}</span>
+    </label>)}
+  </div>;
+}
 
 // Statuscel: direct wijzigen vanuit de projectrij (desktop + mobiel)
 function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>}){
