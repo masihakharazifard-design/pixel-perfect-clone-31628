@@ -4,6 +4,7 @@
 import * as XLSX from "xlsx";
 import {
   COL_PROJECTLEIDER,
+  COL_STATUS,
   COL_WERKZAAMHEDEN,
   LARGE_FILE_WARN,
   cellStr,
@@ -62,7 +63,13 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
     col_einddatum = -1,
     col_starttijd = -1,
     col_eindtijd = -1,
-    col_werknr = -1;
+    col_werknr = -1,
+    col_calccode = -1,
+    col_straat = -1,
+    col_plaatsobject = -1,
+    col_opmerkingen = -1,
+    col_status = -1,
+    col_ar = -1;
 
   headerRow.forEach((h, i) => {
     const norm = h.replace(/\s+/g, "").replace(/\.$/, "");
@@ -80,7 +87,16 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
     else if ((norm === "eindtijd" || norm === "eindetijd") && col_eindtijd === -1) col_eindtijd = i;
     else if (norm === "werknr" || norm === "werknummer" || norm === "wnr" || (/werk/.test(norm) && /(nr|nummer)/.test(norm)))
       col_werknr = i;
+    else if (/calculatiecode|calccode/.test(norm) && col_calccode === -1) col_calccode = i;
+    else if ((norm === "straatobject" || norm === "straat" || /^straat/.test(norm)) && col_straat === -1) col_straat = i;
+    else if ((norm === "plaatsobject" || norm === "plaats" || /^plaats/.test(norm)) && col_plaatsobject === -1)
+      col_plaatsobject = i;
+    else if (/^opmerking/.test(norm) && col_opmerkingen === -1) col_opmerkingen = i;
+    else if (norm === "status" && col_status === -1) col_status = i;
+    else if ((norm === "a/r" || norm === "ar" || norm === "a-r" || /^a\/r/.test(norm)) && col_ar === -1) col_ar = i;
   });
+
+  if (col_status === -1 && headerRow.length > COL_STATUS) col_status = COL_STATUS; // Excel kolom S
 
   if (col_werknr === -1) {
     col_werknr = headerRow.findIndex((h) => {
@@ -140,6 +156,12 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
       datumOpdracht: parseXlDate(datumOpdrachtRaw as string | number | null),
       werknummer: werknrRaw || projectnr,
       werkzaamheden: rawDeptCell,
+      calculatiecode: col_calccode >= 0 ? cellStr(row[col_calccode]) : "",
+      straat: col_straat >= 0 ? cellStr(row[col_straat]) : "",
+      plaatsobject: col_plaatsobject >= 0 ? cellStr(row[col_plaatsobject]) : "",
+      opmerkingen: col_opmerkingen >= 0 ? cellStr(row[col_opmerkingen]) : "",
+      statusRaw: col_status >= 0 ? cellStr(row[col_status]) : "",
+      ar: col_ar >= 0 ? cellStr(row[col_ar]) : "",
       rawDept: rawDeptCell,
       afdelingen,
       turnkey,

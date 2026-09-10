@@ -38,6 +38,8 @@ interface Project {
   afdelingen?:Afdeling[];
   projectleider:string;
   werkzaamheden:string; startdatum:string; afloopdatum:string;
+  /** Extra kolommen uit het Excel-importbestand */
+  calculatiecode?:string; straatObject?:string; plaatsObject?:string; opmerkingen?:string; ar?:string; statusExcel?:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
@@ -644,7 +646,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         if(msg.type==="progress"){setProgress(msg.pct);return;}
         if(msg.type==="error"){setParseError(msg.message);finish();return;}
         if(msg.type!=="projects")return;
-        rowsRef.current=[...msg.nieuw,...msg.bestaand];
+        rowsRef.current=msg.nieuw; // bestaande projectnummers worden overgeslagen
         setWarning(msg.warning);
         setPreview({
           total:msg.total,duplicaten:msg.duplicaten,
@@ -731,7 +733,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
           <div className="bg-amber-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-amber-700">{preview.bestaandCount}</p>
-            <p className="text-[10px] text-amber-600 font-medium">Wordt bijgewerkt</p>
+            <p className="text-[10px] text-amber-600 font-medium">Wordt overgeslagen (bestaat al)</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-red-700">{preview.ongeldigCount}</p>
@@ -757,7 +759,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
         </div>}
         {preview.bestaandCount>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt bijgewerkt ({preview.bestaandCount})</p>
+          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
@@ -778,9 +780,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
           <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");rowsRef.current=[];}} disabled={importing}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount+preview.bestaandCount===0}>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount===0}>
             <Download className="w-4 h-4"/>
-            {importing?"Bezig met importeren…":`${preview.nieuwCount+preview.bestaandCount} project${preview.nieuwCount+preview.bestaandCount!==1?"en":""} importeren`}
+            {importing?"Bezig met importeren…":`${preview.nieuwCount} werk${preview.nieuwCount!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
@@ -1543,8 +1545,22 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
 }
 
 // ===== PROJECTEN VIEW =====
-type ColFilters = {werknummer:string;projectnaam:string;opdrachtgever:string;plaats:string;afdeling:string;projectleider:string;werkzaamheden:string;startFrom:string;startTo:string;eindFrom:string;eindTo:string;medewerker:string;status:string;};
-const EMPTY_FILTERS:ColFilters={werknummer:"",projectnaam:"",opdrachtgever:"",plaats:"",afdeling:"",projectleider:"",werkzaamheden:"",startFrom:"",startTo:"",eindFrom:"",eindTo:"",medewerker:"",status:""};
+// Kolomfilters van de Werken-tabel: vrije tekst voor de tekstkolommen,
+// multi-select voor Status, A/R en Type.
+type TextFilterKey="werknummer"|"calculatiecode"|"opdrachtgever"|"straat"|"plaatsobject"|"opmerkingen";
+type MultiFilterKey="status"|"ar"|"type";
+type ColFilters = Record<TextFilterKey,string> & Record<MultiFilterKey,string[]>;
+const EMPTY_FILTERS:ColFilters={werknummer:"",calculatiecode:"",opdrachtgever:"",straat:"",plaatsobject:"",opmerkingen:"",status:[],ar:[],type:[]};
+/** Type = afdelingsindeling van het werk (Turnkey/Combinatie bij meerdere afdelingen). */
+function typeLabel(p:Project):string{
+  const afds=getAllAfds(p);
+  if(afds.length>=3)return "Turnkey";
+  if(afds.length>1)return "Combinatie";
+  return afds[0]||"";
+}
+const projStraat=(p:Project)=>p.straatObject||p.adres||"";
+const projPlaatsObj=(p:Project)=>p.plaatsObject||p.plaats||"";
+const projOpm=(p:Project)=>p.opmerkingen||"";
 
 function ColHeader({label,active,children}:{label:string;active:boolean;children:React.ReactNode}){
   const [open,setOpen]=useState(false);
@@ -1569,6 +1585,17 @@ function ColSelect({value,onChange,options}:{value:string;onChange:(v:string)=>v
     <option value="">Alle</option>
     {options.map(o=><option key={o} value={o}>{o}</option>)}
   </select>;
+}
+/** Multi-select filter met alleen de waarden die in de data voorkomen. */
+function ColMulti({values,onChange,options}:{values:string[];onChange:(v:string[])=>void;options:string[]}){
+  if(options.length===0)return <p className="text-xs text-[#6B7A99] px-1 py-1">Geen waarden</p>;
+  return <div className="max-h-56 overflow-y-auto space-y-1 min-w-40">
+    {values.length>0&&<button onClick={()=>onChange([])} className="text-[11px] text-[#0ABFB8] hover:underline px-1">Selectie wissen</button>}
+    {options.map(o=><label key={o} className="flex items-center gap-2 text-xs text-[#1A2744] px-1 py-0.5 cursor-pointer hover:bg-[#F0F3F8] rounded">
+      <input type="checkbox" checked={values.includes(o)} onChange={()=>onChange(values.includes(o)?values.filter(v=>v!==o):[...values,o])} className="accent-[#0ABFB8]"/>
+      <span className="truncate">{o}</span>
+    </label>)}
+  </div>;
 }
 
 // Statuscel: direct wijzigen vanuit de projectrij (desktop + mobiel)
@@ -1606,32 +1633,32 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const [del,setDel]=useState<string|null>(null);
   const [showImport,setShowImport]=useState(false);
   const [page,setPage]=useState(1);
-  const set=(k:keyof ColFilters)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const set=(k:TextFilterKey)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const setMulti=(k:MultiFilterKey)=>(v:string[])=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
   const clearFilters=()=>{setPage(1);setFilters(EMPTY_FILTERS);};
-  const activeCount=Object.values(filters).filter(Boolean).length;
+  const activeCount=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:!!v).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
-  // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
-  const plOptions=useMemo(()=>[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
-    .sort((a,b)=>a[1].localeCompare(b[1])),[projects,employees]);
+  // Dropdownwaarden: alleen wat daadwerkelijk in de data voorkomt
+  const statusOptions=useMemo(()=>[...new Set(projects.map(p=>p.status).filter(Boolean))].sort(),[projects]);
+  const arOptions=useMemo(()=>[...new Set(projects.map(p=>p.ar||"").filter(Boolean))].sort(),[projects]);
+  const typeOptions=useMemo(()=>[...new Set(projects.map(p=>typeLabel(p)).filter(Boolean))].sort(),[projects]);
 
-  const filtered=useMemo(()=>projects.filter(p=>{
-    const afds=getAllAfds(p);
-    if(filters.werknummer&&!p.werknummer.toLowerCase().includes(filters.werknummer.toLowerCase()))return false;
-    if(filters.projectnaam&&!p.projectnaam.toLowerCase().includes(filters.projectnaam.toLowerCase()))return false;
-    if(filters.opdrachtgever&&!p.opdrachtgever.toLowerCase().includes(filters.opdrachtgever.toLowerCase()))return false;
-    if(filters.plaats&&!p.plaats.toLowerCase().includes(filters.plaats.toLowerCase()))return false;
-    if(filters.afdeling&&!afds.includes(filters.afdeling as Afdeling))return false;
-    if(filters.projectleider&&p.projectleider!==filters.projectleider)return false;
-    if(filters.werkzaamheden&&!p.werkzaamheden.toLowerCase().includes(filters.werkzaamheden.toLowerCase()))return false;
-    if(filters.startFrom&&p.startdatum<filters.startFrom)return false;
-    if(filters.startTo&&p.startdatum>filters.startTo+"T23:59")return false;
-    if(filters.eindFrom&&p.afloopdatum<filters.eindFrom)return false;
-    if(filters.eindTo&&p.afloopdatum>filters.eindTo+"T23:59")return false;
-    if(filters.medewerker&&!p.medewerkers.includes(filters.medewerker))return false;
-    if(filters.status&&p.status!==filters.status)return false;
-    return true;
-  }),[projects,filters]);
+  const filtered=useMemo(()=>{
+    const inc=(v:string,q:string)=>v.toLowerCase().includes(q.toLowerCase());
+    return projects.filter(p=>{
+      if(filters.werknummer&&!inc(p.werknummer,filters.werknummer))return false;
+      if(filters.calculatiecode&&!inc(p.calculatiecode||"",filters.calculatiecode))return false;
+      if(filters.opdrachtgever&&!inc(p.opdrachtgever,filters.opdrachtgever))return false;
+      if(filters.straat&&!inc(projStraat(p),filters.straat))return false;
+      if(filters.plaatsobject&&!inc(projPlaatsObj(p),filters.plaatsobject))return false;
+      if(filters.opmerkingen&&!inc(projOpm(p),filters.opmerkingen))return false;
+      if(filters.status.length&&!filters.status.includes(p.status))return false;
+      if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
+      if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
+      return true;
+    });
+  },[projects,filters]);
 
   // Paginering ná filteren, vóór het renderen van de rijen
   const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
@@ -4047,53 +4074,47 @@ export default function PlanningApp(){
       const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
-      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
-      const sd=r.startdatum||"";
-      const ed=sd?(r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})()):"";
+      // Statuskolom uit Excel overnemen wanneer die overeenkomt met een bekende status
+      const st=STATS.find(s=>s.toLowerCase()===r.statusRaw.trim().toLowerCase())||"Offerte";
       return{
         id:nid(),
         projectnr:r.projectnr,
         werknummer:r.werknummer||r.projectnr,
         projectnaam:r.projectnaam,
         opdrachtgever:r.opdrachtgever||r.contactpersoon||"",
-        adres:"",plaats:"",
+        adres:r.straat||"",plaats:r.plaatsobject||"",
+        calculatiecode:r.calculatiecode||"",
+        straatObject:r.straat||"",
+        plaatsObject:r.plaatsobject||"",
+        opmerkingen:r.opmerkingen||"",
+        ar:r.ar||"",
+        statusExcel:r.statusRaw||"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
         werkzaamheden:r.werkzaamheden||"",
-
-        startdatum:sd,
-        afloopdatum:ed,
+        // Geen datums uit Excel: het werk verschijnt pas in Agenda/Personeelsplanning
+        // zodra de gebruiker zelf een startdatum invult.
+        startdatum:"",
+        afloopdatum:"",
         medewerkers:[],
-        status:"Offerte" as ProjectStatus,
+        status:st as ProjectStatus,
         notities:r.contactpersoon&&r.opdrachtgever?`Contactpersoon: ${r.contactpersoon}`:"",
         uurprijs:65,uren:8,
       };
     };
 
-    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken.
-    // Eén vooraf opgebouwde index i.p.v. per rij de hele lijst doorzoeken.
+    // Alleen toevoegen: bestaande werken (match op Projectnr.) worden genegeerd.
     const next=[...projects];
-    const idxByNr=new Map<string,number>();
-    next.forEach((p,i)=>{
-      const nr=normalizeProjectnr(p.projectnr);
-      if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
-    });
+    const bekendeNrs=new Set<string>();
+    next.forEach(p=>{const nr=normalizeProjectnr(p.projectnr);if(nr)bekendeNrs.add(nr);});
     const changed:Project[]=[];
-    let nieuw=0,bijgewerkt=0,ongewijzigd=0;
+    let nieuw=0,overgeslagen=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
-      const idx=nr?idxByNr.get(nr)??-1:-1;
-      if(idx>=0){
-        const cur=next[idx];
-        // Alleen daadwerkelijk gewijzigde werken worden weggeschreven
-        if(cur.projectleider===r.projectleider&&cur.werkzaamheden===r.werkzaamheden){ongewijzigd++;return;}
-        next[idx]={...cur,projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
-        changed.push(next[idx]);bijgewerkt++;
-      }else{
-        const created=createProjectFromImportRow(r);
-        next.push(created);changed.push(created);nieuw++;
-        if(nr)idxByNr.set(nr,next.length-1);
-      }
+      if(nr&&bekendeNrs.has(nr)){overgeslagen++;return;}
+      const created=createProjectFromImportRow(r);
+      next.push(created);changed.push(created);nieuw++;
+      if(nr)bekendeNrs.add(nr);
     });
 
     // Atomair: eerst opslaan, pas na bevestiging de centrale state bijwerken
@@ -4105,7 +4126,7 @@ export default function PlanningApp(){
     }
     setProjects(next);
     setDbError("");
-    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt${ongewijzigd?`, ${ongewijzigd} ongewijzigd`:""}.`);
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd${overgeslagen?`, ${overgeslagen} bestaande overgeslagen`:""}.`);
 
   };
 

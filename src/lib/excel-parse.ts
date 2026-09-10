@@ -23,6 +23,12 @@ export interface ImportRow {
   datumOpdracht: string;
   werknummer: string;
   werkzaamheden: string; // kolom J, letterlijke tekst
+  calculatiecode: string;
+  straat: string; // Straat object
+  plaatsobject: string; // Plaats object
+  opmerkingen: string;
+  statusRaw: string; // kolom S
+  ar: string; // A/R
   rawDept: string;
   afdelingen: Afdeling[];
   turnkey: boolean;
@@ -47,6 +53,7 @@ export interface VacBaseRow {
 /** Vaste kolomposities in het projectimportbestand. */
 export const COL_WERKZAAMHEDEN = 9; // Excel kolom J
 export const COL_PROJECTLEIDER = 10; // Excel kolom K
+export const COL_STATUS = 18; // Excel kolom S (fallback als de header niet gevonden wordt)
 
 export function normalizeProjectnr(v: unknown): string {
   return String(v ?? "").trim();
