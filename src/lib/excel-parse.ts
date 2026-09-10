@@ -23,6 +23,12 @@ export interface ImportRow {
   datumOpdracht: string;
   werknummer: string;
   werkzaamheden: string; // kolom J, letterlijke tekst
+  calculatiecode: string;
+  straat: string; // Straat object
+  plaatsobject: string; // Plaats object
+  opmerkingen: string;
+  statusRaw: string; // kolom S
+  ar: string; // A/R
   rawDept: string;
   afdelingen: Afdeling[];
   turnkey: boolean;
