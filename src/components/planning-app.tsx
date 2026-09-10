@@ -4101,7 +4101,7 @@ export default function PlanningApp(){
     }
     setProjects(next);
     setDbError("");
-    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd, ${bijgewerkt} bestaande bijgewerkt${ongewijzigd?`, ${ongewijzigd} ongewijzigd`:""}.`);
+    toast.success(`Excel-import voltooid — ${nieuw} nieuwe werken toegevoegd${overgeslagen?`, ${overgeslagen} bestaande overgeslagen`:""}.`);
 
   };
 
