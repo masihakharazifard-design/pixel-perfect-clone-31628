@@ -1633,32 +1633,32 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const [del,setDel]=useState<string|null>(null);
   const [showImport,setShowImport]=useState(false);
   const [page,setPage]=useState(1);
-  const set=(k:keyof ColFilters)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const set=(k:TextFilterKey)=>(v:string)=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
+  const setMulti=(k:MultiFilterKey)=>(v:string[])=>{setPage(1);setFilters(prev=>({...prev,[k]:v}));};
   const clearFilters=()=>{setPage(1);setFilters(EMPTY_FILTERS);};
-  const activeCount=Object.values(filters).filter(Boolean).length;
+  const activeCount=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:!!v).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
-  // Alle voorkomende projectleiders (medewerker-id's én vrije tekst uit Excel kolom K)
-  const plOptions=useMemo(()=>[...new Map(projects.filter(p=>p.projectleider).map(p=>[p.projectleider,plName(p,employees)])).entries()]
-    .sort((a,b)=>a[1].localeCompare(b[1])),[projects,employees]);
+  // Dropdownwaarden: alleen wat daadwerkelijk in de data voorkomt
+  const statusOptions=useMemo(()=>[...new Set(projects.map(p=>p.status).filter(Boolean))].sort(),[projects]);
+  const arOptions=useMemo(()=>[...new Set(projects.map(p=>p.ar||"").filter(Boolean))].sort(),[projects]);
+  const typeOptions=useMemo(()=>[...new Set(projects.map(p=>typeLabel(p)).filter(Boolean))].sort(),[projects]);
 
-  const filtered=useMemo(()=>projects.filter(p=>{
-    const afds=getAllAfds(p);
-    if(filters.werknummer&&!p.werknummer.toLowerCase().includes(filters.werknummer.toLowerCase()))return false;
-    if(filters.projectnaam&&!p.projectnaam.toLowerCase().includes(filters.projectnaam.toLowerCase()))return false;
-    if(filters.opdrachtgever&&!p.opdrachtgever.toLowerCase().includes(filters.opdrachtgever.toLowerCase()))return false;
-    if(filters.plaats&&!p.plaats.toLowerCase().includes(filters.plaats.toLowerCase()))return false;
-    if(filters.afdeling&&!afds.includes(filters.afdeling as Afdeling))return false;
-    if(filters.projectleider&&p.projectleider!==filters.projectleider)return false;
-    if(filters.werkzaamheden&&!p.werkzaamheden.toLowerCase().includes(filters.werkzaamheden.toLowerCase()))return false;
-    if(filters.startFrom&&p.startdatum<filters.startFrom)return false;
-    if(filters.startTo&&p.startdatum>filters.startTo+"T23:59")return false;
-    if(filters.eindFrom&&p.afloopdatum<filters.eindFrom)return false;
-    if(filters.eindTo&&p.afloopdatum>filters.eindTo+"T23:59")return false;
-    if(filters.medewerker&&!p.medewerkers.includes(filters.medewerker))return false;
-    if(filters.status&&p.status!==filters.status)return false;
-    return true;
-  }),[projects,filters]);
+  const filtered=useMemo(()=>{
+    const inc=(v:string,q:string)=>v.toLowerCase().includes(q.toLowerCase());
+    return projects.filter(p=>{
+      if(filters.werknummer&&!inc(p.werknummer,filters.werknummer))return false;
+      if(filters.calculatiecode&&!inc(p.calculatiecode||"",filters.calculatiecode))return false;
+      if(filters.opdrachtgever&&!inc(p.opdrachtgever,filters.opdrachtgever))return false;
+      if(filters.straat&&!inc(projStraat(p),filters.straat))return false;
+      if(filters.plaatsobject&&!inc(projPlaatsObj(p),filters.plaatsobject))return false;
+      if(filters.opmerkingen&&!inc(projOpm(p),filters.opmerkingen))return false;
+      if(filters.status.length&&!filters.status.includes(p.status))return false;
+      if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
+      if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
+      return true;
+    });
+  },[projects,filters]);
 
   // Paginering ná filteren, vóór het renderen van de rijen
   const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
