@@ -733,7 +733,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
           <div className="bg-amber-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-amber-700">{preview.bestaandCount}</p>
-            <p className="text-[10px] text-amber-600 font-medium">Wordt bijgewerkt</p>
+            <p className="text-[10px] text-amber-600 font-medium">Wordt overgeslagen (bestaat al)</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-red-700">{preview.ongeldigCount}</p>
