@@ -4049,53 +4049,47 @@ export default function PlanningApp(){
       const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
-      // Agenda-datums komen uitsluitend uit Startdatum/Einddatum (+ tijden); geen fallback
-      const sd=r.startdatum||"";
-      const ed=sd?(r.einddatum||(()=>{const d=new Date(sd);d.setHours(17,0,0,0);return d.toISOString();})()):"";
+      // Statuskolom uit Excel overnemen wanneer die overeenkomt met een bekende status
+      const st=STATS.find(s=>s.toLowerCase()===r.statusRaw.trim().toLowerCase())||"Offerte";
       return{
         id:nid(),
         projectnr:r.projectnr,
         werknummer:r.werknummer||r.projectnr,
         projectnaam:r.projectnaam,
         opdrachtgever:r.opdrachtgever||r.contactpersoon||"",
-        adres:"",plaats:"",
+        adres:r.straat||"",plaats:r.plaatsobject||"",
+        calculatiecode:r.calculatiecode||"",
+        straatObject:r.straat||"",
+        plaatsObject:r.plaatsobject||"",
+        opmerkingen:r.opmerkingen||"",
+        ar:r.ar||"",
+        statusExcel:r.statusRaw||"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
         werkzaamheden:r.werkzaamheden||"",
-
-        startdatum:sd,
-        afloopdatum:ed,
+        // Geen datums uit Excel: het werk verschijnt pas in Agenda/Personeelsplanning
+        // zodra de gebruiker zelf een startdatum invult.
+        startdatum:"",
+        afloopdatum:"",
         medewerkers:[],
-        status:"Offerte" as ProjectStatus,
+        status:st as ProjectStatus,
         notities:r.contactpersoon&&r.opdrachtgever?`Contactpersoon: ${r.contactpersoon}`:"",
         uurprijs:65,uren:8,
       };
     };
 
-    // Upsert op Projectnr.: bestaand project bijwerken, anders nieuw aanmaken.
-    // Eén vooraf opgebouwde index i.p.v. per rij de hele lijst doorzoeken.
+    // Alleen toevoegen: bestaande werken (match op Projectnr.) worden genegeerd.
     const next=[...projects];
-    const idxByNr=new Map<string,number>();
-    next.forEach((p,i)=>{
-      const nr=normalizeProjectnr(p.projectnr);
-      if(nr&&!idxByNr.has(nr))idxByNr.set(nr,i);
-    });
+    const bekendeNrs=new Set<string>();
+    next.forEach(p=>{const nr=normalizeProjectnr(p.projectnr);if(nr)bekendeNrs.add(nr);});
     const changed:Project[]=[];
-    let nieuw=0,bijgewerkt=0,ongewijzigd=0;
+    let nieuw=0,overgeslagen=0;
     rows.forEach(r=>{
       const nr=normalizeProjectnr(r.projectnr);
-      const idx=nr?idxByNr.get(nr)??-1:-1;
-      if(idx>=0){
-        const cur=next[idx];
-        // Alleen daadwerkelijk gewijzigde werken worden weggeschreven
-        if(cur.projectleider===r.projectleider&&cur.werkzaamheden===r.werkzaamheden){ongewijzigd++;return;}
-        next[idx]={...cur,projectleider:r.projectleider,werkzaamheden:r.werkzaamheden};
-        changed.push(next[idx]);bijgewerkt++;
-      }else{
-        const created=createProjectFromImportRow(r);
-        next.push(created);changed.push(created);nieuw++;
-        if(nr)idxByNr.set(nr,next.length-1);
-      }
+      if(nr&&bekendeNrs.has(nr)){overgeslagen++;return;}
+      const created=createProjectFromImportRow(r);
+      next.push(created);changed.push(created);nieuw++;
+      if(nr)bekendeNrs.add(nr);
     });
 
     // Atomair: eerst opslaan, pas na bevestiging de centrale state bijwerken
