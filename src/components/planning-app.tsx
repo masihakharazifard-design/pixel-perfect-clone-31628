@@ -646,7 +646,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         if(msg.type==="progress"){setProgress(msg.pct);return;}
         if(msg.type==="error"){setParseError(msg.message);finish();return;}
         if(msg.type!=="projects")return;
-        rowsRef.current=[...msg.nieuw,...msg.bestaand];
+        rowsRef.current=msg.nieuw; // bestaande projectnummers worden overgeslagen
         setWarning(msg.warning);
         setPreview({
           total:msg.total,duplicaten:msg.duplicaten,
