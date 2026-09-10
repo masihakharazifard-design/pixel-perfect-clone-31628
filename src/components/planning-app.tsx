@@ -780,9 +780,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>}
         <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
           <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");rowsRef.current=[];}} disabled={importing}>Terug</Btn>
-          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount+preview.bestaandCount===0}>
+          <Btn onClick={handleImport} disabled={importing||preview.nieuwCount===0}>
             <Download className="w-4 h-4"/>
-            {importing?"Bezig met importeren…":`${preview.nieuwCount+preview.bestaandCount} project${preview.nieuwCount+preview.bestaandCount!==1?"en":""} importeren`}
+            {importing?"Bezig met importeren…":`${preview.nieuwCount} werk${preview.nieuwCount!==1?"en":""} importeren`}
           </Btn>
         </div>
       </>}
