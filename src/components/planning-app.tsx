@@ -38,6 +38,8 @@ interface Project {
   afdelingen?:Afdeling[];
   projectleider:string;
   werkzaamheden:string; startdatum:string; afloopdatum:string;
+  /** Extra kolommen uit het Excel-importbestand */
+  calculatiecode?:string; straatObject?:string; plaatsObject?:string; opmerkingen?:string; ar?:string; statusExcel?:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
