@@ -4,6 +4,7 @@
 import * as XLSX from "xlsx";
 import {
   COL_PROJECTLEIDER,
+  COL_STATUS,
   COL_WERKZAAMHEDEN,
   LARGE_FILE_WARN,
   cellStr,
