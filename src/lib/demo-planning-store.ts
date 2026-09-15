@@ -1,6 +1,7 @@
 // DEMO MODE datalaag.
 // Projecten staan altijd in IndexedDB (één record per project); de overige,
 // kleine demo-data staat in localStorage. Geen enkel netwerkverzoek.
+import type { Taak } from "./taken";
 import { makeDemoSeed, DEMO_DATA_VERSION, type DemoData } from "./demo-seed";
 import {
   deleteDemoProjects,
@@ -322,4 +323,49 @@ export async function deletePersonalNote(id: string): Promise<void> {
   mutate((d) => {
     d.notes = (d.notes as PersonalNote[]).filter((n) => n.id !== id);
   });
+}
+
+// ===== Taken per werk (demo: lokale opslag) =====
+const TAKEN_KEY = "maasmond-demo-taken";
+
+function readTaken(): Taak[] {
+  try {
+    const raw = localStorage.getItem(TAKEN_KEY);
+    return raw ? (JSON.parse(raw) as Taak[]) : [];
+  } catch {
+    return [];
+  }
+}
+function writeTaken(list: Taak[]) {
+  try { localStorage.setItem(TAKEN_KEY, JSON.stringify(list)); } catch { /* opslag vol */ }
+}
+
+export async function listTaken(projectId: string): Promise<Taak[]> {
+  return readTaken().filter((t) => t.projectId === projectId).sort((a, b) => a.volgnummer - b.volgnummer);
+}
+
+export async function listTakenForProjects(projectIds: string[]): Promise<Map<string, Taak[]>> {
+  const out = new Map<string, Taak[]>();
+  if (!projectIds.length) return out;
+  const wanted = new Set(projectIds);
+  readTaken().sort((a, b) => a.volgnummer - b.volgnummer).forEach((t) => {
+    if (!wanted.has(t.projectId)) return;
+    const list = out.get(t.projectId);
+    if (list) list.push(t);
+    else out.set(t.projectId, [t]);
+  });
+  return out;
+}
+
+export async function saveTaak(taak: Taak): Promise<Taak> {
+  const saved: Taak = { ...taak, id: taak.id || `taak-${Date.now()}-${Math.round(Math.random() * 1e6)}` };
+  const list = readTaken();
+  const i = list.findIndex((t) => t.id === saved.id);
+  if (i >= 0) list[i] = saved; else list.push(saved);
+  writeTaken(list);
+  return saved;
+}
+
+export async function deleteTaak(id: string): Promise<void> {
+  writeTaken(readTaken().filter((t) => t.id !== id));
 }

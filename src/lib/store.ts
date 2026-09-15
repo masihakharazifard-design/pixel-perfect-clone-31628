@@ -1,5 +1,6 @@
 // Store-facade: laadt in DEMO MODE uitsluitend de lokale demo-store en anders
 // uitsluitend de Supabase-store. Geen kruiselingse fallback tussen beide paden.
+import type { Taak } from "./taken";
 import { DEMO_MODE } from "./demo-mode";
 import type {
   LoadAllResult,
@@ -131,4 +132,21 @@ export async function resetDemoData(): Promise<void> {
   if (!DEMO_MODE) return;
   const mod = await import("./demo-planning-store");
   await mod.resetDemoData();
+}
+
+// ===== Taken per werk =====
+export async function listTaken(projectId: string): Promise<Taak[]> {
+  return (await impl()).listTaken(projectId);
+}
+
+export async function listTakenForProjects(projectIds: string[]): Promise<Map<string, Taak[]>> {
+  return (await impl()).listTakenForProjects(projectIds);
+}
+
+export async function saveTaak(taak: Taak): Promise<Taak> {
+  return (await impl()).saveTaak(taak);
+}
+
+export async function deleteTaak(id: string): Promise<void> {
+  return (await impl()).deleteTaak(id);
 }
