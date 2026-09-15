@@ -4084,14 +4084,14 @@ export default function PlanningApp(){
       };
     };
 
-    // Alleen toevoegen: bestaande werken (match op Projectnr.) worden genegeerd.
+    // Alleen toevoegen: bestaande werken (match op Werknr.) worden genegeerd.
     const next=[...projects];
     const bekendeNrs=new Set<string>();
-    next.forEach(p=>{const nr=normalizeProjectnr(p.projectnr);if(nr)bekendeNrs.add(nr);});
+    next.forEach(p=>{const nr=normalizeProjectnr(p.werknummer).toLowerCase();if(nr)bekendeNrs.add(nr);});
     const changed:Project[]=[];
     let nieuw=0,overgeslagen=0;
     rows.forEach(r=>{
-      const nr=normalizeProjectnr(r.projectnr);
+      const nr=normalizeProjectnr(r.werknummer).toLowerCase();
       if(nr&&bekendeNrs.has(nr)){overgeslagen++;return;}
       const created=createProjectFromImportRow(r);
       next.push(created);changed.push(created);nieuw++;
