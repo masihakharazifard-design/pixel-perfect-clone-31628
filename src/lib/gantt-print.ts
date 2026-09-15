@@ -1,5 +1,5 @@
 // Printbare Gantt-planning per opdrachtgever (openen in een nieuw venster → Afdrukken als PDF).
-import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, type Taak } from "@/lib/taken";
+import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, sorteerTaken } from "@/lib/taken";
 
 export interface GanttProject {
   id: string;
@@ -124,7 +124,6 @@ export function buildGanttHtml(opts: GanttOptions): string {
     <td class="l naam">${esc(r.werkzaamheden)}</td>
     <td class="l">${esc(r.plaats)}</td>
     <td class="l">${esc(r.omschrijving)}</td>
-    <td class="l c">${r.percentage}%</td>
     <td class="l">${esc(r.adres)}</td>
     <td class="l c">${r.start ? fmtDay(r.start) : "-"}</td>
     <td class="l c">${r.duur || 0}</td>
@@ -179,18 +178,18 @@ export function buildGanttHtml(opts: GanttOptions): string {
       ${maanden.map((m) => `<th class="d" colspan="${m.span}">${esc(m.label)}</th>`).join("")}
     </tr>
     <tr>
-      <th class="l" colspan="10"></th>
+      <th class="l" colspan="9"></th>
       ${weken.map((w) => `<th class="d" colspan="${w.span}">${esc(w.label)}</th>`).join("")}
     </tr>
     <tr>
-      <th class="l" colspan="10"></th>
+      <th class="l" colspan="9"></th>
       ${dagen.map((ds) => {
         const dow = (parseDay(ds)!.getDay() + 6) % 7;
         return `<th class="d${isWeekend(ds) ? " we" : ""}">${DAGLETTER[dow]}</th>`;
       }).join("")}
     </tr>
   </thead>
-  <tbody>${rijen || `<tr><td colspan="10">Geen taken gevonden voor deze opdrachtgever.</td></tr>`}</tbody>
+  <tbody>${rijen || `<tr><td colspan="9">Geen taken gevonden voor deze opdrachtgever.</td></tr>`}</tbody>
 </table>
 <div class="legenda"><b>Type Activiteit</b>${legenda}</div>
 <footer>
