@@ -1749,25 +1749,24 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {paged.map(p=>{
-            const pl=plName(p,employees);
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
-              <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">{p.werknummer}</td>
-              <td className="px-3 py-3"><div className="flex items-center gap-2">
-                {afds.length===1
-                  ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
-                  :<div className="w-3 h-3 rounded-full flex-shrink-0 overflow-hidden" style={projStyle(p,dc)}/>}
-                <span className="font-medium text-[#1A2744]">{p.projectnaam}</span>
-              </div></td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.opdrachtgever}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.plaats}</td>
-              <td className="px-3 py-3"><DeptBadges afds={afds}/></td>
-              <td className="px-3 py-3 text-[#1A2744]">{pl||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] max-w-32 truncate" title={p.werkzaamheden}>{p.werkzaamheden||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.startdatum)}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.afloopdatum)}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam.split(" ")[0]).filter(Boolean).join(", ")||"-"}</td>
+              <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
+                <div className="flex items-center gap-2">
+                  {afds.length===1
+                    ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
+                    :<div className="w-3 h-3 rounded-full flex-shrink-0 overflow-hidden" style={projStyle(p,dc)}/>}
+                  <span>{p.werknummer}</span>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-[#6B7A99]">{p.calculatiecode||"-"}</td>
+              <td className="px-3 py-3 text-[#1A2744]">{p.opdrachtgever||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99]">{projStraat(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99]">{projPlaatsObj(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99] max-w-48 truncate" title={projOpm(p)}>{projOpm(p)||"-"}</td>
               <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
+              <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
