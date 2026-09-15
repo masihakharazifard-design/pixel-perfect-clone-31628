@@ -1,7 +1,7 @@
 // DEMO MODE datalaag.
 // Projecten staan altijd in IndexedDB (één record per project); de overige,
 // kleine demo-data staat in localStorage. Geen enkel netwerkverzoek.
-import type { Taak } from "./taken";
+import { sorteerTaken, type Taak } from "./taken";
 import { makeDemoSeed, DEMO_DATA_VERSION, type DemoData } from "./demo-seed";
 import {
   deleteDemoProjects,
