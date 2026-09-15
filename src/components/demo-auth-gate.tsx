@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { LogIn } from "lucide-react";
-import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { Ctx, ROLE_LABELS } from "@/components/auth-context";
 
 // DEMO MODE: geen Supabase, geen OTP, geen e-mail. Alles wat wordt ingevuld wordt geaccepteerd.

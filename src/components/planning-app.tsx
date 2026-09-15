@@ -14,7 +14,7 @@ import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProject
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
-import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
 import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
 import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";

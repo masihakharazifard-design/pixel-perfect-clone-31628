@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
-import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 
 const TOEGESTAAN_DOMEIN = "@maasmond.nl";
