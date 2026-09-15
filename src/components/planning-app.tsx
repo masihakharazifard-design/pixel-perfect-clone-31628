@@ -3162,9 +3162,13 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   // ===== Openstaande werken =====
   // Querygebaseerd (max 100 resultaten renderen, alles blijft vindbaar) en losgekoppeld
   // van de planning-render: het paneel hertekent niet mee met celinteracties.
+  // Alleen werken met Excel-status "O" én zonder enige planningregel blijven openstaan.
+  const avIdxRef=useRef(avIdx);
+  avIdxRef.current=avIdx;
   const openProjectsProvider=useMemo<OpenProjectsProvider<Project>>(()=>createIndexOpenProjectsProvider<Project>({
     index:projectIndex,
-    isHidden:p=>String(p.status||"").trim().toLowerCase()==="afgerond",
+    isHidden:p=>String((p as Project).statusExcel||"").trim().toUpperCase()!=="O"
+      ||(avIdxRef.current.plannedCountByProject.get(p.id)||0)>0,
     getAfdelingen:p=>getAllAfds(p as Project),
   }),[]);
   // Verandert alleen na een echte planningwijziging (nieuwe availability-referentie).
