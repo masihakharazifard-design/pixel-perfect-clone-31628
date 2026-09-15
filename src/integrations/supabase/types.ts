@@ -185,6 +185,48 @@ export type Database = {
         }
         Relationships: []
       }
+      project_taken: {
+        Row: {
+          created_at: string
+          duur: number
+          groep: string
+          id: string
+          percentage: number
+          project_id: string
+          start: string | null
+          taaknaam: string
+          type: string
+          updated_at: string
+          volgnummer: number
+        }
+        Insert: {
+          created_at?: string
+          duur?: number
+          groep?: string
+          id?: string
+          percentage?: number
+          project_id: string
+          start?: string | null
+          taaknaam?: string
+          type?: string
+          updated_at?: string
+          volgnummer?: number
+        }
+        Update: {
+          created_at?: string
+          duur?: number
+          groep?: string
+          id?: string
+          percentage?: number
+          project_id?: string
+          start?: string | null
+          taaknaam?: string
+          type?: string
+          updated_at?: string
+          volgnummer?: number
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           archived_at: string | null

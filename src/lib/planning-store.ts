@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import type { Taak } from "@/lib/taken";
 import { EMPTY_META, type PersonalNote, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
@@ -264,5 +265,65 @@ export async function savePersonalNote(ownerId: string, datum: string, tekst: st
 
 export async function deletePersonalNote(id: string): Promise<void> {
   const { error } = await supabase.from("personal_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ===== Taken per werk (Gantt-planning) =====
+type TaakRow = {
+  id: string; project_id: string; volgnummer: number; groep: string;
+  taaknaam: string; type: string; start: string | null; duur: number; percentage: number;
+};
+
+const TAAK_COLS = "id, project_id, volgnummer, groep, taaknaam, type, start, duur, percentage";
+
+function toTaak(r: TaakRow): Taak {
+  return {
+    id: r.id, projectId: r.project_id, volgnummer: r.volgnummer, groep: r.groep || "",
+    taaknaam: r.taaknaam || "", type: r.type || "", start: r.start || "",
+    duur: r.duur ?? 1, percentage: r.percentage ?? 0,
+  };
+}
+
+export async function listTaken(projectId: string): Promise<Taak[]> {
+  const { data, error } = await supabase
+    .from("project_taken").select(TAAK_COLS).eq("project_id", projectId)
+    .order("volgnummer", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as TaakRow[]).map(toTaak);
+}
+
+/** Eén gebundelde leesactie voor meerdere werken (nooit N losse reads). */
+export async function listTakenForProjects(projectIds: string[]): Promise<Map<string, Taak[]>> {
+  const out = new Map<string, Taak[]>();
+  if (!projectIds.length) return out;
+  const { data, error } = await supabase
+    .from("project_taken").select(TAAK_COLS).in("project_id", projectIds)
+    .order("volgnummer", { ascending: true });
+  if (error) throw error;
+  ((data ?? []) as TaakRow[]).forEach((r) => {
+    const t = toTaak(r);
+    const list = out.get(t.projectId);
+    if (list) list.push(t);
+    else out.set(t.projectId, [t]);
+  });
+  return out;
+}
+
+export async function saveTaak(taak: Taak): Promise<Taak> {
+  const payload = {
+    project_id: taak.projectId, volgnummer: taak.volgnummer, groep: taak.groep,
+    taaknaam: taak.taaknaam, type: taak.type, start: taak.start || null,
+    duur: taak.duur, percentage: taak.percentage,
+  };
+  const q = taak.id
+    ? supabase.from("project_taken").update(payload).eq("id", taak.id).select(TAAK_COLS).single()
+    : supabase.from("project_taken").insert(payload).select(TAAK_COLS).single();
+  const { data, error } = await q;
+  if (error) throw error;
+  return toTaak(data as TaakRow);
+}
+
+export async function deleteTaak(id: string): Promise<void> {
+  const { error } = await supabase.from("project_taken").delete().eq("id", id);
   if (error) throw error;
 }

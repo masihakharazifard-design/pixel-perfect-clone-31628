@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
+  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -23,6 +23,9 @@ import { OpenProjectsPanel } from "@/components/open-projects-panel";
 import { FacturatieTermijnen } from "@/components/facturatie-termijnen";
 import { FacturatieView } from "@/components/facturatie-view";
 import { createIndexFacturatieProvider, type FacturatieProvider } from "@/lib/facturatie-query";
+import { listTakenForProjects } from "@/lib/store";
+import { openGanttPrint, type GanttProject } from "@/lib/gantt-print";
+const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.TakenTab})));
 
 
 // ===== TYPES =====
@@ -1207,9 +1210,33 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 }
 
 // ===== PROJECT DETAIL =====
-type ProjTab="overzicht"|"opmerkingen"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
+/** Printbare Gantt-planning met alle werken van dezelfde opdrachtgever. */
+async function printKlantPlanning(project:Project,allProjects:Project[],employees:Employee[]){
+  const klant=(project.opdrachtgever||"").trim();
+  const werken=(klant?allProjects.filter(p=>(p.opdrachtgever||"").trim().toLowerCase()===klant.toLowerCase()):[project]);
+  const lijst=werken.length?werken:[project];
+  try{
+    const takenMap=await listTakenForProjects(lijst.map(p=>p.id));
+    const projecten:GanttProject[]=lijst.map(p=>({
+      id:p.id,werknummer:p.werknummer||"",projectnaam:p.projectnaam||"",
+      omschrijving:p.opmerkingen||p.projectnaam||"",adres:p.adres||"",plaats:p.plaats||"",
+      projectleider:plName(p,employees)||"",taken:takenMap.get(p.id)||[],
+    }));
+    if(!projecten.some(p=>p.taken.length)){toast.error("Er zijn nog geen taken voor deze opdrachtgever");return;}
+    const ok=openGanttPrint({
+      opdrachtgever:klant||project.projectnaam||"Opdrachtgever",
+      projectleider:plName(project,employees)||"",
+      logoUrl:maasmondLogo.url,systeemnaam:"Maasmond Planning",projecten,
+    });
+    if(!ok)toast.error("Sta pop-ups toe om de planning te openen");
+  }catch{
+    toast.error("Planning maken is niet gelukt");
+  }
+}
+
+type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
+function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
@@ -1245,8 +1272,8 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
   const assigned=getProjectAssignedEmployees(project.id,availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const tabs:ProjTab[]=["overzicht","opmerkingen","planning","medewerkers","documenten","facturatie","notities"];
-  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
+  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities"];
+  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];
   return <Modal title={project.projectnaam} onClose={onClose} width="max-w-3xl">
@@ -1265,6 +1292,7 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <Btn size="sm" variant="secondary" onClick={onEdit}><Pencil className="w-3.5 h-3.5"/><span className="hidden sm:inline">Bewerken</span></Btn>
+            <Btn size="sm" variant="secondary" onClick={()=>void printKlantPlanning(project,allProjects,employees)}><FileDown className="w-3.5 h-3.5"/><span className="hidden sm:inline">Planning opdrachtgever</span></Btn>
             <Btn size="sm" variant="danger" onClick={()=>setConfirmDel(true)}><Trash2 className="w-3.5 h-3.5"/><span className="hidden sm:inline">Verwijderen</span></Btn>
           </div>
         </div>
@@ -1281,6 +1309,9 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
           <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Calculator</p></div>
         </div>}
       </div>}
+      {tab==="taken"&&<Suspense fallback={<p className="text-sm text-[#6B7A99]">Taken laden…</p>}>
+        <TakenTab projectId={project.id}/>
+      </Suspense>}
       {tab==="opmerkingen"&&<div>
         <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Opmerkingen</p>
         <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
@@ -3162,9 +3193,13 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   // ===== Openstaande werken =====
   // Querygebaseerd (max 100 resultaten renderen, alles blijft vindbaar) en losgekoppeld
   // van de planning-render: het paneel hertekent niet mee met celinteracties.
+  // Alleen werken met Excel-status "O" én zonder enige planningregel blijven openstaan.
+  const avIdxRef=useRef(avIdx);
+  avIdxRef.current=avIdx;
   const openProjectsProvider=useMemo<OpenProjectsProvider<Project>>(()=>createIndexOpenProjectsProvider<Project>({
     index:projectIndex,
-    isHidden:p=>String(p.status||"").trim().toLowerCase()==="afgerond",
+    isHidden:p=>String((p as Project).statusExcel||"").trim().toUpperCase()!=="O"
+      ||(avIdxRef.current.plannedCountByProject.get(p.id)||0)>0,
     getAfdelingen:p=>getAllAfds(p as Project),
   }),[]);
   // Verandert alleen na een echte planningwijziging (nieuwe availability-referentie).
@@ -4202,7 +4237,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
