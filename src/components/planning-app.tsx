@@ -6,7 +6,7 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
+  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -23,6 +23,9 @@ import { OpenProjectsPanel } from "@/components/open-projects-panel";
 import { FacturatieTermijnen } from "@/components/facturatie-termijnen";
 import { FacturatieView } from "@/components/facturatie-view";
 import { createIndexFacturatieProvider, type FacturatieProvider } from "@/lib/facturatie-query";
+import { listTakenForProjects } from "@/lib/store";
+import { openGanttPrint, type GanttProject } from "@/lib/gantt-print";
+const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.TakenTab})));
 
 
 // ===== TYPES =====
@@ -1207,6 +1210,30 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 }
 
 // ===== PROJECT DETAIL =====
+/** Printbare Gantt-planning met alle werken van dezelfde opdrachtgever. */
+async function printKlantPlanning(project:Project,allProjects:Project[],employees:Employee[]){
+  const klant=(project.opdrachtgever||"").trim();
+  const werken=(klant?allProjects.filter(p=>(p.opdrachtgever||"").trim().toLowerCase()===klant.toLowerCase()):[project]);
+  const lijst=werken.length?werken:[project];
+  try{
+    const takenMap=await listTakenForProjects(lijst.map(p=>p.id));
+    const projecten:GanttProject[]=lijst.map(p=>({
+      id:p.id,werknummer:p.werknummer||"",projectnaam:p.projectnaam||"",
+      omschrijving:p.opmerkingen||p.projectnaam||"",adres:p.adres||"",plaats:p.plaats||"",
+      projectleider:plName(p,employees)||"",taken:takenMap.get(p.id)||[],
+    }));
+    if(!projecten.some(p=>p.taken.length)){toast.error("Er zijn nog geen taken voor deze opdrachtgever");return;}
+    const ok=openGanttPrint({
+      opdrachtgever:klant||project.projectnaam||"Opdrachtgever",
+      projectleider:plName(project,employees)||"",
+      logoUrl:maasmondLogo.url,systeemnaam:"Maasmond Planning",projecten,
+    });
+    if(!ok)toast.error("Sta pop-ups toe om de planning te openen");
+  }catch{
+    toast.error("Planning maken is niet gelukt");
+  }
+}
+
 type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
 function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
   project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
