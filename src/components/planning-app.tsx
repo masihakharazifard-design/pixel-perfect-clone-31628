@@ -1733,7 +1733,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     {/* Desktop table view */}
     <div className="hidden md:block bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
-        <thead className="bg-[#F0F3F8]">
+        <thead className="bg-[#FFFF00]">
           <tr>
             <ColHeader label="S" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
             <ColHeader label="A/R" active={filters.ar.length>0}><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></ColHeader>
