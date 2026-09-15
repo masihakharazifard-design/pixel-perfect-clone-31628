@@ -109,6 +109,26 @@ export async function bootstrapMyRole(): Promise<string | null> {
   return (data as string | null) ?? null;
 }
 
+// ===== Gebruikersbeheer (alleen beheerder) =====
+export type AdminUser = {
+  user_id: string;
+  email: string;
+  created_at: string;
+  roles: AppRoleName[];
+};
+export type AppRoleName = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
+
+export async function adminListUsers(): Promise<AdminUser[]> {
+  const { data, error } = await supabase.rpc("admin_list_users");
+  if (error) throw error;
+  return ((data ?? []) as AdminUser[]).map((u) => ({ ...u, roles: u.roles ?? [] }));
+}
+
+export async function adminSetUserRole(userId: string, role: AppRoleName): Promise<void> {
+  const { error } = await supabase.rpc("admin_set_user_role", { _user_id: userId, _role: role });
+  if (error) throw error;
+}
+
 // ===== Instellingen: atomair patchen, ook binnen geneste objecten =====
 export async function patchSettings(
   changes: Record<string, unknown> = {},
