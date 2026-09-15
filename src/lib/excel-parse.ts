@@ -203,7 +203,7 @@ export function mapVacStatus(raw: string): ImportAvailStatus {
 
 // ===== Berichten tussen UI en import-worker =====
 export type ImportWorkerRequest =
-  | { mode: "projects"; buffer: ArrayBuffer; existingProjectNumbers: string[] }
+  | { mode: "projects"; buffer: ArrayBuffer; existingWorkNumbers: string[] }
   | { mode: "avail"; buffer: ArrayBuffer };
 
 export type ImportWorkerResponse =
@@ -217,7 +217,10 @@ export type ImportWorkerResponse =
       total: number;
       duplicaten: number;
       warning: string;
+      /** Verwachte kolomkoppen die niet in het bestand stonden. */
+      missingColumns: string[];
     }
+
   | { type: "avail"; rows: VacBaseRow[]; total: number; warning: string };
 
 /** Boven deze hoeveelheid regels waarschuwen we, maar verwerken we gewoon door. */
