@@ -1,5 +1,5 @@
 // Printbare Gantt-planning per opdrachtgever (openen in een nieuw venster → Afdrukken als PDF).
-import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, sorteerTaken } from "@/lib/taken";
+import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, sorteerTaken, type Taak } from "@/lib/taken";
 
 export interface GanttProject {
   id: string;
@@ -174,7 +174,7 @@ export function buildGanttHtml(opts: GanttOptions): string {
 <table>
   <thead>
     <tr>
-      ${kop("Regel")}${kop("Werk nummer")}<th class="l naam">Werkzaamheden</th>${kop("Plaats")}${kop("Project omschrijving")}${kop("% voltooid")}${kop("Adres")}${kop("Start")}${kop("Duur")}${kop("Eind")}
+      ${kop("Regel")}${kop("Werk nummer")}<th class="l naam">Werkzaamheden</th>${kop("Plaats")}${kop("Project omschrijving")}${kop("Adres")}${kop("Start")}${kop("Duur")}${kop("Eind")}
       ${maanden.map((m) => `<th class="d" colspan="${m.span}">${esc(m.label)}</th>`).join("")}
     </tr>
     <tr>
