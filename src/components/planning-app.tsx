@@ -1207,9 +1207,9 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 }
 
 // ===== PROJECT DETAIL =====
-type ProjTab="overzicht"|"opmerkingen"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
-  project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
+type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
+function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
+  project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
 }){
   const dc=useDC();
@@ -1245,8 +1245,8 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
   const assigned=getProjectAssignedEmployees(project.id,availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const tabs:ProjTab[]=["overzicht","opmerkingen","planning","medewerkers","documenten","facturatie","notities"];
-  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
+  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities"];
+  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];
   return <Modal title={project.projectnaam} onClose={onClose} width="max-w-3xl">
@@ -1265,6 +1265,7 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <Btn size="sm" variant="secondary" onClick={onEdit}><Pencil className="w-3.5 h-3.5"/><span className="hidden sm:inline">Bewerken</span></Btn>
+            <Btn size="sm" variant="secondary" onClick={()=>void printKlantPlanning(project,allProjects,employees)}><FileDown className="w-3.5 h-3.5"/><span className="hidden sm:inline">Planning opdrachtgever</span></Btn>
             <Btn size="sm" variant="danger" onClick={()=>setConfirmDel(true)}><Trash2 className="w-3.5 h-3.5"/><span className="hidden sm:inline">Verwijderen</span></Btn>
           </div>
         </div>
@@ -1281,6 +1282,9 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
           <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Calculator</p></div>
         </div>}
       </div>}
+      {tab==="taken"&&<Suspense fallback={<p className="text-sm text-[#6B7A99]">Taken laden…</p>}>
+        <TakenTab projectId={project.id}/>
+      </Suspense>}
       {tab==="opmerkingen"&&<div>
         <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Opmerkingen</p>
         <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
@@ -4206,7 +4210,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
