@@ -1692,22 +1692,17 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <span className="text-sm font-semibold text-[#1A2744]">Filteren</span>
         {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Afdeling</label><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Calculator</label>
-          <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
-            <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Medewerker</label>
-          <select value={filters.medewerker} onChange={e=>set("medewerker")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
-            <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
-          </select>
-        </div>
+      <div className="grid grid-cols-1 gap-3">
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></div>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">A/R</label><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></div>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Type</label><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></div>
       </div>
-      <ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werknaam..."/>
+      <ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/>
+      <ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/>
       <ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/>
+      <ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat object..."/>
+      <ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats object..."/>
+      <ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/>
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
