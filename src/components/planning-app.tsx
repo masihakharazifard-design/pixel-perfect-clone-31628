@@ -1753,6 +1753,9 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           {paged.map(p=>{
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
+              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
+              <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
                 <div className="flex items-center gap-2">
                   {afds.length===1
@@ -1762,13 +1765,12 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
                 </div>
               </td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.calculatiecode||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99]">{plName(p,employees)||"-"}</td>
+              <td className="px-3 py-3 text-[#1A2744] max-w-56 truncate" title={p.projectnaam}>{p.projectnaam||"-"}</td>
               <td className="px-3 py-3 text-[#1A2744]">{p.opdrachtgever||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{projStraat(p)||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{projPlaatsObj(p)||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] max-w-48 truncate" title={projOpm(p)}>{projOpm(p)||"-"}</td>
-              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
