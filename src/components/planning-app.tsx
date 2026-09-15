@@ -1622,11 +1622,10 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
   </div>;
 }
 
-function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
+function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
   onImport:(rows:ImportRow[])=>void|Promise<void>;
-  onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
@@ -1639,9 +1638,9 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const activeCount=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:!!v).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
-  // Dropdownwaarden: alleen wat daadwerkelijk in de data voorkomt
-  const statusOptions=useMemo(()=>[...new Set(projects.map(p=>p.status).filter(Boolean))].sort(),[projects]);
-  const arOptions=useMemo(()=>[...new Set(projects.map(p=>p.ar||"").filter(Boolean))].sort(),[projects]);
+  // Vaste filterkeuzes zoals in het Excel-bestand
+  const statusOptions=useMemo(()=>["O","G","INT"],[]);
+  const arOptions=useMemo(()=>["a","R"],[]);
   const typeOptions=useMemo(()=>[...new Set(projects.map(p=>typeLabel(p)).filter(Boolean))].sort(),[projects]);
 
   const filtered=useMemo(()=>{
@@ -1653,7 +1652,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       if(filters.straat&&!inc(projStraat(p),filters.straat))return false;
       if(filters.plaatsobject&&!inc(projPlaatsObj(p),filters.plaatsobject))return false;
       if(filters.opmerkingen&&!inc(projOpm(p),filters.opmerkingen))return false;
-      if(filters.status.length&&!filters.status.includes(p.status))return false;
+      if(filters.status.length&&!filters.status.includes(p.statusExcel||""))return false;
       if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
       if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
       return true;
@@ -1710,7 +1709,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
-          <StatusCell project={p} onStatusChange={onStatusChange}/>
+          <span className="text-sm font-medium text-[#1A2744]">{p.statusExcel||"-"}</span>
         </div>
         <div className="px-4 py-3 space-y-1.5">
           <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
@@ -1753,7 +1752,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           {paged.map(p=>{
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
-              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
+              <td className="px-3 py-3 text-[#1A2744] font-medium">{p.statusExcel||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
@@ -4180,7 +4179,7 @@ export default function PlanningApp(){
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
+          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
