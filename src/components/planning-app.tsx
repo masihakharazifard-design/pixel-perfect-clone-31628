@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, createContext, useContext } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, createContext, useContext, lazy, Suspense } from "react";
 import {
   LayoutDashboard, FolderOpen, CalendarDays, Users, Clock3,
   Receipt, Settings, ChevronLeft, ChevronRight, Plus, Pencil,
@@ -6,13 +6,14 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
+  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical
 } from "lucide-react";
 
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
+const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
 import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
 import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
@@ -25,7 +26,7 @@ import { createIndexFacturatieProvider, type FacturatieProvider } from "@/lib/fa
 
 
 // ===== TYPES =====
-type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen";
+type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"gebruikers";
 type Afdeling = "Stoffering"|"Schilderwerk"|"Zonwering";
 type ProjectStatus = "Offerte"|"Bevestigd"|"In uitvoering"|"Afgerond"|"Gefactureerd";
 type AvailStatus = "Beschikbaar"|"Ingepland"|"Bezet"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
@@ -1380,7 +1381,10 @@ const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
+const ADMIN_NAV_ITEMS:[Nav,React.ElementType,string][]=[["gebruikers",UserCog,"Gebruikersbeheer"]];
 function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
+  const {roles}=useAuth();
+  const items=roles.includes("beheerder")?[...NAV_ITEMS,...ADMIN_NAV_ITEMS]:NAV_ITEMS;
   return <>
     <div className="px-5 py-5">
       <div className="flex items-center gap-2.5">
@@ -1392,7 +1396,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       <p className="text-[#6B8099] text-xs mt-0.5">Projectplanning</p>
     </div>
     <div className="px-3 py-1 space-y-0.5 flex-1">
-      {NAV_ITEMS.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active===id?"bg-white/15 text-white font-semibold":"text-[#8899BB] hover:text-white hover:bg-white/8"}`}>
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active===id?"bg-white/15 text-white font-semibold":"text-[#8899BB] hover:text-white hover:bg-white/8"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
@@ -1442,7 +1446,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",gebruikers:"Gebruikersbeheer"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
     <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -4190,6 +4194,7 @@ export default function PlanningApp(){
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
+          {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#6B7A99]">Laden…</div>}><GebruikersbeheerView/></Suspense>}
         </div>
       </div>
       {(isNewProject||editProject)&&editProject!==null&&(
