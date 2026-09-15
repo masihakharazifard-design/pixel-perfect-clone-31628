@@ -1,19 +1,17 @@
 /// <reference lib="webworker" />
 // Leest en normaliseert Excelbestanden buiten de hoofdthread.
-// Kolommapping en validatieregels zijn identiek aan de vorige UI-implementatie.
+// Projectkolommen worden herkend op de tekst in de kopregel, niet op positie.
 import * as XLSX from "xlsx";
 import {
-  COL_PROJECTLEIDER,
-  COL_STATUS,
-  COL_WERKZAAMHEDEN,
   LARGE_FILE_WARN,
   cellStr,
   combineDT,
   mapVacStatus,
+  matchProjectHeaders,
+  normalizeHeader,
   normalizeProjectnr,
   parseTimeCell,
   parseXlDate,
-  parseXlTime,
   resolveDept,
   type ImportRow,
   type ImportWorkerRequest,
@@ -34,85 +32,29 @@ function readSheet(buffer: ArrayBuffer): unknown[][] {
 function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
   const raw = readSheet(buffer);
 
+  // Kopregel = de eerste rij met een herkenbare "Werknr."-kolom
   let headerRowIdx = -1;
   for (let i = 0; i < Math.min(raw.length, 30); i++) {
     const row = raw[i] as unknown[];
-    if (
-      row.some((c) =>
-        cellStr(c).toLowerCase().replace(/\s/g, "").replace(/\.$/, "").match(/^projectnr?$/),
-      )
-    ) {
+    if (row.some((c) => ["werknr", "werknummer", "wnr"].includes(normalizeHeader(c)))) {
       headerRowIdx = i;
       break;
     }
   }
   if (headerRowIdx === -1) {
-    post({ type: "error", message: "Geen headerrij gevonden. Zorg dat de rij met 'Projectnr.' aanwezig is in het bestand." });
-    return;
-  }
-
-  const headerRow = (raw[headerRowIdx] as unknown[]).map((h) => cellStr(h).toLowerCase().trim());
-
-  let omschrijvingCount = 0;
-  let col_projectnr = -1,
-    col_omschr1 = -1,
-    col_opdrachtgever = -1,
-    col_contactpersoon = -1,
-    col_datum_opdracht = -1,
-    col_startdatum = -1,
-    col_einddatum = -1,
-    col_starttijd = -1,
-    col_eindtijd = -1,
-    col_werknr = -1,
-    col_calccode = -1,
-    col_straat = -1,
-    col_plaatsobject = -1,
-    col_opmerkingen = -1,
-    col_status = -1,
-    col_ar = -1;
-
-  headerRow.forEach((h, i) => {
-    const norm = h.replace(/\s+/g, "").replace(/\.$/, "");
-    if (norm === "projectnr" && col_projectnr === -1) col_projectnr = i;
-    else if (h === "omschrijving") {
-      omschrijvingCount++;
-      if (omschrijvingCount === 1) col_omschr1 = i;
-    } else if (norm === "naamopdrachtgever" || norm === "opdrachtgever") col_opdrachtgever = i;
-    else if (norm === "contactpersoon") col_contactpersoon = i;
-    else if (norm === "datumopdracht") col_datum_opdracht = i;
-    else if (norm === "startdatum" && col_startdatum === -1) col_startdatum = i;
-    else if ((norm === "einddatum" || norm === "afloopdatum" || norm === "eindedatum") && col_einddatum === -1)
-      col_einddatum = i;
-    else if (norm === "starttijd" && col_starttijd === -1) col_starttijd = i;
-    else if ((norm === "eindtijd" || norm === "eindetijd") && col_eindtijd === -1) col_eindtijd = i;
-    else if (norm === "werknr" || norm === "werknummer" || norm === "wnr" || (/werk/.test(norm) && /(nr|nummer)/.test(norm)))
-      col_werknr = i;
-    else if (/calculatiecode|calccode/.test(norm) && col_calccode === -1) col_calccode = i;
-    else if ((norm === "straatobject" || norm === "straat" || /^straat/.test(norm)) && col_straat === -1) col_straat = i;
-    else if ((norm === "plaatsobject" || norm === "plaats" || /^plaats/.test(norm)) && col_plaatsobject === -1)
-      col_plaatsobject = i;
-    else if (/^opmerking/.test(norm) && col_opmerkingen === -1) col_opmerkingen = i;
-    else if (norm === "status" && col_status === -1) col_status = i;
-    else if ((norm === "a/r" || norm === "ar" || norm === "a-r" || /^a\/r/.test(norm)) && col_ar === -1) col_ar = i;
-  });
-
-  if (col_status === -1 && headerRow.length > COL_STATUS) col_status = COL_STATUS; // Excel kolom S
-
-  if (col_werknr === -1) {
-    col_werknr = headerRow.findIndex((h) => {
-      const n = h.replace(/\s+/g, "").replace(/\./g, "");
-      return n !== "projectnr" && /werk/.test(n) && /(nr|nummer)/.test(n);
+    post({
+      type: "error",
+      message: "Geen kopregel gevonden. Zorg dat de rij met de kolom 'Werknr.' in het bestand staat.",
     });
-  }
-
-  if (col_projectnr === -1) {
-    post({ type: "error", message: "Kolom 'Projectnr.' niet gevonden in de headerrij." });
     return;
   }
 
-  const existingProjectNumbers = new Set(existing);
+  const { index: col, missing } = matchProjectHeaders(raw[headerRowIdx] as unknown[]);
+
+  const existingWorkNumbers = new Set(existing.map((v) => v.toLowerCase()));
   const dataRows = raw.slice(headerRowIdx + 1);
   const allRows: ImportRow[] = [];
+  const get = (row: unknown[], key: keyof typeof col) => (col[key] >= 0 ? cellStr(row[col[key]]) : "");
 
   for (let idx = 0; idx < dataRows.length; idx++) {
     const row = dataRows[idx] as unknown[];
@@ -122,47 +64,31 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
     if (!row || row.every((c) => c == null || cellStr(c) === "")) continue;
 
     const absRow = headerRowIdx + 2 + idx;
-    const projectnr = col_projectnr >= 0 ? cellStr(row[col_projectnr]) : "";
-    const projectnaam = col_omschr1 >= 0 ? cellStr(row[col_omschr1]) : "";
-    const rawDeptCell = cellStr(row[COL_WERKZAAMHEDEN]);
-    const opdrachtgever = col_opdrachtgever >= 0 ? cellStr(row[col_opdrachtgever]) : "";
-    const contactpersoon = col_contactpersoon >= 0 ? cellStr(row[col_contactpersoon]) : "";
-    const calculator = cellStr(row[COL_PROJECTLEIDER]);
-    const startdatumRaw = col_startdatum >= 0 ? row[col_startdatum] : null;
-    const einddatumRaw = col_einddatum >= 0 ? row[col_einddatum] : null;
-    const starttijd = col_starttijd >= 0 ? parseXlTime(row[col_starttijd]) : null;
-    const eindtijd = col_eindtijd >= 0 ? parseXlTime(row[col_eindtijd]) : null;
-    const datumOpdrachtRaw = col_datum_opdracht >= 0 ? row[col_datum_opdracht] : null;
-    const werknrRaw = col_werknr >= 0 ? cellStr(row[col_werknr]) : "";
+    const werknummer = get(row, "werknummer");
+    const straat = get(row, "straat");
+    const plaatsobject = get(row, "plaatsobject");
+    const opdrachtgever = get(row, "opdrachtgever");
+    const rawDept = get(row, "type");
 
-    let invalidReason = "";
-    if (!projectnr && !projectnaam) continue;
-    if (!projectnr) invalidReason = `Rij ${absRow}: Projectnr. ontbreekt`;
+    const naam = [straat, plaatsobject].filter(Boolean).join(" – ") || werknummer;
+    const invalidReason = werknummer ? "" : `Rij ${absRow}: Werknr. ontbreekt`;
+    if (!werknummer && !straat && !plaatsobject && !opdrachtgever) continue;
 
-    const { afdelingen, turnkey } = resolveDept(rawDeptCell);
-    const startISO = combineDT(parseXlDate(startdatumRaw as string | number | null), starttijd, 8, 0);
-    const eindBase =
-      parseXlDate(einddatumRaw as string | number | null) || parseXlDate(startdatumRaw as string | number | null);
-    const eindISO = combineDT(eindBase, eindtijd, 17, 0);
+    const { afdelingen, turnkey } = resolveDept(rawDept);
 
     allRows.push({
-      projectnr,
-      projectnaam: projectnaam || projectnr,
+      werknummer,
+      projectnaam: naam,
       opdrachtgever,
-      contactpersoon,
-      projectleider: calculator,
-      startdatum: startISO,
-      einddatum: eindISO,
-      datumOpdracht: parseXlDate(datumOpdrachtRaw as string | number | null),
-      werknummer: werknrRaw || projectnr,
-      werkzaamheden: rawDeptCell,
-      calculatiecode: col_calccode >= 0 ? cellStr(row[col_calccode]) : "",
-      straat: col_straat >= 0 ? cellStr(row[col_straat]) : "",
-      plaatsobject: col_plaatsobject >= 0 ? cellStr(row[col_plaatsobject]) : "",
-      opmerkingen: col_opmerkingen >= 0 ? cellStr(row[col_opmerkingen]) : "",
-      statusRaw: col_status >= 0 ? cellStr(row[col_status]) : "",
-      ar: col_ar >= 0 ? cellStr(row[col_ar]) : "",
-      rawDept: rawDeptCell,
+      projectleider: get(row, "projectleider"),
+      vestiging: get(row, "vestiging"),
+      calculatiecode: get(row, "calculatiecode"),
+      straat,
+      plaatsobject,
+      opmerkingen: get(row, "opmerkingen"),
+      statusRaw: get(row, "status"),
+      ar: get(row, "ar"),
+      rawDept,
       afdelingen,
       turnkey,
       rowIndex: absRow,
@@ -173,13 +99,13 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
   post({ type: "progress", pct: 100 });
 
   const ongeldig = allRows.filter((r) => r.invalidReason);
-  const geldig = allRows.filter((r) => !r.invalidReason && r.projectnr);
+  const geldig = allRows.filter((r) => !r.invalidReason);
 
-  // Dubbele Projectnr.-regels binnen hetzelfde bestand samenvoegen (laatste wint)
+  // Dubbele werknummers binnen hetzelfde bestand samenvoegen (laatste wint)
   const byNr = new Map<string, ImportRow>();
   let duplicaten = 0;
   geldig.forEach((r) => {
-    const nr = normalizeProjectnr(r.projectnr);
+    const nr = normalizeProjectnr(r.werknummer).toLowerCase();
     if (byNr.has(nr)) duplicaten++;
     byNr.set(nr, r);
   });
@@ -187,7 +113,7 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
   const nieuw: ImportRow[] = [];
   const bestaand: ImportRow[] = [];
   byNr.forEach((r, nr) => {
-    (existingProjectNumbers.has(nr) ? bestaand : nieuw).push(r);
+    (existingWorkNumbers.has(nr) ? bestaand : nieuw).push(r);
   });
 
   const warning =
@@ -195,8 +121,9 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
       ? `Dit bestand bevat ${byNr.size} regels. Het wordt volledig verwerkt, maar dit kan even duren.`
       : "";
 
-  post({ type: "projects", nieuw, bestaand, ongeldig, total: allRows.length, duplicaten, warning });
+  post({ type: "projects", nieuw, bestaand, ongeldig, total: allRows.length, duplicaten, warning, missingColumns: missing });
 }
+
 
 function handleAvail(buffer: ArrayBuffer): void {
   const raw = readSheet(buffer);
