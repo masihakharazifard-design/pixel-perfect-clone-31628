@@ -1692,22 +1692,17 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <span className="text-sm font-semibold text-[#1A2744]">Filteren</span>
         {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Afdeling</label><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Calculator</label>
-          <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
-            <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Medewerker</label>
-          <select value={filters.medewerker} onChange={e=>set("medewerker")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white">
-            <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
-          </select>
-        </div>
+      <div className="grid grid-cols-1 gap-3">
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></div>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">A/R</label><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></div>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Type</label><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></div>
       </div>
-      <ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werknaam..."/>
+      <ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/>
+      <ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/>
       <ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/>
+      <ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat object..."/>
+      <ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats object..."/>
+      <ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/>
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
@@ -1740,59 +1735,38 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
         <thead className="bg-[#F0F3F8]">
           <tr>
-            <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknummer..."/></ColHeader>
-            <ColHeader label="Werk" active={!!filters.projectnaam}><ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werk..."/></ColHeader>
-            <ColHeader label="Opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
-            <ColHeader label="Plaats" active={!!filters.plaats}><ColSelect value={filters.plaats} onChange={set("plaats")} options={uniquePlaatsen}/></ColHeader>
-            <ColHeader label="Afdeling" active={!!filters.afdeling}><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></ColHeader>
-            <ColHeader label="Calculator" active={!!filters.projectleider}>
-              <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
-                <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-              </select>
-            </ColHeader>
-            <ColHeader label="Werkzaamheden" active={!!filters.werkzaamheden}><ColSearch value={filters.werkzaamheden} onChange={set("werkzaamheden")} placeholder="Zoek werkzaamheden..."/></ColHeader>
-            <ColHeader label="Start" active={!!(filters.startFrom||filters.startTo)}>
-              <div className="space-y-1.5">
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Van</p><input type="date" value={filters.startFrom} onChange={e=>set("startFrom")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Tot</p><input type="date" value={filters.startTo} onChange={e=>set("startTo")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-              </div>
-            </ColHeader>
-            <ColHeader label="Einde" active={!!(filters.eindFrom||filters.eindTo)}>
-              <div className="space-y-1.5">
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Van</p><input type="date" value={filters.eindFrom} onChange={e=>set("eindFrom")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Tot</p><input type="date" value={filters.eindTo} onChange={e=>set("eindTo")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-              </div>
-            </ColHeader>
-            <ColHeader label="Medewerker" active={!!filters.medewerker}>
-              <select value={filters.medewerker} onChange={e=>set("medewerker")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
-                <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
-              </select>
-            </ColHeader>
-            <ColHeader label="Status" active={!!filters.status}><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></ColHeader>
+            <ColHeader label="Werknr" active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
+            <ColHeader label="Calculatiecode" active={!!filters.calculatiecode}><ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/></ColHeader>
+            <ColHeader label="Naam opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
+            <ColHeader label="Straat object" active={!!filters.straat}><ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat..."/></ColHeader>
+            <ColHeader label="Plaatsobject" active={!!filters.plaatsobject}><ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats..."/></ColHeader>
+            <ColHeader label="Opmerkingen" active={!!filters.opmerkingen}><ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/></ColHeader>
+            <ColHeader label="Status" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
+            <ColHeader label="A/R" active={filters.ar.length>0}><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></ColHeader>
+            <ColHeader label="Type" active={filters.type.length>0}><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></ColHeader>
             <th className="px-3 py-3"/>
           </tr>
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
           {paged.map(p=>{
-            const pl=plName(p,employees);
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
-              <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">{p.werknummer}</td>
-              <td className="px-3 py-3"><div className="flex items-center gap-2">
-                {afds.length===1
-                  ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
-                  :<div className="w-3 h-3 rounded-full flex-shrink-0 overflow-hidden" style={projStyle(p,dc)}/>}
-                <span className="font-medium text-[#1A2744]">{p.projectnaam}</span>
-              </div></td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.opdrachtgever}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.plaats}</td>
-              <td className="px-3 py-3"><DeptBadges afds={afds}/></td>
-              <td className="px-3 py-3 text-[#1A2744]">{pl||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] max-w-32 truncate" title={p.werkzaamheden}>{p.werkzaamheden||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.startdatum)}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{fmtDate(p.afloopdatum)}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam.split(" ")[0]).filter(Boolean).join(", ")||"-"}</td>
+              <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
+                <div className="flex items-center gap-2">
+                  {afds.length===1
+                    ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
+                    :<div className="w-3 h-3 rounded-full flex-shrink-0 overflow-hidden" style={projStyle(p,dc)}/>}
+                  <span>{p.werknummer}</span>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-[#6B7A99]">{p.calculatiecode||"-"}</td>
+              <td className="px-3 py-3 text-[#1A2744]">{p.opdrachtgever||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99]">{projStraat(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99]">{projPlaatsObj(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99] max-w-48 truncate" title={projOpm(p)}>{projOpm(p)||"-"}</td>
               <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
+              <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
+              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
