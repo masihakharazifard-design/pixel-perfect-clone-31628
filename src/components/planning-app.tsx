@@ -1639,9 +1639,9 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const activeCount=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:!!v).length;
   const [showMobileFilters,setShowMobileFilters]=useState(false);
 
-  // Dropdownwaarden: alleen wat daadwerkelijk in de data voorkomt
-  const statusOptions=useMemo(()=>[...new Set(projects.map(p=>p.status).filter(Boolean))].sort(),[projects]);
-  const arOptions=useMemo(()=>[...new Set(projects.map(p=>p.ar||"").filter(Boolean))].sort(),[projects]);
+  // Vaste filterkeuzes zoals in het Excel-bestand
+  const statusOptions=useMemo(()=>["O","G","INT"],[]);
+  const arOptions=useMemo(()=>["a","R"],[]);
   const typeOptions=useMemo(()=>[...new Set(projects.map(p=>typeLabel(p)).filter(Boolean))].sort(),[projects]);
 
   const filtered=useMemo(()=>{
@@ -1653,7 +1653,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       if(filters.straat&&!inc(projStraat(p),filters.straat))return false;
       if(filters.plaatsobject&&!inc(projPlaatsObj(p),filters.plaatsobject))return false;
       if(filters.opmerkingen&&!inc(projOpm(p),filters.opmerkingen))return false;
-      if(filters.status.length&&!filters.status.includes(p.status))return false;
+      if(filters.status.length&&!filters.status.includes(p.statusExcel||""))return false;
       if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
       if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
       return true;
