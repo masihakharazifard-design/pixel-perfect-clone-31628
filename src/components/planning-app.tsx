@@ -1735,15 +1735,17 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
         <thead className="bg-[#F0F3F8]">
           <tr>
-            <ColHeader label="Werknr" active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
-            <ColHeader label="Calculatiecode" active={!!filters.calculatiecode}><ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/></ColHeader>
-            <ColHeader label="Naam opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
-            <ColHeader label="Straat object" active={!!filters.straat}><ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat..."/></ColHeader>
-            <ColHeader label="Plaatsobject" active={!!filters.plaatsobject}><ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats..."/></ColHeader>
-            <ColHeader label="Opmerkingen" active={!!filters.opmerkingen}><ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/></ColHeader>
-            <ColHeader label="Status" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
+            <ColHeader label="S" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
             <ColHeader label="A/R" active={filters.ar.length>0}><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></ColHeader>
             <ColHeader label="Type" active={filters.type.length>0}><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></ColHeader>
+            <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
+            <ColHeader label="Calculatie.Code" active={!!filters.calculatiecode}><ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/></ColHeader>
+            <ColHeader label="Projectl." active={false}><span className="text-xs text-[#6B7A99]">Geen filter</span></ColHeader>
+            <ColHeader label="Vestiging.Omschrijving" active={false}><span className="text-xs text-[#6B7A99]">Geen filter</span></ColHeader>
+            <ColHeader label="Naam opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
+            <ColHeader label="Straat object" active={!!filters.straat}><ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat..."/></ColHeader>
+            <ColHeader label="Plaats object" active={!!filters.plaatsobject}><ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats..."/></ColHeader>
+            <ColHeader label="Opmerkingen" active={!!filters.opmerkingen}><ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/></ColHeader>
             <th className="px-3 py-3"/>
           </tr>
         </thead>
