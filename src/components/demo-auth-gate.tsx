@@ -41,7 +41,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
         className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-7 shadow-sm space-y-3"
       >
         <div className="flex flex-col items-center text-center mb-3">
-          <img src={maasmondLogo.url} alt="Maasmond logo" className="w-14 h-14 rounded-xl object-contain mb-3" />
+          <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-xl object-contain mb-3" />
           <h1 className="text-lg font-bold text-[#1A2744]">Maasmond planning</h1>
           <p className="text-sm text-[#6B7A99] mt-1">Demo-omgeving — vul iets in en log in</p>
         </div>

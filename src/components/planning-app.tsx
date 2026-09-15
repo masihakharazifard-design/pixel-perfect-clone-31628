@@ -1226,7 +1226,7 @@ async function printKlantPlanning(project:Project,allProjects:Project[],employee
     const ok=openGanttPrint({
       opdrachtgever:klant||project.projectnaam||"Opdrachtgever",
       projectleider:plName(project,employees)||"",
-      logoUrl:maasmondLogo.url,systeemnaam:"Maasmond Planning",projecten,
+      logoUrl:maasmondLogo,systeemnaam:"Maasmond Planning",projecten,
     });
     if(!ok)toast.error("Sta pop-ups toe om de planning te openen");
   }catch{
@@ -1420,7 +1420,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
     <div className="px-5 py-5">
       <div className="flex items-center gap-2.5">
         <div className="bg-white rounded-lg px-2 py-1.5 flex items-center justify-center">
-          <img src={maasmondLogo.url} alt="Maasmond logo" className="h-5 w-auto"/>
+          <img src={maasmondLogo} alt="Maasmond logo" className="h-5 w-auto"/>
         </div>
         <span className="text-white font-bold text-base tracking-tight">Maasmond planning</span>
       </div>
