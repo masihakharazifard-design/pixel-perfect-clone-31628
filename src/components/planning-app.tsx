@@ -37,9 +37,9 @@ interface Project {
   adres?:string; plaats:string; afdeling:Afdeling;
   afdelingen?:Afdeling[];
   projectleider:string;
-  werkzaamheden:string; startdatum:string; afloopdatum:string;
+  startdatum:string; afloopdatum:string;
   /** Extra kolommen uit het Excel-importbestand */
-  calculatiecode?:string; straatObject?:string; plaatsObject?:string; opmerkingen?:string; ar?:string; statusExcel?:string;
+  calculatiecode?:string; vestiging?:string; straatObject?:string; plaatsObject?:string; opmerkingen?:string; ar?:string; statusExcel?:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
@@ -248,7 +248,7 @@ function abbrevName(naam:string):string{const parts=naam.split(" ");return parts
 function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
 function tooltipText(row:AvailEntry,proj:Project,employees:Employee[]):string{
   const first=row.isFirstOfDay?"Als eerste uitvoeren · ":"";
-  const desc=proj.werkzaamheden||proj.projectnaam||"—";
+  const desc=proj.projectnaam||proj.opmerkingen||"—";
   const calc=plName(proj,employees)||"—";
   const afds=getAllAfds(proj).join(", ");
   return `${first}${proj.werknummer}\n${desc}\n${calc} · ${afds}\nklik = werkgegevens · rechtsklik = planning bewerken`;
@@ -599,7 +599,9 @@ interface ImportPreview {
   total:number; duplicaten:number;
   nieuwCount:number; bestaandCount:number; ongeldigCount:number;
   nieuwSample:ImportRow[]; bestaandSample:ImportRow[]; ongeldigSample:ImportRow[];
+  missingColumns:string[];
 }
+
 
 // Maximaal aantal voorbeeldregels per lijst in het importvenster (DOM klein houden)
 const PREVIEW_LIMIT=20;
@@ -646,7 +648,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         if(msg.type==="progress"){setProgress(msg.pct);return;}
         if(msg.type==="error"){setParseError(msg.message);finish();return;}
         if(msg.type!=="projects")return;
-        rowsRef.current=msg.nieuw; // bestaande projectnummers worden overgeslagen
+        rowsRef.current=msg.nieuw; // bestaande werknummers worden overgeslagen
         setWarning(msg.warning);
         setPreview({
           total:msg.total,duplicaten:msg.duplicaten,
@@ -654,6 +656,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           nieuwSample:msg.nieuw.slice(0,PREVIEW_LIMIT),
           bestaandSample:msg.bestaand.slice(0,PREVIEW_LIMIT),
           ongeldigSample:msg.ongeldig.slice(0,PREVIEW_LIMIT),
+          missingColumns:msg.missingColumns,
         });
         setStep("preview");
         finish();
@@ -661,7 +664,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
       worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");finish();};
       const req:ImportWorkerRequest={
         mode:"projects",buffer:buf,
-        existingProjectNumbers:projects.map(p=>normalizeProjectnr(p.projectnr)).filter(Boolean),
+        existingWorkNumbers:projects.map(p=>normalizeProjectnr(p.werknummer)).filter(Boolean),
       };
       worker.postMessage(req,[buf]);
     }catch(err){
@@ -681,7 +684,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
   return <Modal title="Excel importeren" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       {step==="upload"&&<>
-        <p className="text-sm text-[#6B7A99]">Upload uw originele Excel-bestand. De importer leest de kolommen op positie — u hoeft niets te hernoemen of te herordenen.</p>
+        <p className="text-sm text-[#6B7A99]">Upload uw originele Excel-bestand. De importer herkent de kolommen aan de namen in de kopregel — u hoeft niets te hernoemen of te herordenen.</p>
         <div className={`border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center transition-colors ${loading?"opacity-60 cursor-not-allowed":"hover:border-[#0ABFB8] cursor-pointer"}`} onClick={()=>{if(!loading)fileRef.current?.click();}}>
           <Table2 className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
           <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
@@ -700,17 +703,17 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             <thead><tr className="border-b border-[rgba(26,39,68,0.1)]"><th className="py-1 font-semibold text-[#1A2744]">Excel kolom</th><th className="py-1 font-semibold text-[#1A2744]">Veld</th><th className="py-1 font-semibold text-[#1A2744]">Verplicht</th></tr></thead>
             <tbody className="divide-y divide-[rgba(26,39,68,0.06)]">
               {[
-                ["Projectnr.","Projectnummer","✓"],
-                ["Omschrijving (1e kolom)","Projectnaam","✓"],
+                ["Werknr.","Werknummer (uniek)","✓"],
+                ["S","Status",""],
+                ["A/R","A/R",""],
+                ["Type","Type / afdeling",""],
+                ["Calculatie.Code","Calculatiecode",""],
+                ["Projectl.","Calculator",""],
+                ["Vestiging","Vestiging",""],
                 ["Naam opdrachtgever","Opdrachtgever",""],
-                ["Contactpersoon","Contactpersoon",""],
-                ["Kolom K (index 10)","Calculator",""],
-                ["Datum opdracht","Datum opdracht",""],
-                ["Startdatum / Start datum","Startdatum (standaard 08:00)",""],
-                ["Einddatum / Afloopdatum","Einddatum (standaard 17:00)",""],
-                ["Starttijd / Eindtijd","Tijd bij start-/einddatum",""],
-                ["Werknr.","Werknummer",""],
-                ["Omschrijving (2e kolom, na S code)","Afdeling / type",""],
+                ["Straat object","Adres",""],
+                ["Plaats object","Plaats",""],
+                ["Opmerkingen","Opmerkingen",""],
               ].map(([col,veld,req])=><tr key={col}><td className="py-1 font-mono">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>)}
             </tbody>
           </table>
@@ -721,6 +724,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>
       </>}
       {step==="preview"&&preview&&<>
+        {preview.missingColumns.length>0&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+          Deze kolomkoppen zijn niet in het bestand gevonden: <strong>{preview.missingColumns.join(", ")}</strong>. Deze velden blijven leeg.
+        </div>}
         {warning&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
           <div className="bg-[#F0F3F8] rounded-xl p-3 text-center">
@@ -740,12 +746,12 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
-        {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} projectnummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
+        {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuwCount>0&&<div>
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
             {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
-              <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.projectnr}</span>
+              <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.werknummer}</span>
               <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#6B7A99] italic truncate max-w-20">{r.projectleider}</span>}
@@ -753,7 +759,6 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
                 ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#0ABFB8 33%,#FF6B5B 33% 66%,#F5A623 66%)"}}>Turnkey</span>
                 :<span className="flex gap-0.5 flex-shrink-0">{r.afdelingen.map(a=><span key={a} className="w-2 h-2 rounded-full" style={{backgroundColor:DEFAULT_DC[a].bg}} title={a}/>)}</span>
               }
-              {r.startdatum&&<span className="text-[#B8C3D9] flex-shrink-0">{fmtDate(r.startdatum)}</span>}
             </div>)}
             {preview.nieuwCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuwCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
@@ -762,7 +767,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
-              <span className="font-mono text-amber-700 flex-shrink-0">{r.projectnr}</span>
+              <span className="font-mono text-amber-700 flex-shrink-0">{r.werknummer}</span>
               <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
             </div>)}
             {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
@@ -1053,7 +1058,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     adres:initial.adres||"",
     plaats:initial.plaats||"",afdeling:initial.afdeling||"Stoffering",
     afdelingen:initial.afdelingen||[initial.afdeling||"Stoffering"],
-    projectleider:initial.projectleider||"",werkzaamheden:initial.werkzaamheden||"",
+    projectleider:initial.projectleider||"",
     startdatum:initial.startdatum||combineLocalDT(toDateStr(new Date()),"08:00",8,0),
     afloopdatum:initial.afloopdatum||combineLocalDT(toDateStr(new Date()),"17:00",17,0),
     medewerkers:initial.medewerkers||[],status:initial.status||"Offerte",
@@ -1147,7 +1152,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
         <Input label="Eindtijd" value={eTime} onChange={v=>setEnd(eDate,v)} type="time"/>
       </div>
     </div>
-    <Textarea label="Werkzaamheden" value={f.werkzaamheden} onChange={v=>set("werkzaamheden",v)} rows={3} placeholder="Omschrijving van de werkzaamheden..."/>
+    <Textarea label="Opmerkingen" value={f.opmerkingen||""} onChange={v=>set("opmerkingen",v)} rows={3} placeholder="Opmerkingen bij dit werk..."/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <Input label="Benodigde medewerkers" value={String(f.benodigdeMedewerkers??1)} onChange={v=>set("benodigdeMedewerkers",Math.max(1,parseInt(v)||1))} type="number"/>
     </div>
@@ -1201,7 +1206,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
 }
 
 // ===== PROJECT DETAIL =====
-type ProjTab="overzicht"|"werkzaamheden"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
+type ProjTab="overzicht"|"opmerkingen"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
 function ProjectDetail({project,employees,availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
   project:Project;employees:Employee[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
@@ -1239,8 +1244,8 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
   const assigned=getProjectAssignedEmployees(project.id,availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const tabs:ProjTab[]=["overzicht","werkzaamheden","planning","medewerkers","documenten","facturatie","notities"];
-  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",werkzaamheden:"Werkzaamheden",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
+  const tabs:ProjTab[]=["overzicht","opmerkingen","planning","medewerkers","documenten","facturatie","notities"];
+  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];
   return <Modal title={project.projectnaam} onClose={onClose} width="max-w-3xl">
@@ -1275,9 +1280,9 @@ function ProjectDetail({project,employees,availability=[],teamColors={},badgeCol
           <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Calculator</p></div>
         </div>}
       </div>}
-      {tab==="werkzaamheden"&&<div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Omschrijving</p>
-        <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.werkzaamheden||"Geen werkzaamheden omschreven."}</p>
+      {tab==="opmerkingen"&&<div>
+        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Opmerkingen</p>
+        <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
       </div>}
       {tab==="planning"&&<div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2354,25 +2359,25 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
           <div className="border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-56 overflow-y-auto">
             {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F8F9FC] ${sel?.id===p.id?"bg-[#E0F7F6]":""}`}>
               <p className="text-xs font-semibold text-[#1A2744]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
-              <p className="text-[11px] text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
+              <p className="text-[11px] text-[#6B7A99] truncate">{p.projectnaam||p.opmerkingen||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
             </button>)}
           </div>
         </div>}
       </div>}
       {!sel?<div>
-        <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer, werknaam of werkzaamheden..."/>
+        <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer of werknaam..."/>
         {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
           {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
           {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
             <p className="text-sm font-semibold text-[#1A2744]">{p.werknummer} – {p.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"}</p>
+            <p className="text-xs text-[#6B7A99] truncate">{p.opmerkingen||p.opdrachtgever||"Geen omschrijving"}</p>
           </button>)}
         </div>}
       </div>:<div className="border border-[rgba(26,39,68,0.1)] rounded-xl p-4 space-y-2 bg-[#F8F9FC]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99]">{sel.werkzaamheden||"Geen omschrijving"}</p>
+            <p className="text-xs text-[#6B7A99]">{sel.opmerkingen||sel.opdrachtgever||"Geen omschrijving"}</p>
           </div>
           {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");setWn("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
         </div>
@@ -3169,7 +3174,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     const rest=Math.max(0,nodig-n);
     return{
       title:`${p.werknummer} – ${p.projectnaam}`,
-      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.werkzaamheden||"—"}`,
+      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.projectnaam||"—"}`,
       color:projectPlanningColorOf(p.id,projectColors),
       badgeStyle:badgeStyle(st,badgeColors),
       statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
@@ -3260,7 +3265,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
+                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
@@ -3373,7 +3378,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.werkzaamheden||p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
                   {p.projectnaam||p.werknummer}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
@@ -3960,7 +3965,7 @@ export default function PlanningApp(){
   const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-slate-100 text-slate-600",[]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
-  // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
+  // (status, afdeling(en), calculator, werknummer, opdrachtgever) blijven ongewijzigd.
   const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
     const rows=projectPlans(nextAvail,projectId);
     const per=planPeriod(rows);
@@ -4047,7 +4052,7 @@ export default function PlanningApp(){
 
   const handleImport=async(rows:ImportRow[])=>{
     const createProjectFromImportRow=(r:ImportRow):Project=>{
-      // Projectleider (kolom K): exacte celtekst, altijd als platte tekst opslaan
+      // Calculator (kolom "Projectl."): exacte celtekst, altijd als platte tekst opslaan
       const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
@@ -4055,12 +4060,12 @@ export default function PlanningApp(){
       const st=STATS.find(s=>s.toLowerCase()===r.statusRaw.trim().toLowerCase())||"Offerte";
       return{
         id:nid(),
-        projectnr:r.projectnr,
-        werknummer:r.werknummer||r.projectnr,
-        projectnaam:r.projectnaam,
-        opdrachtgever:r.opdrachtgever||r.contactpersoon||"",
+        werknummer:r.werknummer,
+        projectnaam:r.projectnaam||r.werknummer,
+        opdrachtgever:r.opdrachtgever||"",
         adres:r.straat||"",plaats:r.plaatsobject||"",
         calculatiecode:r.calculatiecode||"",
+        vestiging:r.vestiging||"",
         straatObject:r.straat||"",
         plaatsObject:r.plaatsobject||"",
         opmerkingen:r.opmerkingen||"",
@@ -4068,26 +4073,25 @@ export default function PlanningApp(){
         statusExcel:r.statusRaw||"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:r.werkzaamheden||"",
         // Geen datums uit Excel: het werk verschijnt pas in Agenda/Personeelsplanning
         // zodra de gebruiker zelf een startdatum invult.
         startdatum:"",
         afloopdatum:"",
         medewerkers:[],
         status:st as ProjectStatus,
-        notities:r.contactpersoon&&r.opdrachtgever?`Contactpersoon: ${r.contactpersoon}`:"",
+        notities:"",
         uurprijs:65,uren:8,
       };
     };
 
-    // Alleen toevoegen: bestaande werken (match op Projectnr.) worden genegeerd.
+    // Alleen toevoegen: bestaande werken (match op Werknr.) worden genegeerd.
     const next=[...projects];
     const bekendeNrs=new Set<string>();
-    next.forEach(p=>{const nr=normalizeProjectnr(p.projectnr);if(nr)bekendeNrs.add(nr);});
+    next.forEach(p=>{const nr=normalizeProjectnr(p.werknummer).toLowerCase();if(nr)bekendeNrs.add(nr);});
     const changed:Project[]=[];
     let nieuw=0,overgeslagen=0;
     rows.forEach(r=>{
-      const nr=normalizeProjectnr(r.projectnr);
+      const nr=normalizeProjectnr(r.werknummer).toLowerCase();
       if(nr&&bekendeNrs.has(nr)){overgeslagen++;return;}
       const created=createProjectFromImportRow(r);
       next.push(created);changed.push(created);nieuw++;

@@ -13,28 +13,24 @@ export type ImportAvailStatus =
 
 /** Eén voorbereide projectregel uit het Excelbestand. */
 export interface ImportRow {
-  projectnr: string;
-  projectnaam: string;
-  opdrachtgever: string;
-  contactpersoon: string;
-  projectleider: string; // kolom K, letterlijke tekst
-  startdatum: string;
-  einddatum: string;
-  datumOpdracht: string;
   werknummer: string;
-  werkzaamheden: string; // kolom J, letterlijke tekst
+  projectnaam: string; // afgeleid: "Straat object – Plaats object", anders het werknummer
+  opdrachtgever: string;
+  projectleider: string; // kolom "Projectl."
+  vestiging: string;
   calculatiecode: string;
   straat: string; // Straat object
   plaatsobject: string; // Plaats object
   opmerkingen: string;
-  statusRaw: string; // kolom S
-  ar: string; // A/R
-  rawDept: string;
+  statusRaw: string; // kolom "S"
+  ar: string; // kolom "A/R"
+  rawDept: string; // kolom "Type"
   afdelingen: Afdeling[];
   turnkey: boolean;
   rowIndex: number;
   invalidReason: string;
 }
+
 
 /** Ruwe beschikbaarheidsregel; medewerkermatching gebeurt in de UI. */
 export interface VacBaseRow {
@@ -50,14 +46,60 @@ export interface VacBaseRow {
   invalidReason: string;
 }
 
-/** Vaste kolomposities in het projectimportbestand. */
-export const COL_WERKZAAMHEDEN = 9; // Excel kolom J
-export const COL_PROJECTLEIDER = 10; // Excel kolom K
-export const COL_STATUS = 18; // Excel kolom S (fallback als de header niet gevonden wordt)
+/** Velden die uit de kopregel van het Excelbestand worden herkend. */
+export type ProjectColumnKey =
+  | "status"
+  | "ar"
+  | "type"
+  | "werknummer"
+  | "calculatiecode"
+  | "projectleider"
+  | "vestiging"
+  | "opdrachtgever"
+  | "straat"
+  | "plaatsobject"
+  | "opmerkingen";
+
+/** Verwachte kolomkoppen; matching gebeurt op genormaliseerde tekst (geen vaste positie). */
+export const PROJECT_COLUMNS: { key: ProjectColumnKey; label: string; match: (h: string) => boolean }[] = [
+  { key: "status", label: "S", match: (h) => h === "s" || h === "status" },
+  { key: "ar", label: "A/R", match: (h) => h === "a/r" || h === "ar" || h === "a-r" },
+  { key: "type", label: "Type", match: (h) => h === "type" },
+  { key: "werknummer", label: "Werknr.", match: (h) => h === "werknr" || h === "werknummer" || h === "wnr" },
+  { key: "calculatiecode", label: "Calculatie.Code", match: (h) => h === "calculatiecode" || h === "calccode" },
+  { key: "projectleider", label: "Projectl.", match: (h) => h === "projectl" || h === "projectleider" || h === "calculator" },
+  { key: "vestiging", label: "Vestiging", match: (h) => h === "vestiging" || h.startsWith("vestiging") },
+  { key: "opdrachtgever", label: "Naam opdrachtgever", match: (h) => h === "naamopdrachtgever" || h === "opdrachtgever" },
+  { key: "straat", label: "Straat object", match: (h) => h === "straatobject" || h === "straat" },
+  { key: "plaatsobject", label: "Plaats object", match: (h) => h === "plaatsobject" || h === "plaats" },
+  { key: "opmerkingen", label: "Opmerkingen", match: (h) => h.startsWith("opmerking") },
+];
+
+/** Kopteksten vergelijkbaar maken: kleine letters, zonder spaties en zonder punten. */
+export function normalizeHeader(v: unknown): string {
+  return String(v ?? "").toLowerCase().replace(/\s+/g, "").replace(/\./g, "").trim();
+}
+
+/** Kolomposities bepalen op basis van de kopregel; niet-gevonden kolommen worden gemeld. */
+export function matchProjectHeaders(headerRow: unknown[]): {
+  index: Record<ProjectColumnKey, number>;
+  missing: string[];
+} {
+  const norm = headerRow.map(normalizeHeader);
+  const index = {} as Record<ProjectColumnKey, number>;
+  const missing: string[] = [];
+  PROJECT_COLUMNS.forEach((col) => {
+    const i = norm.findIndex((h) => !!h && col.match(h));
+    index[col.key] = i;
+    if (i === -1) missing.push(col.label);
+  });
+  return { index, missing };
+}
 
 export function normalizeProjectnr(v: unknown): string {
   return String(v ?? "").trim();
 }
+
 
 export function cellStr(v: unknown): string {
   if (v == null) return "";
@@ -161,7 +203,7 @@ export function mapVacStatus(raw: string): ImportAvailStatus {
 
 // ===== Berichten tussen UI en import-worker =====
 export type ImportWorkerRequest =
-  | { mode: "projects"; buffer: ArrayBuffer; existingProjectNumbers: string[] }
+  | { mode: "projects"; buffer: ArrayBuffer; existingWorkNumbers: string[] }
   | { mode: "avail"; buffer: ArrayBuffer };
 
 export type ImportWorkerResponse =
@@ -175,7 +217,10 @@ export type ImportWorkerResponse =
       total: number;
       duplicaten: number;
       warning: string;
+      /** Verwachte kolomkoppen die niet in het bestand stonden. */
+      missingColumns: string[];
     }
+
   | { type: "avail"; rows: VacBaseRow[]; total: number; warning: string };
 
 /** Boven deze hoeveelheid regels waarschuwen we, maar verwerken we gewoon door. */
