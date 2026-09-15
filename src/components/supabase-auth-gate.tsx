@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
-import maasmondLogo from "@/assets/maasmond-logo.jpg.asset.json";
+import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 
 const TOEGESTAAN_DOMEIN = "@maasmond.nl";
@@ -78,7 +78,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
     >
       <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
-          <img src={maasmondLogo.url} alt="Maasmond logo" className="w-14 h-14 rounded-xl object-contain mb-3" />
+          <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-xl object-contain mb-3" />
           <h1 className="text-lg font-bold text-[#1A2744]">Maasmond planning</h1>
           <p className="text-sm text-[#6B7A99] mt-1">
             {stap === "email" ? "Vul je Maasmond e-mailadres in om in te loggen" : "Vul de code uit je e-mail in"}
@@ -232,7 +232,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
       <div className="min-h-screen flex items-center justify-center bg-[#F0F3F8] px-4">
         <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-7 shadow-sm text-center">
           <img
-            src={maasmondLogo.url}
+            src={maasmondLogo}
             alt="Maasmond logo"
             className="w-14 h-14 rounded-xl object-contain mb-3 mx-auto"
           />
