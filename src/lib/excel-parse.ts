@@ -13,28 +13,24 @@ export type ImportAvailStatus =
 
 /** Eén voorbereide projectregel uit het Excelbestand. */
 export interface ImportRow {
-  projectnr: string;
-  projectnaam: string;
-  opdrachtgever: string;
-  contactpersoon: string;
-  projectleider: string; // kolom K, letterlijke tekst
-  startdatum: string;
-  einddatum: string;
-  datumOpdracht: string;
   werknummer: string;
-  werkzaamheden: string; // kolom J, letterlijke tekst
+  projectnaam: string; // afgeleid: "Straat object – Plaats object", anders het werknummer
+  opdrachtgever: string;
+  projectleider: string; // kolom "Projectl."
+  vestiging: string;
   calculatiecode: string;
   straat: string; // Straat object
   plaatsobject: string; // Plaats object
   opmerkingen: string;
-  statusRaw: string; // kolom S
-  ar: string; // A/R
-  rawDept: string;
+  statusRaw: string; // kolom "S"
+  ar: string; // kolom "A/R"
+  rawDept: string; // kolom "Type"
   afdelingen: Afdeling[];
   turnkey: boolean;
   rowIndex: number;
   invalidReason: string;
 }
+
 
 /** Ruwe beschikbaarheidsregel; medewerkermatching gebeurt in de UI. */
 export interface VacBaseRow {
