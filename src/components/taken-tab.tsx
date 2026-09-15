@@ -1,13 +1,12 @@
-// Taken per werk: toevoegen, bewerken en verwijderen, gegroepeerd per groep (zaal).
+// Taken per werk: toevoegen, bewerken en verwijderen, gesorteerd op startdatum.
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { listTaken, saveTaak, deleteTaak } from "@/lib/store";
-import { TAAK_TYPES, taakKleur, taakEind, fmtDay, type Taak } from "@/lib/taken";
+import { TAAK_TYPES, taakKleur, taakEind, fmtDay, sorteerTaken, type Taak } from "@/lib/taken";
 
-const LEEG = (projectId: string, volgnummer: number): Taak => ({
-  id: "", projectId, volgnummer, groep: "", taaknaam: "",
-  type: TAAK_TYPES[0], start: "", duur: 1, percentage: 0,
+const LEEG = (projectId: string): Taak => ({
+  id: "", projectId, taaknaam: "", type: TAAK_TYPES[0], start: "", duur: 1,
 });
 
 export function TakenTab({ projectId, canEdit = true }: { projectId: string; canEdit?: boolean }) {
@@ -25,20 +24,7 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
     return () => { cancelled = true; };
   }, [projectId]);
 
-  const groepen = useMemo(() => {
-    const map = new Map<string, Taak[]>();
-    [...taken].sort((a, b) => a.volgnummer - b.volgnummer).forEach((t) => {
-      const key = t.groep || "Overig";
-      const list = map.get(key);
-      if (list) list.push(t); else map.set(key, [t]);
-    });
-    return [...map.entries()];
-  }, [taken]);
-
-  const bestaandeGroepen = useMemo(
-    () => [...new Set(taken.map((t) => t.groep).filter(Boolean))],
-    [taken],
-  );
+  const lijst = useMemo(() => sorteerTaken(taken), [taken]);
 
   const set = <K extends keyof Taak>(k: K, v: Taak[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
 
@@ -69,46 +55,33 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
     }
   };
 
-  const nieuw = (groep = "") => {
-    const volg = taken.reduce((m, t) => Math.max(m, t.volgnummer), 0) + 1;
-    setForm({ ...LEEG(projectId, volg), groep });
-  };
-
   if (laden) return <p className="text-sm text-[#6B7A99]">Taken laden…</p>;
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between gap-3">
       <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide">Taken</p>
-      {canEdit && <button onClick={() => nieuw()}
+      {canEdit && <button onClick={() => setForm(LEEG(projectId))}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0ABFB8] text-white text-xs font-semibold hover:opacity-90">
         <Plus className="w-3.5 h-3.5"/>Taak toevoegen
       </button>}
     </div>
 
-    {groepen.length === 0 && <p className="text-sm text-[#6B7A99]">Nog geen taken voor dit werk.</p>}
+    {lijst.length === 0 && <p className="text-sm text-[#6B7A99]">Nog geen taken voor dit werk.</p>}
 
-    {groepen.map(([groep, list]) => <div key={groep} className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
-      <div className="px-3 py-2 bg-[#F0F3F8] flex items-center justify-between">
-        <span className="font-bold text-[#1A2744] text-sm">{groep}</span>
-        {canEdit && <button onClick={() => nieuw(groep === "Overig" ? "" : groep)}
-          className="text-xs font-semibold text-[#0ABFB8]">+ Taak in deze groep</button>}
-      </div>
+    {lijst.length > 0 && <div className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
       <table className="w-full text-xs">
         <thead className="text-[#6B7A99]">
-          <tr className="border-b border-[rgba(26,39,68,0.08)]">
-            <th className="px-3 py-2 text-left font-semibold">#</th>
+          <tr className="border-b border-[rgba(26,39,68,0.08)] bg-[#F0F3F8]">
             <th className="px-3 py-2 text-left font-semibold">Taaknaam</th>
             <th className="px-3 py-2 text-left font-semibold">Type</th>
             <th className="px-3 py-2 text-left font-semibold">Start</th>
             <th className="px-3 py-2 text-left font-semibold">Duur</th>
             <th className="px-3 py-2 text-left font-semibold">Eind</th>
-            <th className="px-3 py-2 text-left font-semibold">Voltooid</th>
             <th className="px-3 py-2"/>
           </tr>
         </thead>
         <tbody>
-          {list.map((t) => <tr key={t.id} className="border-b border-[rgba(26,39,68,0.05)]">
-            <td className="px-3 py-2 text-[#6B7A99]">{t.volgnummer}</td>
+          {lijst.map((t) => <tr key={t.id} className="border-b border-[rgba(26,39,68,0.05)]">
             <td className="px-3 py-2 text-[#1A2744] font-medium">{t.taaknaam}</td>
             <td className="px-3 py-2">
               <span className="inline-flex items-center gap-1.5">
@@ -119,7 +92,6 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
             <td className="px-3 py-2 text-[#1A2744]">{fmtDay(t.start)}</td>
             <td className="px-3 py-2 text-[#1A2744]">{t.duur} d</td>
             <td className="px-3 py-2 text-[#1A2744]">{fmtDay(taakEind(t))}</td>
-            <td className="px-3 py-2 text-[#1A2744]">{t.percentage}%</td>
             <td className="px-3 py-2 text-right whitespace-nowrap">
               {canEdit && <>
                 <button onClick={() => setForm(t)} className="text-[#6B7A99] hover:text-[#1A2744] p-1"><Pencil className="w-3.5 h-3.5"/></button>
@@ -129,16 +101,11 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
           </tr>)}
         </tbody>
       </table>
-    </div>)}
+    </div>}
 
     {form && <div className="border border-[#0ABFB8]/40 rounded-xl p-4 space-y-3 bg-[#F8F9FC]">
       <p className="text-sm font-bold text-[#1A2744]">{form.id ? "Taak bewerken" : "Nieuwe taak"}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Veld label="Groep (zaal)">
-          <input list="taken-groepen" value={form.groep} onChange={(e) => set("groep", e.target.value)}
-            placeholder="Bijv. Zaal 7" className={INPUT}/>
-          <datalist id="taken-groepen">{bestaandeGroepen.map((g) => <option key={g} value={g}/>)}</datalist>
-        </Veld>
         <Veld label="Taaknaam">
           <input value={form.taaknaam} onChange={(e) => set("taaknaam", e.target.value)} className={INPUT}/>
         </Veld>
@@ -147,18 +114,11 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
             {TAAK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </Veld>
-        <Veld label="Regelnummer">
-          <input type="number" value={form.volgnummer} onChange={(e) => set("volgnummer", Number(e.target.value) || 1)} className={INPUT}/>
-        </Veld>
         <Veld label="Start">
           <input type="date" value={form.start} onChange={(e) => set("start", e.target.value)} className={INPUT}/>
         </Veld>
         <Veld label="Duur (dagen)">
           <input type="number" min={1} value={form.duur} onChange={(e) => set("duur", Number(e.target.value) || 1)} className={INPUT}/>
-        </Veld>
-        <Veld label="Percentage voltooid">
-          <input type="number" min={0} max={100} value={form.percentage}
-            onChange={(e) => set("percentage", Math.min(100, Math.max(0, Number(e.target.value) || 0)))} className={INPUT}/>
         </Veld>
         <Veld label="Eind (automatisch)">
           <p className="py-2 text-sm text-[#1A2744] font-semibold">{fmtDay(taakEind(form))}</p>

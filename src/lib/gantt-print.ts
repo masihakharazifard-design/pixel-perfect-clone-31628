@@ -1,5 +1,5 @@
 // Printbare Gantt-planning per opdrachtgever (openen in een nieuw venster → Afdrukken als PDF).
-import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, type Taak } from "@/lib/taken";
+import { TAAK_TYPES, taakKleur, taakEind, fmtDay, parseDay, toDay, weekNr, sorteerTaken, type Taak } from "@/lib/taken";
 
 export interface GanttProject {
   id: string;
@@ -45,7 +45,6 @@ interface Regel {
   werkzaamheden: string;
   plaats: string;
   omschrijving: string;
-  percentage: number;
   adres: string;
   start: string;
   duur: number;
@@ -57,32 +56,25 @@ function bouwRegels(projecten: GanttProject[]): Regel[] {
   const regels: Regel[] = [];
   let nr = 0;
   projecten.forEach((p) => {
-    const groepen = new Map<string, Taak[]>();
-    [...p.taken].sort((a, b) => a.volgnummer - b.volgnummer).forEach((t) => {
-      const key = t.groep || "Overig";
-      const list = groepen.get(key);
-      if (list) list.push(t); else groepen.set(key, [t]);
+    const taken = sorteerTaken(p.taken);
+    if (!taken.length) return;
+    const adres = [p.adres, p.plaats].filter(Boolean).join(", ");
+    const omschrijving = p.omschrijving || p.projectnaam;
+    const starts = taken.map((t) => t.start).filter(Boolean).sort();
+    const einden = taken.map((t) => taakEind(t)).filter(Boolean).sort();
+    const gStart = starts[0] || "";
+    const gEind = einden[einden.length - 1] || "";
+    const gDuur = gStart && gEind ? dagenTussen(gStart, gEind).length : 0;
+    regels.push({
+      groepsregel: true, regel: ++nr, werknummer: p.werknummer, werkzaamheden: p.projectnaam,
+      plaats: p.plaats, omschrijving, adres,
+      start: gStart, duur: gDuur, eind: gEind, kleur: "#F2D024",
     });
-    groepen.forEach((taken, groep) => {
-      const starts = taken.map((t) => t.start).filter(Boolean).sort();
-      const einden = taken.map((t) => taakEind(t)).filter(Boolean).sort();
-      const gStart = starts[0] || "";
-      const gEind = einden[einden.length - 1] || "";
-      const gDuur = gStart && gEind ? dagenTussen(gStart, gEind).length : 0;
-      const pct = taken.length ? Math.round(taken.reduce((s, t) => s + (t.percentage || 0), 0) / taken.length) : 0;
-      regels.push({
-        groepsregel: true, regel: ++nr, werknummer: p.werknummer, werkzaamheden: groep,
-        plaats: groep, omschrijving: p.omschrijving || p.projectnaam, percentage: pct,
-        adres: [p.adres, p.plaats].filter(Boolean).join(", "),
-        start: gStart, duur: gDuur, eind: gEind, kleur: "#F2D024",
-      });
-      taken.forEach((t) => regels.push({
-        groepsregel: false, regel: ++nr, werknummer: "", werkzaamheden: t.taaknaam,
-        plaats: groep, omschrijving: p.omschrijving || p.projectnaam, percentage: t.percentage || 0,
-        adres: [p.adres, p.plaats].filter(Boolean).join(", "),
-        start: t.start, duur: Math.max(1, t.duur || 1), eind: taakEind(t), kleur: taakKleur(t.type),
-      }));
-    });
+    taken.forEach((t) => regels.push({
+      groepsregel: false, regel: ++nr, werknummer: "", werkzaamheden: t.taaknaam,
+      plaats: p.plaats, omschrijving, adres,
+      start: t.start, duur: Math.max(1, t.duur || 1), eind: taakEind(t), kleur: taakKleur(t.type),
+    }));
   });
   return regels;
 }
@@ -132,7 +124,6 @@ export function buildGanttHtml(opts: GanttOptions): string {
     <td class="l naam">${esc(r.werkzaamheden)}</td>
     <td class="l">${esc(r.plaats)}</td>
     <td class="l">${esc(r.omschrijving)}</td>
-    <td class="l c">${r.percentage}%</td>
     <td class="l">${esc(r.adres)}</td>
     <td class="l c">${r.start ? fmtDay(r.start) : "-"}</td>
     <td class="l c">${r.duur || 0}</td>
@@ -183,22 +174,22 @@ export function buildGanttHtml(opts: GanttOptions): string {
 <table>
   <thead>
     <tr>
-      ${kop("Regel")}${kop("Werk nummer")}<th class="l naam">Werkzaamheden</th>${kop("Plaats")}${kop("Project omschrijving")}${kop("% voltooid")}${kop("Adres")}${kop("Start")}${kop("Duur")}${kop("Eind")}
+      ${kop("Regel")}${kop("Werk nummer")}<th class="l naam">Werkzaamheden</th>${kop("Plaats")}${kop("Project omschrijving")}${kop("Adres")}${kop("Start")}${kop("Duur")}${kop("Eind")}
       ${maanden.map((m) => `<th class="d" colspan="${m.span}">${esc(m.label)}</th>`).join("")}
     </tr>
     <tr>
-      <th class="l" colspan="10"></th>
+      <th class="l" colspan="9"></th>
       ${weken.map((w) => `<th class="d" colspan="${w.span}">${esc(w.label)}</th>`).join("")}
     </tr>
     <tr>
-      <th class="l" colspan="10"></th>
+      <th class="l" colspan="9"></th>
       ${dagen.map((ds) => {
         const dow = (parseDay(ds)!.getDay() + 6) % 7;
         return `<th class="d${isWeekend(ds) ? " we" : ""}">${DAGLETTER[dow]}</th>`;
       }).join("")}
     </tr>
   </thead>
-  <tbody>${rijen || `<tr><td colspan="10">Geen taken gevonden voor deze opdrachtgever.</td></tr>`}</tbody>
+  <tbody>${rijen || `<tr><td colspan="9">Geen taken gevonden voor deze opdrachtgever.</td></tr>`}</tbody>
 </table>
 <div class="legenda"><b>Type Activiteit</b>${legenda}</div>
 <footer>
