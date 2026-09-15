@@ -4052,7 +4052,7 @@ export default function PlanningApp(){
 
   const handleImport=async(rows:ImportRow[])=>{
     const createProjectFromImportRow=(r:ImportRow):Project=>{
-      // Projectleider (kolom K): exacte celtekst, altijd als platte tekst opslaan
+      // Calculator (kolom "Projectl."): exacte celtekst, altijd als platte tekst opslaan
       const pl=r.projectleider;
       const afdelingen=r.afdelingen.length?r.afdelingen:["Stoffering" as Afdeling];
       const primaryAfd=afdelingen[0];
@@ -4060,12 +4060,12 @@ export default function PlanningApp(){
       const st=STATS.find(s=>s.toLowerCase()===r.statusRaw.trim().toLowerCase())||"Offerte";
       return{
         id:nid(),
-        projectnr:r.projectnr,
-        werknummer:r.werknummer||r.projectnr,
-        projectnaam:r.projectnaam,
-        opdrachtgever:r.opdrachtgever||r.contactpersoon||"",
+        werknummer:r.werknummer,
+        projectnaam:r.projectnaam||r.werknummer,
+        opdrachtgever:r.opdrachtgever||"",
         adres:r.straat||"",plaats:r.plaatsobject||"",
         calculatiecode:r.calculatiecode||"",
+        vestiging:r.vestiging||"",
         straatObject:r.straat||"",
         plaatsObject:r.plaatsobject||"",
         opmerkingen:r.opmerkingen||"",
@@ -4079,7 +4079,7 @@ export default function PlanningApp(){
         afloopdatum:"",
         medewerkers:[],
         status:st as ProjectStatus,
-        notities:r.contactpersoon&&r.opdrachtgever?`Contactpersoon: ${r.contactpersoon}`:"",
+        notities:"",
         uurprijs:65,uren:8,
       };
     };
