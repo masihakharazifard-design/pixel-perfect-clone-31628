@@ -1753,7 +1753,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           {paged.map(p=>{
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
-              <td className="px-3 py-3"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
+              <td className="px-3 py-3 text-[#1A2744] font-medium">{p.statusExcel||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
