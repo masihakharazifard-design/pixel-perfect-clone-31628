@@ -8,7 +8,6 @@ export interface ProjectRecord {
   werknummer?: string;
   projectnr?: string;
   projectnaam?: string;
-  werkzaamheden?: string;
   projectleider?: string;
   opdrachtgever?: string;
   status?: string;
@@ -16,11 +15,12 @@ export interface ProjectRecord {
 
 /** Eén genormaliseerde zoektekst per project (wordt nooit tijdens het typen opnieuw gebouwd). */
 function searchTextOf(p: ProjectRecord): string {
-  return [p.werknummer, p.projectnr, p.projectnaam, p.werkzaamheden, p.projectleider, p.opdrachtgever]
+  return [p.werknummer, p.projectnr, p.projectnaam, p.projectleider, p.opdrachtgever]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 }
+
 
 export interface ProjectIndex<P extends ProjectRecord> {
   getProjectById(id: string | undefined | null): P | undefined;

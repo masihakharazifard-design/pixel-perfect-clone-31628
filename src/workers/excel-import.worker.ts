@@ -220,7 +220,7 @@ function handleAvail(buffer: ArrayBuffer): void {
 ctx.onmessage = (ev: MessageEvent<ImportWorkerRequest>) => {
   const req = ev.data;
   try {
-    if (req.mode === "projects") handleProjects(req.buffer, req.existingProjectNumbers);
+    if (req.mode === "projects") handleProjects(req.buffer, req.existingWorkNumbers);
     else handleAvail(req.buffer);
   } catch (err) {
     post({
