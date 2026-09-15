@@ -1735,35 +1735,15 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
         <thead className="bg-[#F0F3F8]">
           <tr>
-            <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknummer..."/></ColHeader>
-            <ColHeader label="Werk" active={!!filters.projectnaam}><ColSearch value={filters.projectnaam} onChange={set("projectnaam")} placeholder="Zoek werk..."/></ColHeader>
-            <ColHeader label="Opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
-            <ColHeader label="Plaats" active={!!filters.plaats}><ColSelect value={filters.plaats} onChange={set("plaats")} options={uniquePlaatsen}/></ColHeader>
-            <ColHeader label="Afdeling" active={!!filters.afdeling}><ColSelect value={filters.afdeling} onChange={set("afdeling")} options={AFDS}/></ColHeader>
-            <ColHeader label="Calculator" active={!!filters.projectleider}>
-              <select value={filters.projectleider} onChange={e=>set("projectleider")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
-                <option value="">Alle</option>{plOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-              </select>
-            </ColHeader>
-            <ColHeader label="Werkzaamheden" active={!!filters.werkzaamheden}><ColSearch value={filters.werkzaamheden} onChange={set("werkzaamheden")} placeholder="Zoek werkzaamheden..."/></ColHeader>
-            <ColHeader label="Start" active={!!(filters.startFrom||filters.startTo)}>
-              <div className="space-y-1.5">
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Van</p><input type="date" value={filters.startFrom} onChange={e=>set("startFrom")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Tot</p><input type="date" value={filters.startTo} onChange={e=>set("startTo")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-              </div>
-            </ColHeader>
-            <ColHeader label="Einde" active={!!(filters.eindFrom||filters.eindTo)}>
-              <div className="space-y-1.5">
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Van</p><input type="date" value={filters.eindFrom} onChange={e=>set("eindFrom")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-                <div><p className="text-[10px] text-[#6B7A99] mb-0.5">Tot</p><input type="date" value={filters.eindTo} onChange={e=>set("eindTo")(e.target.value)} className="w-full py-1 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/></div>
-              </div>
-            </ColHeader>
-            <ColHeader label="Medewerker" active={!!filters.medewerker}>
-              <select value={filters.medewerker} onChange={e=>set("medewerker")(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
-                <option value="">Alle</option>{employees.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
-              </select>
-            </ColHeader>
-            <ColHeader label="Status" active={!!filters.status}><ColSelect value={filters.status} onChange={set("status")} options={STATS}/></ColHeader>
+            <ColHeader label="Werknr" active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
+            <ColHeader label="Calculatiecode" active={!!filters.calculatiecode}><ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/></ColHeader>
+            <ColHeader label="Naam opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
+            <ColHeader label="Straat object" active={!!filters.straat}><ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat..."/></ColHeader>
+            <ColHeader label="Plaatsobject" active={!!filters.plaatsobject}><ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats..."/></ColHeader>
+            <ColHeader label="Opmerkingen" active={!!filters.opmerkingen}><ColSearch value={filters.opmerkingen} onChange={set("opmerkingen")} placeholder="Zoek opmerkingen..."/></ColHeader>
+            <ColHeader label="Status" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
+            <ColHeader label="A/R" active={filters.ar.length>0}><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></ColHeader>
+            <ColHeader label="Type" active={filters.type.length>0}><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></ColHeader>
             <th className="px-3 py-3"/>
           </tr>
         </thead>
