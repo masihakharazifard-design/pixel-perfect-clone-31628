@@ -184,20 +184,35 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
       return;
     }
     let cancelled = false;
-    void bootstrapMyRole()
-      .then(() => supabase.from("user_roles").select("role").eq("user_id", user.id))
-      .then(({ data }) => {
-        if (!cancelled) {
-          setRoles(((data ?? []) as { role: string }[]).map((r) => r.role as AppRole));
-          setRolesReady(true);
+
+    const leesRollen = async (): Promise<AppRole[]> => {
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+      return ((data ?? []) as { role: string }[]).map((r) => r.role as AppRole);
+    };
+
+    const bepaalRollen = async () => {
+      // Maasmond-adressen krijgen automatisch toegang; probeer het meermaals
+      // zodat een tijdelijke netwerkfout nooit als "geen toegang" oogt.
+      for (let poging = 0; poging < 3; poging++) {
+        try {
+          await bootstrapMyRole();
+        } catch {
+          /* rol kan al bestaan of tijdelijke fout */
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRoles([]);
-          setRolesReady(true);
-        }
-      });
+        const gevonden = await leesRollen().catch(() => [] as AppRole[]);
+        if (gevonden.length > 0) return gevonden;
+        if (!isMaasmond(user.email ?? "")) return [];
+        await new Promise((r) => setTimeout(r, 400 * (poging + 1)));
+      }
+      return [];
+    };
+
+    void bepaalRollen().then((gevonden) => {
+      if (cancelled) return;
+      setRoles(gevonden);
+      setRolesReady(true);
+    });
+
     return () => {
       cancelled = true;
     };
