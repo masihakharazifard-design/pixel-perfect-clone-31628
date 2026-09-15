@@ -2359,25 +2359,25 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
           <div className="border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-56 overflow-y-auto">
             {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F8F9FC] ${sel?.id===p.id?"bg-[#E0F7F6]":""}`}>
               <p className="text-xs font-semibold text-[#1A2744]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
-              <p className="text-[11px] text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
+              <p className="text-[11px] text-[#6B7A99] truncate">{p.projectnaam||p.opmerkingen||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
             </button>)}
           </div>
         </div>}
       </div>}
       {!sel?<div>
-        <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer, werknaam of werkzaamheden..."/>
+        <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer of werknaam..."/>
         {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
           {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
           {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
             <p className="text-sm font-semibold text-[#1A2744]">{p.werknummer} – {p.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99] truncate">{p.werkzaamheden||"Geen omschrijving"}</p>
+            <p className="text-xs text-[#6B7A99] truncate">{p.opmerkingen||p.opdrachtgever||"Geen omschrijving"}</p>
           </button>)}
         </div>}
       </div>:<div className="border border-[rgba(26,39,68,0.1)] rounded-xl p-4 space-y-2 bg-[#F8F9FC]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99]">{sel.werkzaamheden||"Geen omschrijving"}</p>
+            <p className="text-xs text-[#6B7A99]">{sel.opmerkingen||sel.opdrachtgever||"Geen omschrijving"}</p>
           </div>
           {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");setWn("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
         </div>
@@ -3174,7 +3174,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     const rest=Math.max(0,nodig-n);
     return{
       title:`${p.werknummer} – ${p.projectnaam}`,
-      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.werkzaamheden||"—"}`,
+      subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.projectnaam||"—"}`,
       color:projectPlanningColorOf(p.id,projectColors),
       badgeStyle:badgeStyle(st,badgeColors),
       statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
@@ -3265,7 +3265,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.werkzaamheden||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
+                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
@@ -3378,7 +3378,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.werkzaamheden||p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
                   {p.projectnaam||p.werknummer}
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
@@ -3965,7 +3965,7 @@ export default function PlanningApp(){
   const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-slate-100 text-slate-600",[]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
-  // (status, afdeling(en), calculator, werkzaamheden, werknummer, opdrachtgever) blijven ongewijzigd.
+  // (status, afdeling(en), calculator, werknummer, opdrachtgever) blijven ongewijzigd.
   const applyDerivedDates=(nextAvail:AvailEntry[],projectId:string)=>{
     const rows=projectPlans(nextAvail,projectId);
     const per=planPeriod(rows);
@@ -4073,7 +4073,6 @@ export default function PlanningApp(){
         statusExcel:r.statusRaw||"",
         afdeling:primaryAfd,afdelingen,
         projectleider:pl,
-        werkzaamheden:r.werkzaamheden||"",
         // Geen datums uit Excel: het werk verschijnt pas in Agenda/Personeelsplanning
         // zodra de gebruiker zelf een startdatum invult.
         startdatum:"",
