@@ -270,24 +270,24 @@ export async function deletePersonalNote(id: string): Promise<void> {
 
 // ===== Taken per werk (Gantt-planning) =====
 type TaakRow = {
-  id: string; project_id: string; volgnummer: number; groep: string;
-  taaknaam: string; type: string; start: string | null; duur: number; percentage: number;
+  id: string; project_id: string;
+  taaknaam: string; type: string; start: string | null; duur: number;
 };
 
-const TAAK_COLS = "id, project_id, volgnummer, groep, taaknaam, type, start, duur, percentage";
+const TAAK_COLS = "id, project_id, taaknaam, type, start, duur";
 
 function toTaak(r: TaakRow): Taak {
   return {
-    id: r.id, projectId: r.project_id, volgnummer: r.volgnummer, groep: r.groep || "",
+    id: r.id, projectId: r.project_id,
     taaknaam: r.taaknaam || "", type: r.type || "", start: r.start || "",
-    duur: r.duur ?? 1, percentage: r.percentage ?? 0,
+    duur: r.duur ?? 1,
   };
 }
 
 export async function listTaken(projectId: string): Promise<Taak[]> {
   const { data, error } = await supabase
     .from("project_taken").select(TAAK_COLS).eq("project_id", projectId)
-    .order("volgnummer", { ascending: true });
+    .order("start", { ascending: true, nullsFirst: false });
   if (error) throw error;
   return ((data ?? []) as TaakRow[]).map(toTaak);
 }
@@ -298,7 +298,7 @@ export async function listTakenForProjects(projectIds: string[]): Promise<Map<st
   if (!projectIds.length) return out;
   const { data, error } = await supabase
     .from("project_taken").select(TAAK_COLS).in("project_id", projectIds)
-    .order("volgnummer", { ascending: true });
+    .order("start", { ascending: true, nullsFirst: false });
   if (error) throw error;
   ((data ?? []) as TaakRow[]).forEach((r) => {
     const t = toTaak(r);
@@ -311,9 +311,9 @@ export async function listTakenForProjects(projectIds: string[]): Promise<Map<st
 
 export async function saveTaak(taak: Taak): Promise<Taak> {
   const payload = {
-    project_id: taak.projectId, volgnummer: taak.volgnummer, groep: taak.groep,
+    project_id: taak.projectId,
     taaknaam: taak.taaknaam, type: taak.type, start: taak.start || null,
-    duur: taak.duur, percentage: taak.percentage,
+    duur: taak.duur,
   };
   const q = taak.id
     ? supabase.from("project_taken").update(payload).eq("id", taak.id).select(TAAK_COLS).single()

@@ -2,16 +2,17 @@
 export interface Taak {
   id: string;
   projectId: string;
-  volgnummer: number;
-  groep: string;
   taaknaam: string;
   type: string;
   /** "YYYY-MM-DD" of leeg */
   start: string;
   /** aantal kalenderdagen */
   duur: number;
-  /** 0 - 100 */
-  percentage: number;
+}
+
+/** Taken op startdatum (vroegste eerst); taken zonder datum achteraan. */
+export function sorteerTaken<T extends { start: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => (a.start || "9999").localeCompare(b.start || "9999"));
 }
 
 export const TAAK_TYPES = [

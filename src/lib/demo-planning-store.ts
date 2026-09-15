@@ -341,14 +341,14 @@ function writeTaken(list: Taak[]) {
 }
 
 export async function listTaken(projectId: string): Promise<Taak[]> {
-  return readTaken().filter((t) => t.projectId === projectId).sort((a, b) => a.volgnummer - b.volgnummer);
+  return sorteerTaken(readTaken().filter((t) => t.projectId === projectId));
 }
 
 export async function listTakenForProjects(projectIds: string[]): Promise<Map<string, Taak[]>> {
   const out = new Map<string, Taak[]>();
   if (!projectIds.length) return out;
   const wanted = new Set(projectIds);
-  readTaken().sort((a, b) => a.volgnummer - b.volgnummer).forEach((t) => {
+  sorteerTaken(readTaken()).forEach((t) => {
     if (!wanted.has(t.projectId)) return;
     const list = out.get(t.projectId);
     if (list) list.push(t);
