@@ -3949,8 +3949,18 @@ export default function PlanningApp(){
     return()=>{stopped=true;if(cleanup)cleanup();};
   },[dbReady]);
 
+  function errorDetail(err: unknown): string {
+    if (err instanceof Error) return err.message;
+    if (err && typeof err === "object") {
+      const e = err as Record<string, unknown>;
+      if (typeof e.message === "string" && e.message) return e.message;
+      try { return JSON.stringify(err); } catch { /* val door */ }
+    }
+    return String(err);
+  }
+
   const fail=(msg:string,err:unknown)=>{
-    const detail=err instanceof Error?err.message:String(err);
+    const detail=errorDetail(err);
     setDbError(detail);
     toast.error(`${msg} ${detail}`);
   };
