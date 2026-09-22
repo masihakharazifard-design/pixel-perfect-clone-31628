@@ -95,7 +95,9 @@ export function generateProjectPlanningPdf({ project, taken }: { project: Planni
       kop();
     }
     const weekend = isWeekend(dag.datum);
-    doc.setFillColor(weekend ? 244 : 240, weekend ? 246 : 243, weekend ? 250 : 248);
+    // Weekenddagen duidelijk lichter dan werkdagen.
+    if (weekend) doc.setFillColor(251, 252, 254);
+    else doc.setFillColor(234, 239, 247);
     doc.roundedRect(M, y, W - M * 2, hoogte, 2, 2, "F");
     doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(26, 39, 68);
     doc.text(langeDatum(dag.datum) + (weekend ? "  (weekend)" : ""), M + 4, y + 6.5);

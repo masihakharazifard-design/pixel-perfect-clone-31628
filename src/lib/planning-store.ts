@@ -11,12 +11,21 @@ export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, Syn
 const SETTINGS_ID = "default";
 
 
+/** Supabase levert standaard maximaal 1000 rijen: alles ophalen in pagina's. */
+const PAGE_SIZE = 1000;
+
 async function fetchTable<T extends WithId>(table: SyncTable): Promise<T[]> {
-  const query = supabase.from(table).select("id, data");
-  const { data, error } =
-    table === "availability" ? await query : await query.is("archived_at", null);
-  if (error) throw error;
-  return ((data ?? []) as Row[]).map((r) => ({ ...(r.data as T), id: r.id }));
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const base = supabase.from(table).select("id, data").range(from, from + PAGE_SIZE - 1);
+    const { data, error } =
+      table === "availability" ? await base : await base.is("archived_at", null);
+    if (error) throw error;
+    const rows = (data ?? []) as Row[];
+    rows.forEach((r) => out.push({ ...(r.data as T), id: r.id }));
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return out;
 }
 
 export async function loadAll<P extends WithId, E extends WithId, A extends WithId, S>(): Promise<{
