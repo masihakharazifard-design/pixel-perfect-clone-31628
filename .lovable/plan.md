@@ -17,15 +17,19 @@ Inhoud van de PDF (dag-voor-dag agenda):
 - Zaterdag en zondag krijgen een lichtere achtergrond.
 - Onderaan elke pagina een paginanummer; bij veel dagen loopt de agenda automatisch door naar een volgende pagina zonder dat een dagblok halverwege afbreekt.
 
-## 2. Openstaande werken controleren
+## 2. Fix: werken met status "O" verschijnen altijd bij Personeelsplanning
 
-De regel die bepaalt wat in "Openstaande werken" staat, vergelijkt status al hoofdletterongevoelig en zonder spaties en verbergt alleen werken die al een planningregel hebben. Ik controleer daarnaast:
-- of een via Excel geïmporteerd werk met status "O" zonder planningregel echt verschijnt zonder filter/zoekterm;
-- of de afdelingsfilter zo'n werk niet onbedoeld wegfiltert wanneer het werk geen (of een afwijkende) afdeling uit de import heeft.
+Eén simpele regel, zonder uitzonderingen:
+- Status (spaties getrimd, hoofdletterongevoelig) gelijk aan "O" en nog geen planningregel → het werk staat in "Openstaande werken".
+- Een lege of onherkende afdeling verbergt een werk nooit; alleen een filter die de gebruiker zelf instelt kan iets weglaten.
+- Staat er ergens een standaardfilter (bijvoorbeeld op afdeling) automatisch aan bij het openen van Personeelsplanning, dan haal ik die weg, zodat het paneel bij binnenkomst alles toont.
 
-Als uit de test blijkt dat een werk zonder herkende afdeling wegvalt bij een actieve afdelingsfilter, pas ik dat gedrag aan zodat het werk zichtbaar blijft tenzij het aantoonbaar bij een andere afdeling hoort. Zonder filter of zoekterm moet elk openstaand "O"-werk altijd zichtbaar zijn.
+Wat ik nakijk en herstel:
+- de statusvergelijking en het meenemen van werken zonder afdeling in de lijstopbouw;
+- of de afdelingskeuze bij het openen van Personeelsplanning leeg begint;
+- of een pas geïmporteerd werk meteen in het paneel terechtkomt zonder herladen.
 
-**Harde acceptatie-eis:** dit is geen optionele verbetering. Ik rond de taak pas af als ik in de draaiende app met een echt geïmporteerd "O"-werk zonder planningregel heb gezien dat het in het "Openstaande werken"-paneel bij Personeelsplanning staat — geen aanname op basis van de code alleen.
+**Harde acceptatie-eis:** ik rond dit pas af nadat ik in de draaiende app, met een echt via Excel geïmporteerd werk met status "O" zonder planningregel en zonder enige filter of zoekterm, met eigen ogen heb gezien dat het werk in het "Openstaande werken"-paneel staat. Niet aannemen op basis van de code.
 
 ## Technisch
 
