@@ -57,8 +57,10 @@ export function createIndexOpenProjectsProvider<P extends ProjectRecord>(
       }
       if (opts.isHidden(p)) continue;
       if (afdelingen.length) {
-        const afds = opts.getAfdelingen(p);
-        if (!afds.some((a) => afdelingen.includes(a))) continue;
+        // Een werk zonder (herkende) afdeling wordt nooit automatisch verborgen:
+        // alleen een werk dat aantoonbaar bij een ándere afdeling hoort valt weg.
+        const afds = opts.getAfdelingen(p).map((a) => String(a || "").trim()).filter(Boolean);
+        if (afds.length && !afds.some((a) => afdelingen.includes(a))) continue;
       }
       if (q && !opts.index.getProjectSearchText(p.id).includes(q)) continue;
       matches++;
