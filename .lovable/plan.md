@@ -25,6 +25,8 @@ De regel die bepaalt wat in "Openstaande werken" staat, vergelijkt status al hoo
 
 Als uit de test blijkt dat een werk zonder herkende afdeling wegvalt bij een actieve afdelingsfilter, pas ik dat gedrag aan zodat het werk zichtbaar blijft tenzij het aantoonbaar bij een andere afdeling hoort. Zonder filter of zoekterm moet elk openstaand "O"-werk altijd zichtbaar zijn.
 
+**Harde acceptatie-eis:** dit is geen optionele verbetering. Ik rond de taak pas af als ik in de draaiende app met een echt geïmporteerd "O"-werk zonder planningregel heb gezien dat het in het "Openstaande werken"-paneel bij Personeelsplanning staat — geen aanname op basis van de code alleen.
+
 ## Technisch
 
 - Nieuwe module `src/lib/taken-pdf.ts` met `generateProjectPlanningPdf({ project, taken })` op basis van jsPDF (al geïnstalleerd), A4 portret; blob-download via `URL.createObjectURL` + `revokeObjectURL`. Geen printvenster.
