@@ -67,10 +67,24 @@ export function addDays(ds: string, n: number): string {
   return toDay(d);
 }
 
-/** Einddatum = start + duur - 1 (kalenderdagen, inclusief startdag). */
+function isWeekendDate(d: Date): boolean {
+  return d.getDay() === 0 || d.getDay() === 6;
+}
+
+/** Einddatum = start + duur werkdagen (ma t/m vr), inclusief startdag; weekend telt niet mee. */
 export function taakEind(t: Pick<Taak, "start" | "duur">): string {
   if (!t.start) return "";
-  return addDays(t.start, Math.max(1, t.duur || 1) - 1);
+  const d = parseDay(t.start);
+  if (!d) return "";
+  let resterend = Math.max(1, Math.floor(Number(t.duur) || 1));
+  // Start op een weekenddag: schuif naar de eerstvolgende werkdag.
+  while (isWeekendDate(d)) d.setDate(d.getDate() + 1);
+  let guard = 0;
+  while (resterend > 1 && guard++ < 4000) {
+    d.setDate(d.getDate() + 1);
+    if (!isWeekendDate(d)) resterend--;
+  }
+  return toDay(d);
 }
 
 export function fmtDay(ds: string): string {

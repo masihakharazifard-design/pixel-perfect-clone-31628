@@ -1,7 +1,7 @@
 // Dag-voor-dag agenda van één werk als echte PDF (jsPDF, A4 portret).
 // Alle renderlogica staat hier; de UI verzamelt alleen de data.
 import { jsPDF } from "jspdf";
-import { addDays, parseDay, taakEind, taakKleur, TAAK_TYPES, type Taak } from "./taken";
+import { addDays, parseDay, taakEind, taakKleur, type Taak } from "./taken";
 
 export interface PlanningPdfProject {
   werknummer: string;
@@ -115,23 +115,6 @@ export function generateProjectPlanningPdf({ project, taken }: { project: Planni
     }
     y += hoogte + 4;
   }
-
-  // Legenda
-  const legHoogte = 10 + Math.ceil(TAAK_TYPES.length / 2) * 5.5;
-  if (y + legHoogte > H - bodemMarge) { doc.addPage(); kop(); }
-  doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(26, 39, 68);
-  doc.text("Type activiteit", M, y + 4);
-  let ly = y + 10;
-  TAAK_TYPES.forEach((type, i) => {
-    const kolom = i % 2;
-    const x = M + kolom * ((W - M * 2) / 2);
-    if (kolom === 0 && i > 0) ly += 5.5;
-    const [r, g, b] = hexToRgb(taakKleur(type));
-    doc.setFillColor(r, g, b);
-    doc.roundedRect(x, ly - 3, 3.2, 3.2, 0.6, 0.6, "F");
-    doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(26, 39, 68);
-    doc.text(type, x + 5.5, ly);
-  });
 
   voet();
 
