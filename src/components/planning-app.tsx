@@ -23,7 +23,7 @@ import { OpenProjectsPanel } from "@/components/open-projects-panel";
 import { FacturatieTermijnen } from "@/components/facturatie-termijnen";
 import { FacturatieView } from "@/components/facturatie-view";
 import { createIndexFacturatieProvider, type FacturatieProvider } from "@/lib/facturatie-query";
-import { listTakenForProjects } from "@/lib/store";
+import { listTaken, listTakenForProjects } from "@/lib/store";
 import { openGanttPrint, type GanttProject } from "@/lib/gantt-print";
 const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.TakenTab})));
 
@@ -1267,6 +1267,29 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
     return()=>clearTimeout(t);
   },[docs,notities,metaLoaded,project.id]);
 
+  const [pdfBezig,setPdfBezig]=useState(false);
+  // Dag-voor-dag agenda van dit ene werk als echte PDF (download, geen printvenster).
+  const exportPlanningPdf=async()=>{
+    if(pdfBezig)return;
+    setPdfBezig(true);
+    try{
+      const taken=await listTaken(project.id);
+      if(!taken.some(t=>!!t.start)){
+        toast.error("Voeg eerst taken toe bij dit werk voordat je een planning kunt exporteren");
+        return;
+      }
+      const {generateProjectPlanningPdf}=await import("@/lib/taken-pdf");
+      generateProjectPlanningPdf({project:{
+        werknummer:project.werknummer||"",projectnaam:project.projectnaam||"",
+        opdrachtgever:project.opdrachtgever||"",adres:project.adres||"",plaats:project.plaats||"",
+      },taken});
+    }catch{
+      toast.error("De planning kon niet als PDF worden gegenereerd. Probeer het opnieuw.");
+    }finally{
+      setPdfBezig(false);
+    }
+  };
+
   const plNaam=plName(project,employees);
   // Ingeplande medewerkers komen altijd uit de planningregels (availability), nooit uit het projectrecord
   const assigned=getProjectAssignedEmployees(project.id,availability,employees);
@@ -1317,6 +1340,11 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
       </div>}
       {tab==="planning"&&<div className="space-y-4">
+        <div className="flex justify-end">
+          <Btn size="sm" variant="secondary" disabled={pdfBezig} onClick={()=>void exportPlanningPdf()}>
+            <FileDown className="w-3.5 h-3.5"/>{pdfBezig?"PDF wordt gegenereerd...":"Exporteer planning als PDF"}
+          </Btn>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 border border-[rgba(26,39,68,0.1)] rounded-xl">
             <p className="text-xs text-[#6B7A99] mb-1">Startdatum</p>
@@ -2715,6 +2743,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const holColor=holidayColorOf(settings);
   const activeAfds=filters.filter(f=>f.actief&&f.afdeling).map(f=>f.afdeling);
   const afdKey=activeAfds.join("|");
+  // Staan alle afdelingsfilters aan (de standaardsituatie), dan is er feitelijk geen filter:
+  // "Openstaande werken" toont dan elk werk met status "O", ook zonder bekende afdeling.
+  const openAfdKey=filters.filter(f=>f.afdeling).every(f=>f.actief)?"":afdKey;
   // employees → employeePlanningOrder → filters → render
   const orderedEmployees=useMemo(()=>sortEmployeesByPlanningOrder(employees,settings.employeePlanningOrder||[]),[employees,settings.employeePlanningOrder]);
   const visEmp=orderedEmployees.filter(e=>activeAfds.length===0||activeAfds.includes(e.afdeling));
@@ -3430,7 +3461,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     )}
 
     {/* ===== Openstaande werken ===== */}
-    <OpenProjectsPanel<Project> openProjectsProvider={openProjectsProvider} afdelingenKey={afdKey}
+    <OpenProjectsPanel<Project> openProjectsProvider={openProjectsProvider} afdelingenKey={openAfdKey}
       projectVersion={projVersion} planningVersion={planningVersion} getRowData={openRowData}
       onOpen={onOpenProject} onPlan={p=>setProjMenu(p)}
       onDragStartProject={id=>setDragProject(id)} onDragEndProject={()=>setDragProject(null)}/>
