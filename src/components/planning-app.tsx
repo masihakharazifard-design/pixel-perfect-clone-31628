@@ -3950,41 +3950,51 @@ export default function PlanningApp(){
     setSettings(s);
     (Object.keys(s.deptColors||{}) as Afdeling[]).forEach(afd=>{DC[afd]=s.deptColors[afd];});
   };
+  // Lokale schrijfversie: een herlaadronde die startte vóór een eigen wijziging
+  // mag die wijziging niet meer overschrijven.
+  const localWriteRef=useRef(0);
+  const loadSeqRef=useRef(0);
   useEffect(()=>{
     let cancelled=false;
-    setDbReady(false);setLoadError("");
+    const silent=reloadKey>0;
+    if(!silent){setDbReady(false);setLoadError("");}
+    const seq=++loadSeqRef.current;
+    const writeAtStart=localWriteRef.current;
     (async()=>{
       try{
         const res=await loadAll<Project,Employee,AvailEntry,AppSettings>();
-        if(cancelled)return;
+        if(cancelled||seq!==loadSeqRef.current)return;
+        if(silent&&localWriteRef.current!==writeAtStart){setReloadKey(k=>k+1);return;}
         setProjects(res.projects);
         setEmployees(res.employees);
         setAvail(res.availability);
         if(res.settings)applySettings({...INIT_SETTINGS,...res.settings,deptColors:{...INIT_SETTINGS.deptColors,...(res.settings.deptColors||{})}});
         setDbReady(true);
       }catch(err){
-        if(!cancelled)setLoadError(err instanceof Error?err.message:"Onbekende fout");
+        if(!cancelled&&!silent)setLoadError(err instanceof Error?err.message:"Onbekende fout");
       }
     })();
     return()=>{cancelled=true;};
   },[reloadKey]);
 
-  // ===== Realtime: wijzigingen van collega's direct binnenhalen =====
+  // ===== Realtime: wijzigingen van collega's stil en gebundeld binnenhalen =====
   useEffect(()=>{
     if(!dbReady)return;
     if(DEMO_MODE)return;
     let cleanup:(()=>void)|null=null;let stopped=false;
+    let timer:ReturnType<typeof setTimeout>|null=null;
+    const bump=()=>{if(timer)clearTimeout(timer);timer=setTimeout(()=>setReloadKey(k=>k+1),800);};
     void import("@/integrations/supabase/client").then(({supabase})=>{
       const ch=supabase.channel("planning-sync")
-        .on("postgres_changes",{event:"*",schema:"public",table:"projects"},()=>setReloadKey(k=>k+1))
-        .on("postgres_changes",{event:"*",schema:"public",table:"employees"},()=>setReloadKey(k=>k+1))
-        .on("postgres_changes",{event:"*",schema:"public",table:"availability"},()=>setReloadKey(k=>k+1))
-        .on("postgres_changes",{event:"*",schema:"public",table:"app_settings"},()=>setReloadKey(k=>k+1))
+        .on("postgres_changes",{event:"*",schema:"public",table:"projects"},bump)
+        .on("postgres_changes",{event:"*",schema:"public",table:"employees"},bump)
+        .on("postgres_changes",{event:"*",schema:"public",table:"availability"},bump)
+        .on("postgres_changes",{event:"*",schema:"public",table:"app_settings"},bump)
         .subscribe();
       cleanup=()=>{void supabase.removeChannel(ch);};
       if(stopped)cleanup();
     });
-    return()=>{stopped=true;if(cleanup)cleanup();};
+    return()=>{stopped=true;if(timer)clearTimeout(timer);if(cleanup)cleanup();};
   },[dbReady]);
 
   function errorDetail(err: unknown): string {
