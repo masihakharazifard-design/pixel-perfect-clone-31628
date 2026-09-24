@@ -1235,11 +1235,26 @@ async function printKlantPlanning(project:Project,allProjects:Project[],employee
 }
 
 type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
-function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose}:{
+function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose,onAddEmployees}:{
   project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
-  onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;
+  onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;onAddEmployees?:(rows:AvailEntry[])=>Promise<boolean>;
 }){
   const dc=useDC();
+  const [addOpen,setAddOpen]=useState(false);
+  const [addKey,setAddKey]=useState(0);
+  // Medewerkers van de afdeling(en) van dit werk bovenaan, daarna de rest op naam.
+  const addEmployees=useMemo(()=>{
+    const afds=getAllAfds(project);
+    return [...employees].sort((a,b)=>{
+      const pa=afds.includes(a.afdeling)?0:1,pb=afds.includes(b.afdeling)?0:1;
+      return pa-pb||a.naam.localeCompare(b.naam,"nl");
+    });
+  },[employees,project]);
+  const pStart=datePart(project.startdatum||"");const pEnd=datePart(project.afloopdatum||"");
+  const addDate=pStart||new Date().toISOString().slice(0,10);
+  const addSt=timePart(project.startdatum||"")||"08:00";
+  const addEtRaw=timePart(project.afloopdatum||"")||"17:00";
+  const addEt=addEtRaw<=addSt?"17:00":addEtRaw;
   const [tab,setTab]=useState<ProjTab>("overzicht");
   const [notities,setNotities]=useState(project.notities);
   const [docs,setDocs]=useState<string[]>([]);
@@ -1368,6 +1383,12 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         </div>
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
+        {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
+        {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
+          empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
+          startTime={addSt} endTime={addEt} projectId={project.id}
+          onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
+          onClose={()=>setAddOpen(false)}/>}
         <div className="flex items-center gap-2">
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
           <span className="text-xs text-[#6B7A99]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
@@ -2350,14 +2371,27 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
 }
 
 // ===== MEDEWERKER INPLANNEN =====
-function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+function EmployeePicker({employees,value,onChange}:{employees:Employee[];value:string;onChange:(id:string)=>void}){
+  const [q,setQ]=useState("");
+  const sel=employees.find(e=>e.id===value);
+  const list=useMemo(()=>{const s=q.trim().toLowerCase();return (s?employees.filter(e=>e.naam.toLowerCase().includes(s)||String(e.functie).toLowerCase().includes(s)):employees).slice(0,50);},[q,employees]);
+  return <div className="space-y-1">
+    <Input label="Medewerker" value={q} onChange={setQ} placeholder={sel?sel.naam:"Zoek medewerker..."}/>
+    {sel&&<p className="text-xs text-[#1A2744]">Gekozen: <b>{sel.naam}</b> ({sel.afdeling})</p>}
+    <div className="max-h-40 overflow-y-auto border border-[rgba(26,39,68,0.1)] rounded-lg">
+      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#E6F9F8] font-semibold":""}`}>{e.naam} <span className="text-[#6B7A99]">· {e.afdeling}</span></button>)}
+      {list.length===0&&<p className="px-2 py-1 text-xs text-[#6B7A99]">Geen medewerkers gevonden.</p>}
+    </div>
+  </div>;
+}
+function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,maxDate,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
   employees:Employee[];availability:AvailEntry[];
-  empId:string;date:string;startTime:string;endTime:string;projectId?:string;editId?:string;
+  empId:string;date:string;endDate?:string;minDate?:string;maxDate?:string;startTime:string;endTime:string;projectId?:string;editId?:string;
   onSave:(entries:AvailEntry[])=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
 }){
   const [emp,setEmp]=useState(empId);
   const [d,setD]=useState(date);
-  const [dEnd,setDEnd]=useState(date);
+  const [dEnd,setDEnd]=useState(endDate||date);
   const [st,setSt]=useState(startTime);
   const [et,setEt]=useState(endTime);
   const [q,setQ]=useState("");
@@ -2388,7 +2422,8 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
   const needsConfirm=warnings.length>0&&!confirmed;
-  const dateOk=!!d&&(!multi||!dEnd||dEnd>=d);
+  const inRange=(!minDate||d>=minDate)&&(!maxDate||(dEnd||d)<=maxDate);
+  const dateOk=!!d&&(!multi||!dEnd||dEnd>=d)&&inRange;
   const canSave=!!sel&&!!emp&&dateOk&&days.length>0&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
@@ -2406,12 +2441,14 @@ function PlanEmployeeModal({employees,availability,empId,date,startTime,endTime,
   return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        {empId?<Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+          :<EmployeePicker employees={employees} value={emp} onChange={setEmp}/>}
         <div className={multi?"grid grid-cols-2 gap-2":""}>
           <Input label={multi?"Startdatum":"Datum"} value={d} onChange={setD} type="date"/>
           {multi&&<Input label="Einddatum" value={dEnd} onChange={v=>setDEnd(v<d?d:v)} type="date"/>}
         </div>
       </div>
+      {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">Deze medewerker wordt op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
 
       {!projectId&&<div className="space-y-2">
@@ -4278,7 +4315,7 @@ export default function PlanningApp(){
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(projects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)} onAddEmployees={savePlanningMany}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>
