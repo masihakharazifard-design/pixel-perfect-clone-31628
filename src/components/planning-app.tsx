@@ -1383,7 +1383,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         </div>
       </div>}
       {tab==="medewerkers"&&<div className="space-y-3">
-        {onAddEmployees&&<div className="flex justify-end"><Button onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Button></div>}
+        {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
         {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
           empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
           startTime={addSt} endTime={addEt} projectId={project.id}
