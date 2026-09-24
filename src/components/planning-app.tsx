@@ -1329,6 +1329,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
             <p className="text-[#6B7A99] text-sm">{project.werknummer}</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            {onAddEmployees&&<Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Medewerker toevoegen</span></Btn>}
             <Btn size="sm" variant="secondary" onClick={onEdit}><Pencil className="w-3.5 h-3.5"/><span className="hidden sm:inline">Bewerken</span></Btn>
             <Btn size="sm" variant="secondary" onClick={()=>void printKlantPlanning(project,allProjects,employees)}><FileDown className="w-3.5 h-3.5"/><span className="hidden sm:inline">Planning opdrachtgever</span></Btn>
             <Btn size="sm" variant="danger" onClick={()=>setConfirmDel(true)}><Trash2 className="w-3.5 h-3.5"/><span className="hidden sm:inline">Verwijderen</span></Btn>
@@ -1382,13 +1383,13 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
           </div>
         </div>
       </div>}
+      {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
+        empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
+        startTime={addSt} endTime={addEt} projectId={project.id}
+        onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
+        onClose={()=>setAddOpen(false)}/>}
       {tab==="medewerkers"&&<div className="space-y-3">
         {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
-        {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
-          empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
-          startTime={addSt} endTime={addEt} projectId={project.id}
-          onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
-          onClose={()=>setAddOpen(false)}/>}
         <div className="flex items-center gap-2">
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
           <span className="text-xs text-[#6B7A99]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
