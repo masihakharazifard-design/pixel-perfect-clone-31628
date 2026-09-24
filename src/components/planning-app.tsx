@@ -4112,7 +4112,7 @@ export default function PlanningApp(){
       const tmp=applyDerivedDates(nextAvail,pid);
       nextProjects=nextProjects.map(p=>p.id===pid?(tmp.find(x=>x.id===pid)||p):p);
     });
-    setAvail(nextAvail);setProjects(nextProjects);
+    localWriteRef.current++;setAvail(nextAvail);setProjects(nextProjects);
     try{
       await savePlanningRows(upserts,removeIds,actie);
       const changedProjects=nextProjects.filter(p=>{
