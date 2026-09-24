@@ -1252,9 +1252,11 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   },[employees,project]);
   const pStart=datePart(project.startdatum||"");const pEnd=datePart(project.afloopdatum||"");
   const addDate=pStart||new Date().toISOString().slice(0,10);
-  const addSt=timePart(project.startdatum||"")||"08:00";
+  const addStRaw=timePart(project.startdatum||"")||"08:00";
   const addEtRaw=timePart(project.afloopdatum||"")||"17:00";
-  const addEt=addEtRaw<=addSt?"17:00":addEtRaw;
+  const timesOk=addStRaw<addEtRaw;
+  const addSt=timesOk?addStRaw:"08:00";
+  const addEt=timesOk?addEtRaw:"17:00";
   const [tab,setTab]=useState<ProjTab>("overzicht");
   const [notities,setNotities]=useState(project.notities);
   const [docs,setDocs]=useState<string[]>([]);
