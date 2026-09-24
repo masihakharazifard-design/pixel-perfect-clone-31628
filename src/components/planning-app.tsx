@@ -244,7 +244,10 @@ const WD_LABELS=["Ma","Di","Wo","Do","Vr","Za","Zo"];
 const WD_FULL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
 function weekdayIdx(ds:string){return (new Date(ds+"T12:00").getDay()+6)%7;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
-function nid(){return Math.random().toString(36).slice(2,9);}
+function nid(){
+  const uuid=globalThis.crypto?.randomUUID?.();
+  return uuid||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,11)}`;
+}
 function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filter(p=>p.werknummer.startsWith(yr+"-")).map(p=>parseInt(p.werknummer.split("-")[1]));return `${yr}-${String((ns.length?Math.max(...ns):0)+1).padStart(3,"0")}`;}
 function abbrevName(naam:string):string{const parts=naam.split(" ");return parts.length<=1?naam:parts[0][0]+". "+parts.slice(1).join(" ");}
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
@@ -1385,7 +1388,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
           </div>
         </div>
       </div>}
-      {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
+      {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability} multiEmployeeSelect
         empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
         startTime={addSt} endTime={addEt} projectId={project.id}
         onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
@@ -2387,12 +2390,34 @@ function EmployeePicker({employees,value,onChange}:{employees:Employee[];value:s
     </div>
   </div>;
 }
-function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,maxDate,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+function MultiEmployeePicker({employees,values,onChange}:{employees:Employee[];values:string[];onChange:(ids:string[])=>void}){
+  const [q,setQ]=useState("");
+  const selected=new Set(values);
+  const list=useMemo(()=>{
+    const s=q.trim().toLowerCase();
+    return (s?employees.filter(e=>e.naam.toLowerCase().includes(s)||String(e.functie).toLowerCase().includes(s)):employees).slice(0,100);
+  },[q,employees]);
+  const toggle=(id:string)=>onChange(selected.has(id)?values.filter(x=>x!==id):[...values,id]);
+  return <div className="space-y-2 sm:col-span-2">
+    <Input label="Medewerkers" value={q} onChange={setQ} placeholder="Zoek één of meer medewerkers..."/>
+    <p className="text-xs text-[#6B7A99]">{values.length===0?"Nog niemand gekozen":`${values.length} medewerker${values.length===1?"":"s"} gekozen`}</p>
+    <div className="max-h-52 overflow-y-auto border border-[rgba(26,39,68,0.1)] rounded-lg divide-y divide-[rgba(26,39,68,0.06)]">
+      {list.map(e=>{const isSelected=selected.has(e.id);return <button type="button" key={e.id} onClick={()=>toggle(e.id)}
+        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#E6F9F8] font-semibold":""}`}>
+        <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected?"bg-[#0ABFB8] border-[#0ABFB8] text-white":"border-[rgba(26,39,68,0.2)]"}`}>{isSelected&&<Check className="w-3 h-3"/>}</span>
+        <span className="flex-1 min-w-0 truncate">{e.naam} <span className="font-normal text-[#6B7A99]">· {e.afdeling}</span></span>
+      </button>;})}
+      {list.length===0&&<p className="px-3 py-2 text-xs text-[#6B7A99]">Geen medewerkers gevonden.</p>}
+    </div>
+  </div>;
+}
+function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,maxDate,startTime,endTime,projectId,editId,multiEmployeeSelect=false,onSave,onDelete,onClose}:{
   employees:Employee[];availability:AvailEntry[];
   empId:string;date:string;endDate?:string;minDate?:string;maxDate?:string;startTime:string;endTime:string;projectId?:string;editId?:string;
-  onSave:(entries:AvailEntry[])=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
+  multiEmployeeSelect?:boolean;onSave:(entries:AvailEntry[])=>Promise<unknown>;onDelete?:(id:string)=>Promise<unknown>;onClose:()=>void;
 }){
   const [emp,setEmp]=useState(empId);
+  const [empIds,setEmpIds]=useState<string[]>(empId?[empId]:[]);
   const [d,setD]=useState(date);
   const [dEnd,setDEnd]=useState(endDate||date);
   const [st,setSt]=useState(startTime);
@@ -2420,31 +2445,39 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
     if(!multi||!dEnd||dEnd<=d)return [d];
     return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
   },[d,dEnd,multi]);
-  const conflicts=useMemo(()=>sel?days.flatMap(day=>findConflictsMulti(availability,employees,getIndexedProject,emp,day,st,et,editId?[editId]:[])):[],[sel,days,availability,employees,emp,st,et,editId]);
+  const chosenEmployeeIds=multiEmployeeSelect?empIds:(emp?[emp]:[]);
+  const conflicts=useMemo(()=>sel?chosenEmployeeIds.flatMap(employeeId=>days.flatMap(day=>findConflictsMulti(availability,employees,getIndexedProject,employeeId,day,st,et,editId?[editId]:[]))):[],[sel,days,availability,employees,chosenEmployeeIds.join("|"),st,et,editId]);
   const blockers=blockingOnly(conflicts);
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
   const needsConfirm=warnings.length>0&&!confirmed;
   const inRange=(!minDate||d>=minDate)&&(!maxDate||(dEnd||d)<=maxDate);
   const dateOk=!!d&&(!multi||!dEnd||dEnd>=d)&&inRange;
-  const canSave=!!sel&&!!emp&&dateOk&&days.length>0&&blockers.length===0&&!needsConfirm&&!busy;
+  const canSave=!!sel&&chosenEmployeeIds.length>0&&dateOk&&days.length>0&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
-    const reeksId=days.length>1?"reeks-"+nid():undefined;
-    await onSave(days.map(day=>({
-      id:days.length===1?(editId||("plan-"+nid())):("plan-"+nid()),
-      employeeId:emp,date:day,startTime:st,endTime:et,
-      status:"Ingepland" as AvailStatus,note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
-      ...(reeksId?{reeksId}:null),
-    })));
-    setBusy(false);
+    try{
+      const rows=chosenEmployeeIds.flatMap((employeeId,employeeIndex)=>{
+        const reeksId=days.length>1?"reeks-"+nid():undefined;
+        return days.map(day=>({
+          id:editId&&employeeIndex===0&&days.length===1?editId:("plan-"+nid()),
+          employeeId,date:day,startTime:st,endTime:et,
+          status:"Ingepland" as AvailStatus,note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
+          ...(reeksId?{reeksId}:null),
+        }));
+      });
+      await onSave(rows);
+    }finally{
+      setBusy(false);
+    }
   };
 
   return <Modal title="Medewerker inplannen" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {empId?<Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
+        {multiEmployeeSelect?<MultiEmployeePicker employees={employees} values={empIds} onChange={setEmpIds}/>
+          :empId?<Select label="Medewerker" value={emp} onChange={setEmp} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
           :<EmployeePicker employees={employees} value={emp} onChange={setEmp}/>}
         <div className={multi?"grid grid-cols-2 gap-2":""}>
           <Input label={multi?"Startdatum":"Datum"} value={d} onChange={setD} type="date"/>
@@ -2452,7 +2485,7 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
         </div>
       </div>
       {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
-      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">Deze medewerker wordt op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
+      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
 
       {!projectId&&<div className="space-y-2">
         <Input label="Werknummer" value={wn} onChange={setWn} placeholder="Bijv. 12345"/>
