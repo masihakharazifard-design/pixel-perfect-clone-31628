@@ -1388,7 +1388,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
           </div>
         </div>
       </div>}
-      {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability}
+      {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability} multiEmployeeSelect
         empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
         startTime={addSt} endTime={addEt} projectId={project.id}
         onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
@@ -2411,10 +2411,10 @@ function MultiEmployeePicker({employees,values,onChange}:{employees:Employee[];v
     </div>
   </div>;
 }
-function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,maxDate,startTime,endTime,projectId,editId,onSave,onDelete,onClose}:{
+function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,maxDate,startTime,endTime,projectId,editId,multiEmployeeSelect=false,onSave,onDelete,onClose}:{
   employees:Employee[];availability:AvailEntry[];
   empId:string;date:string;endDate?:string;minDate?:string;maxDate?:string;startTime:string;endTime:string;projectId?:string;editId?:string;
-  multiEmployeeSelect?:boolean;onSave:(entries:AvailEntry[])=>Promise<void>;onDelete?:(id:string)=>Promise<void>;onClose:()=>void;
+  multiEmployeeSelect?:boolean;onSave:(entries:AvailEntry[])=>Promise<unknown>;onDelete?:(id:string)=>Promise<unknown>;onClose:()=>void;
 }){
   const [emp,setEmp]=useState(empId);
   const [empIds,setEmpIds]=useState<string[]>(empId?[empId]:[]);
