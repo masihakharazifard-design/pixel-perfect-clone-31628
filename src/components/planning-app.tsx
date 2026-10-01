@@ -358,7 +358,7 @@ function buildProjectPlanRows(p:Project,empIds:string[],av:AvailEntry[],employee
   const reeksId=days.length>1?"reeks-"+nid():undefined;
   const rows:AvailEntry[]=[],skipped:PlanConflict[]=[];
   empIds.forEach(employeeId=>days.forEach(date=>{
-    const block=blockingOnly(findConflicts(av,employees,getIndexedProject,employeeId,date,st,et));
+    const block=blockingOnly(findConflicts(av.filter(a=>a.employeeId===employeeId&&a.date===date),employees,getIndexedProject,employeeId,date,st,et));
     if(block.length){skipped.push(...block);return;}
     rows.push({id:"plan-"+nid(),employeeId,date,startTime:st,endTime:et,status:"Ingepland",
       note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id,...(reeksId?{reeksId}:null)});
@@ -1417,7 +1417,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
       {addOpen&&onAddEmployees&&<PlanEmployeeModal key={addKey} employees={addEmployees} availability={availability} multiEmployeeSelect
         empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
         startTime={addSt} endTime={addEt} projectId={project.id}
-        onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok)setAddKey(k=>k+1);}}
+        onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok){setAddOpen(false);setTab("medewerkers");}}}
         onClose={()=>setAddOpen(false)}/>}
       {tab==="medewerkers"&&<div className="space-y-3">
         {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
@@ -2476,14 +2476,20 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
     return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
   },[d,dEnd,multi]);
   const chosenEmployeeIds=multiEmployeeSelect?empIds:(emp?[emp]:[]);
-  const conflicts=useMemo(()=>sel?chosenEmployeeIds.flatMap(employeeId=>days.flatMap(day=>findConflictsMulti(availability,employees,getIndexedProject,employeeId,day,st,et,editId?[editId]:[]))):[],[sel,days,availability,employees,chosenEmployeeIds.join("|"),st,et,editId]);
+  // Staat de medewerker op die dag al op ditzelfde werk in dit tijdvak? Dan wordt die dag overgeslagen (geen dubbele regel).
+  const alreadyOn=useCallback((employeeId:string,day:string)=>!!sel&&availability.some(a=>a.id!==editId&&a.employeeId===employeeId&&a.date===day
+    &&a.projectId===sel.id&&a.status==="Ingepland"&&overlaps(st,et,a.startTime,a.endTime)),[sel,availability,editId,st,et]);
+  const pairs=useMemo(()=>chosenEmployeeIds.flatMap(employeeId=>days.map(day=>({employeeId,day}))),[chosenEmployeeIds.join("|"),days]);
+  const newPairs=useMemo(()=>pairs.filter(x=>!alreadyOn(x.employeeId,x.day)),[pairs,alreadyOn]);
+  const dupCount=pairs.length-newPairs.length;
+  const conflicts=useMemo(()=>sel?newPairs.flatMap(({employeeId,day})=>findConflictsMulti(availability,employees,getIndexedProject,employeeId,day,st,et,editId?[editId]:[])):[],[sel,newPairs,availability,employees,st,et,editId]);
   const blockers=blockingOnly(conflicts);
   const warnings=warningsOnly(conflicts);
   const [confirmed,setConfirmed]=useState(false);
   const needsConfirm=warnings.length>0&&!confirmed;
   const inRange=(!minDate||d>=minDate)&&(!maxDate||(dEnd||d)<=maxDate);
   const dateOk=!!d&&(!multi||!dEnd||dEnd>=d)&&inRange;
-  const canSave=!!sel&&chosenEmployeeIds.length>0&&dateOk&&days.length>0&&blockers.length===0&&!needsConfirm&&!busy;
+  const canSave=!!sel&&chosenEmployeeIds.length>0&&dateOk&&newPairs.length>0&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
@@ -2491,14 +2497,13 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
       // Eén gedeelde reeks voor alle gekozen medewerkers: per medewerker blijft het een doorlopende balk
       // (reeksen worden altijd per medewerker gelezen) en in de Agenda vormen ze samen één blok.
       const reeksId=days.length>1?"reeks-"+nid():undefined;
-      const rows=chosenEmployeeIds.flatMap((employeeId,employeeIndex)=>{
-        return days.map(day=>({
-          id:editId&&employeeIndex===0&&days.length===1?editId:("plan-"+nid()),
-          employeeId,date:day,startTime:st,endTime:et,
-          status:"Ingepland" as AvailStatus,note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
-          ...(reeksId?{reeksId}:null),
-        }));
-      });
+      // Alleen dagen waarop de medewerker nog NIET op dit werk staat (geen dubbele planningregels)
+      const rows=newPairs.map(({employeeId,day},i)=>({
+        id:editId&&i===0&&pairs.length===1?editId:("plan-"+nid()),
+        employeeId,date:day,startTime:st,endTime:et,
+        status:"Ingepland" as AvailStatus,note:`${sel.werknummer} – ${sel.projectnaam}`,projectId:sel.id,
+        ...(reeksId?{reeksId}:null),
+      }));
       await onSave(rows);
     }finally{
       setBusy(false);
@@ -2557,6 +2562,9 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
           <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
         </div>
       </div>}
+      {sel&&dupCount>0&&<p className="text-xs text-[#6B7A99] rounded-lg bg-[#F0F3F8] px-3 py-2">
+        {newPairs.length===0?"Deze medewerker(s) staan op alle gekozen dagen al op dit werk ingepland.":`${dupCount} dag${dupCount===1?"":"en"} staan al op dit werk ingepland en worden overgeslagen.`}
+      </p>}
       {blockers.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
         <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
         {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{conflictLine(c)}</p>)}
