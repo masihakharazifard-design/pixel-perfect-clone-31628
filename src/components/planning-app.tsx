@@ -1981,8 +1981,8 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
           const width=(ev.ec-ev.sc+1)*cellW;
           const top=36+ev.slot*22;
           const st=agendaProjStyle(ev.project,dc);
-          const label=projLabel(ev.project,employees);
-          return <div key={ev.project.id} draggable
+          const label=agendaLabel(ev.project,employees);
+          return <div key={ev.project.id} draggable title={label}
             onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
             onClick={e=>{e.stopPropagation();onClickProject(ev.project);}}
             className="absolute h-5 rounded flex items-center text-white text-xs font-medium px-1.5 cursor-grab hover:brightness-110 transition-all z-10 overflow-hidden select-none"
@@ -2247,8 +2247,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                 const width=(ev.ec-ev.sc+1)*cellW;
                 const top=26+ev.slot*18;
                 const st=agendaProjStyle(ev.project,dc);
-                const label=projLabel(ev.project,employees);
-                return <div key={ev.project.id} draggable
+                const label=agendaLabel(ev.project,employees);
+                return <div key={ev.project.id} draggable title={label}
                   onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
                   onClick={e=>{e.stopPropagation();onClickProject(ev.project);}}
                   className="absolute h-4 rounded flex items-center text-white font-medium px-1 cursor-grab hover:brightness-110 transition-all z-10 overflow-hidden select-none"
