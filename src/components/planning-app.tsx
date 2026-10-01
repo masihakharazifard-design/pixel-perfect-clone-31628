@@ -1418,7 +1418,6 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         empId="" date={addDate} endDate={pEnd&&pEnd>=addDate?pEnd:addDate} minDate={pStart||undefined} maxDate={pEnd||undefined}
         startTime={addSt} endTime={addEt} projectId={project.id}
         onSave={async rows=>{const ok=await onAddEmployees(rows);if(ok){setAddOpen(false);setTab("medewerkers");}}}
-Controleer dat useCallback uit "react" is geïmporteerd (wordt al elders gebruikt; alleen toevoegen als het ontbreekt).
         onClose={()=>setAddOpen(false)}/>}
       {tab==="medewerkers"&&<div className="space-y-3">
         {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
