@@ -90,6 +90,8 @@ interface AppSettings {
   projectColors?:Record<string,string>;
   /** Kleur per projectleider (sleutel = naam zoals getoond), gebruikt bij Schilderwerk-blokken */
   projectleiderColors?:Record<string,string>;
+  /** Afkorting projectleider (bijv. "RV") → volledige naam; aanvulling op de standaardlijst */
+  projectleiderNamen?:Record<string,string>;
   borderColors?:Record<string,string>;
   badgeColors?:Record<string,string>;
   holidayColor?:string;
@@ -254,7 +256,22 @@ function nextWN(ps:Project[]){const yr=new Date().getFullYear();const ns=ps.filt
 function abbrevName(naam:string):string{const parts=naam.split(" ");return parts.length<=1?naam:parts[0][0]+". "+parts.slice(1).join(" ");}
 // Projectleider kan een employee-id zijn óf vrije tekst (bv. Calculator uit Excel).
 
-function plName(p:Project,employees:Employee[]):string{const e=employees.find(x=>x.id===p.projectleider);return e?e.naam:(p.projectleider||"");}
+// ===== Projectleiders: afkortingen (uit Excel "Projectl.") → volledige naam =====
+// Vaste standaardlijst; aan te vullen/wijzigen via Instellingen → Projectleiders (settings.projectleiderNamen).
+const DEFAULT_PL_NAMEN:Record<string,string>={RV:"Ronald Voermans",CB:"Cris Bruin",DDH:"Dennis de Haan",RSC:"Rick Schwickard",RDE:"Rick Deltenre"};
+function normPlAliases(m:Record<string,string>):Record<string,string>{
+  const o:Record<string,string>={};
+  Object.entries(m).forEach(([k,v])=>{const kk=k.trim().toUpperCase();const vv=String(v||"").trim();if(kk&&vv)o[kk]=vv;});
+  return o;
+}
+let plAliases:Record<string,string>=normPlAliases(DEFAULT_PL_NAMEN);
+function setProjectleiderAliases(m?:Record<string,string>){plAliases=normPlAliases({...DEFAULT_PL_NAMEN,...(m||{})});}
+function plName(p:Project,employees:Employee[]):string{
+  const e=employees.find(x=>x.id===p.projectleider);
+  if(e)return e.naam;
+  const raw=String(p.projectleider||"").trim();
+  return plAliases[raw.toUpperCase()]||raw;
+}
 function tooltipText(row:AvailEntry,proj:Project,employees:Employee[]):string{
   const first=row.isFirstOfDay?"Als eerste uitvoeren · ":"";
   const desc=proj.projectnaam||proj.opmerkingen||"—";
@@ -262,9 +279,9 @@ function tooltipText(row:AvailEntry,proj:Project,employees:Employee[]):string{
   const afds=getAllAfds(proj).join(", ");
   return `${first}${proj.werknummer}\n${desc}\n${calc} · ${afds}\nklik = werkgegevens · rechtsklik = planning bewerken`;
 }
-function projLabel(p:Project,employees:Employee[]):string{const n=plName(p,employees);const pn=n?abbrevName(n):"";const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
+function projLabel(p:Project,employees:Employee[]):string{const pn=plName(p,employees);const s=p.eersteVanDag?"★ ":"";return pn?`${s}${p.werknummer} – ${p.projectnaam} – ${pn}`:`${s}${p.werknummer} – ${p.projectnaam}`;}
 // Agenda: namen van de ingeplande medewerkers (alleen voor blokken die uit planningregels komen)
-function agendaEmpNames(p:Project,employees:Employee[]):string{if(!p.id.includes("::"))return "";return p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam).filter((n):n is string=>!!n).map(abbrevName).join(", ");}
+function agendaEmpNames(p:Project,employees:Employee[]):string{if(!p.id.includes("::"))return "";return p.medewerkers.map(id=>employees.find(e=>e.id===id)?.naam).filter((n):n is string=>!!n).join(", ");}
 function agendaLabel(p:Project,employees:Employee[]):string{const n=agendaEmpNames(p,employees);return n?`${projLabel(p,employees)} · ${n}`:projLabel(p,employees);}
 function getDatesInRange(start:Date,end:Date):string[]{const dates:string[]=[];const cur=new Date(start);cur.setHours(0,0,0,0);const endD=new Date(end);endD.setHours(0,0,0,0);while(cur<=endD){dates.push(toDateStr(new Date(cur)));cur.setDate(cur.getDate()+1);}return dates;}
 function getDominantStatus(avails:AvailEntry[]):AvailStatus{const pri:AvailStatus[]=["Ziek","Vakantie","Bezet","Niet beschikbaar","Ingepland","Vrij","Beschikbaar"];for(const s of pri){if(avails.some(a=>a.status===s))return s;}return "Beschikbaar";}
@@ -4027,7 +4044,11 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
 function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppSettings)=>void}){
   const [form,setForm]=useState<AppSettings>(settings);
   const [saved,setSaved]=useState(false);
-  const [activeTab,setActiveTab]=useState<"bedrijf"|"kleuren">("bedrijf");
+  const [activeTab,setActiveTab]=useState<"bedrijf"|"kleuren"|"projectleiders">("bedrijf");
+  // Projectleiders: lijst van afkorting → volledige naam (standaardlijst + eigen aanvullingen)
+  const plRows=Object.entries({...DEFAULT_PL_NAMEN,...(form.projectleiderNamen||{})});
+  const setPlName=(code:string,naam:string)=>setForm(p=>({...p,projectleiderNamen:{...(p.projectleiderNamen||{}),[code]:naam}}));
+  const [newCode,setNewCode]=useState("");const [newNaam,setNewNaam]=useState("");
 
   // sync if settings prop changes
   useEffect(()=>{setForm(settings);},[settings]);
@@ -4049,8 +4070,24 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
       <p className="text-[#6B7A99] text-xs md:text-sm">Bedrijfsinstellingen en voorkeuren</p>
     </div>
     <div className="flex gap-1 bg-[#F0F3F8] p-1 rounded-xl w-fit">
-      {(["bedrijf","kleuren"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#1A2744] shadow-sm":"text-[#6B7A99] hover:text-[#1A2744]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":"Kleuren"}</button>)}
+      {(["bedrijf","kleuren","projectleiders"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#1A2744] shadow-sm":"text-[#6B7A99] hover:text-[#1A2744]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":t==="kleuren"?"Kleuren":"Projectleiders"}</button>)}
     </div>
+    {activeTab==="projectleiders"&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-3">
+      <p className="text-sm text-[#6B7A99]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
+      <div className="space-y-2">
+        {plRows.map(([code,naam])=><div key={code} className="flex items-center gap-2">
+          <span className="w-20 flex-shrink-0 font-mono text-sm font-semibold text-[#1A2744]">{code}</span>
+          <input value={naam} onChange={e=>setPlName(code,e.target.value)} placeholder="Volledige naam"
+            className="flex-1 py-1.5 px-2.5 text-sm border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
+        </div>)}
+      </div>
+      <div className="flex items-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.06)]">
+        <Input label="Afkorting" value={newCode} onChange={setNewCode} placeholder="Bijv. RSA" className="w-28"/>
+        <Input label="Volledige naam" value={newNaam} onChange={setNewNaam} placeholder="Voor- en achternaam" className="flex-1"/>
+        <Btn variant="secondary" disabled={!newCode.trim()||!newNaam.trim()} onClick={()=>{setPlName(newCode.trim().toUpperCase(),newNaam.trim());setNewCode("");setNewNaam("");}}><Plus className="w-4 h-4"/>Toevoegen</Btn>
+      </div>
+      <p className="text-xs text-[#6B7A99]">Vergeet niet onderaan op <b>Instellingen opslaan</b> te klikken.</p>
+    </div>}
     {activeTab==="bedrijf"&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-4">
       <Input label="Bedrijfsnaam" value={form.bedrijfsnaam} onChange={v=>setForm(p=>({...p,bedrijfsnaam:v}))}/>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4149,6 +4186,8 @@ export default function PlanningApp(){
   const [isNewEmployee,setIsNewEmployee]=useState(false);
   const [mobileMenuOpen,setMobileMenuOpen]=useState(false);
   const [settings,setSettings]=useState<AppSettings>(INIT_SETTINGS);
+  // Afkortingen van projectleiders direct beschikbaar voor alle schermen (plName)
+  setProjectleiderAliases(settings.projectleiderNamen);
   const [showVacImport,setShowVacImport]=useState(false);
   const [dbReady,setDbReady]=useState(false);
   const [loadError,setLoadError]=useState<string>("");
