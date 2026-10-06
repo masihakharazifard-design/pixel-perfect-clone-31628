@@ -1611,13 +1611,15 @@ function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
 }
 
 // ===== DASHBOARD =====
-function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
+function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowActive}:{
   projects:Project[];employees:Employee[];availability:AvailEntry[];
-  onNav:(n:Nav)=>void;onOpenProject:(p:Project)=>void;
+  onNav:(n:Nav)=>void;onOpenProject:(p:Project)=>void;onShowActive:()=>void;
 }){
   const dc=useDC();
   const now=new Date();
-  const active=projects.filter(p=>p.status==="In uitvoering");
+  // Alle werken met status "In uitvoering" (ook automatisch omgezette), op startdatum gesorteerd
+  const active=projects.filter(p=>p.status==="In uitvoering")
+    .sort((a,b)=>String(a.startdatum||"").localeCompare(String(b.startdatum||""))||String(a.werknummer).localeCompare(String(b.werknummer)));
   const thisWeek=projects.filter(p=>{const s=new Date(p.startdatum),e=new Date(p.afloopdatum),start=new Date(now);start.setDate(now.getDate()-(now.getDay()||7)+1);start.setHours(0,0,0,0);const end=new Date(start);end.setDate(start.getDate()+6);return s<=end&&e>=start;});
   const avail=employees.filter(e=>{const avToday=availability.filter(a=>a.employeeId===e.id&&a.date===TODAY_STR);return avToday.length===0||avToday.some(a=>a.status==="Beschikbaar");});
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
@@ -1635,7 +1637,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
       <p className="text-[#6B7A99] text-xs md:text-sm">{now.toLocaleDateString("nl-NL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-      {stats.map(s=><button key={s.label} onClick={()=>onNav(s.nav)} className="bg-white rounded-2xl p-3 md:p-4 text-left hover:shadow-md transition-all border border-[rgba(26,39,68,0.06)] hover:border-[rgba(26,39,68,0.12)]">
+      {stats.map(s=><button key={s.label} onClick={()=>s.label==="Actieve werken"?onShowActive():onNav(s.nav)}className="bg-white rounded-2xl p-3 md:p-4 text-left hover:shadow-md transition-all border border-[rgba(26,39,68,0.06)] hover:border-[rgba(26,39,68,0.12)]">
         <div className="flex items-center justify-between mb-2 md:mb-3">
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center" style={{backgroundColor:s.bg}}><s.icon className="w-4 h-4 md:w-5 md:h-5" style={{color:s.color}}/></div>
           {s.value>0&&<span className="text-xs text-[#6B7A99]">→</span>}
@@ -1647,17 +1649,18 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
-          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve werken</h3>
-          <button onClick={()=>onNav("projecten")} className="text-xs text-[#0ABFB8] hover:underline">Alle werken</button>
+          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve werken{active.length>0&&<span className="ml-1.5 text-xs font-medium text-[#6B7A99]">({active.length})</span>}</h3>
+          <button onClick={onShowActive} className="text-xs text-[#0ABFB8] hover:underline">Alle actieve werken</button>
         </div>
-        <div className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {active.slice(0,6).map(p=>{
+        {/* Alle actieve werken; bij veel werken scrollt de lijst */}
+        <div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-[26rem] overflow-y-auto">
+          {active.map(p=>{
             const afds=getAllAfds(p);
             return <button key={p.id} onClick={()=>onOpenProject(p)} className="w-full px-4 md:px-5 py-2.5 md:py-3 flex items-center gap-3 hover:bg-[#F8F9FC] transition-colors text-left">
               <div className="w-2 h-7 md:h-8 rounded-full flex-shrink-0 overflow-hidden" style={afds.length===1?{backgroundColor:dc[afds[0]].bg}:{background:`linear-gradient(180deg, ${dc[afds[0]].bg} 50%, ${afds[1]?dc[afds[1]].bg:dc[afds[0]].bg} 50%)`}}/>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-[#1A2744] text-sm truncate">{p.projectnaam}</p>
-                <p className="text-xs text-[#6B7A99] truncate">{p.opdrachtgever} · {p.plaats}</p>
+                <p className="font-medium text-[#1A2744] text-sm truncate">{p.werknummer?`${p.werknummer} – `:""}{p.projectnaam}</p>
+                <p className="text-xs text-[#6B7A99] truncate">{[p.opdrachtgever,p.plaats].filter(Boolean).join(" · ")}{validDate(p.startdatum)?` · ${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)}`:""}</p>
               </div>
               <StatusBadge status={p.status}/>
             </button>;
@@ -1784,14 +1787,16 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
   </div>;
 }
 
-function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
+function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange,initialProjStatus=[]}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
   onImport:(rows:ImportRow[])=>void|Promise<void>;
   onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
+  /** Startfilter op werkstatus, bijv. vanuit het Dashboard ("Actieve werken") */
+  initialProjStatus?:string[];
 }){
   const dc=useDC();
-  const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
+  const [filters,setFilters]=useState<ColFilters>(()=>({...EMPTY_FILTERS,projStatus:initialProjStatus}));
   const [del,setDel]=useState<string|null>(null);
   const [showImport,setShowImport]=useState(false);
   const [page,setPage]=useState(1);
@@ -4119,6 +4124,10 @@ function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,
 // ===== APP =====
 export default function PlanningApp(){
   const [nav,setNav]=useState<Nav>("dashboard");
+  // Eenmalig startfilter voor Werken (bijv. "In uitvoering" vanuit het Dashboard); vervalt bij weggaan.
+  const [werkenPreset,setWerkenPreset]=useState<string[]>([]);
+  useEffect(()=>{if(nav!=="projecten")setWerkenPreset([]);},[nav]);
+  const showActiveWerken=()=>{setWerkenPreset(["In uitvoering"]);setNav("projecten");};
   const [projects,setProjects]=useState<Project[]>([]);
   const [employees,setEmployees]=useState<Employee[]>([]);
   const [avail,setAvail]=useState<AvailEntry[]>([]);
@@ -4560,8 +4569,8 @@ export default function PlanningApp(){
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
-          {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
+          {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject} onShowActive={showActiveWerken}/>}
+          {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
