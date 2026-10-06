@@ -100,6 +100,18 @@ export function normalizeProjectnr(v: unknown): string {
   return String(v ?? "").trim();
 }
 
+/**
+ * Vergelijkingssleutel voor werknummers bij de Excel-import: hoofdletterongevoelig, zonder spaties
+ * en zonder Excel-decimalen ("24001.0" = "24001"). Zo komt een werk nooit dubbel in het systeem.
+ */
+export function werkKey(v: unknown): string {
+  return String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/^(\d+)\.0+$/, "$1");
+}
+
 
 export function cellStr(v: unknown): string {
   if (v == null) return "";

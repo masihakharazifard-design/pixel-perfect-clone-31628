@@ -9,8 +9,8 @@ import {
   mapVacStatus,
   matchProjectHeaders,
   normalizeHeader,
-  normalizeProjectnr,
   parseTimeCell,
+  werkKey,
   parseXlDate,
   resolveDept,
   type ImportRow,
@@ -51,7 +51,7 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
 
   const { index: col, missing } = matchProjectHeaders(raw[headerRowIdx] as unknown[]);
 
-  const existingWorkNumbers = new Set(existing.map((v) => v.toLowerCase()));
+  const existingWorkNumbers = new Set(existing.map(werkKey).filter(Boolean));
   const dataRows = raw.slice(headerRowIdx + 1);
   const allRows: ImportRow[] = [];
   const get = (row: unknown[], key: keyof typeof col) => (col[key] >= 0 ? cellStr(row[col[key]]) : "");
@@ -105,7 +105,7 @@ function handleProjects(buffer: ArrayBuffer, existing: string[]): void {
   const byNr = new Map<string, ImportRow>();
   let duplicaten = 0;
   geldig.forEach((r) => {
-    const nr = normalizeProjectnr(r.werknummer).toLowerCase();
+    const nr = werkKey(r.werknummer);
     if (byNr.has(nr)) duplicaten++;
     byNr.set(nr, r);
   });

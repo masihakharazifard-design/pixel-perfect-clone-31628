@@ -15,7 +15,7 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
-import { normalizeProjectnr, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
+import { werkKey, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
 import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
 import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";
 import { createIndexOpenProjectsProvider, OPEN_PROJECTS_LIMIT, type OpenProjectsProvider } from "@/lib/open-projects";
@@ -88,6 +88,8 @@ interface AppSettings {
   teamColors?:Record<string,string>;
   statusColors?:Record<string,string>;
   projectColors?:Record<string,string>;
+  /** Kleur per projectleider (sleutel = naam zoals getoond), gebruikt bij Schilderwerk-blokken */
+  projectleiderColors?:Record<string,string>;
   borderColors?:Record<string,string>;
   badgeColors?:Record<string,string>;
   holidayColor?:string;
@@ -404,6 +406,45 @@ function projectPlanningColorOf(projectId:string|undefined|null,projectColors:Re
   if(!projectId)return FALLBACK_PROJECT_COLOR;
   return projectColors[projectId]||generatedProjectColor(stableIdx(projectId));
 }
+// ===== PROJECTLEIDERKLEUREN (Schilderwerk) =====
+// Sleutel = de naam van de projectleider zoals getoond (plName). Handmatige kleur uit settings.projectleiderColors,
+// anders een vaste kleur afgeleid van de naam.
+function projectleiderKey(p:Project,employees:Employee[]):string{return plName(p,employees).trim();}
+function projectleiderColorOf(name:string,map:Record<string,string>={}):string{
+  if(!name)return FALLBACK_PROJECT_COLOR;
+  return map[name]||generatedProjectColor(stableIdx("pl:"+name.toLowerCase())+311);
+}
+function isSchilderwerk(p:Project):boolean{return getAllAfds(p).includes("Schilderwerk");}
+// Achtergrond van een planningblok: Schilderwerk met projectleider = tweekleurig (werk | projectleider).
+function planBlockBg(projColor:string,plColor?:string|null):React.CSSProperties{
+  return plColor?{background:`linear-gradient(90deg, ${projColor} 0%, ${projColor} 68%, ${plColor} 68%, ${plColor} 100%)`}:{backgroundColor:projColor};
+}
+// Tekst in een blok: maximaal twee regels, daarna afgekapt (volledige tekst staat in de tooltip).
+const TWO_LINES:React.CSSProperties={display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",overflowWrap:"anywhere",whiteSpace:"normal",lineHeight:1.2};
+// ===== WERKDAGEN (zaterdag/zondag worden nooit automatisch ingepland) =====
+const isWeekendStr=(ds:string)=>weekdayIdx(ds)>=5;
+function addWorkdays(ds:string,n:number):string{
+  let d=ds;let left=Math.abs(n);const step=n<0?-1:1;
+  while(left>0){d=shiftDate(d,step);if(!isWeekendStr(d))left--;}
+  return d;
+}
+function workdayDiff(from:string,to:string):number{
+  if(from===to)return 0;
+  const step=to>from?1:-1;let d=from,n=0;
+  while(d!==to){d=shiftDate(d,step);if(!isWeekendStr(d))n+=step;}
+  return n;
+}
+// Planningregels van één werk verschuiven naar een nieuwe startdag. Doelt de gebruiker op een werkdag,
+// dan schuiven werkdagen over werkdagen (weekend blijft leeg); expliciet op een weekenddag = kalenderdagen.
+function shiftPlanRows(rows:AvailEntry[],newStart:string):AvailEntry[]{
+  if(!rows.length)return [];
+  const oldStart=rows.map(r=>r.date).sort()[0];
+  if(oldStart===newStart)return [];
+  const cal=Math.round((new Date(newStart+"T12:00").getTime()-new Date(oldStart+"T12:00").getTime())/86400000);
+  const useWork=!isWeekendStr(newStart)&&!isWeekendStr(oldStart);
+  const wd=useWork?workdayDiff(oldStart,newStart):0;
+  return rows.map(r=>({...r,date:useWork&&!isWeekendStr(r.date)?addWorkdays(r.date,wd):shiftDate(r.date,cal),isFirstOfDay:false,volgorde:undefined}));
+}
 
 // Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
 function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
@@ -695,7 +736,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
       worker.onerror=()=>{setParseError("Fout bij het lezen van het bestand. Zorg dat het een geldig .xlsx of .xls bestand is.");finish();};
       const req:ImportWorkerRequest={
         mode:"projects",buffer:buf,
-        existingWorkNumbers:projects.map(p=>normalizeProjectnr(p.werknummer)).filter(Boolean),
+        existingWorkNumbers:projects.map(p=>werkKey(p.werknummer)).filter(Boolean),
       };
       worker.postMessage(req,[buf]);
     }catch(err){
@@ -1972,13 +2013,9 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
           })}
         </div>
         {evs.map(ev=>{
-          const offsetCols=showWeekNumbers?1:0;
-          const totalCols=7+(showWeekNumbers?1:0);
-          const colW=100/totalCols;
-          const leftOffset=showWeekNumbers?colW:0;
-          const cellW=100/totalCols;
-          const left=leftOffset+ev.sc*cellW;
-          const width=(ev.ec-ev.sc+1)*cellW;
+          // Zelfde maatvoering als het raster: vaste weeknummerkolom (28px) + 7 gelijke dagkolommen
+          const wk=showWeekNumbers?28:0;
+          const span=ev.ec-ev.sc+1;
           const top=36+ev.slot*22;
           const st=agendaProjStyle(ev.project,dc);
           const label=agendaLabel(ev.project,employees);
@@ -1986,7 +2023,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
             onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
             onClick={e=>{e.stopPropagation();onClickProject(ev.project);}}
             className="absolute h-5 rounded flex items-center text-white text-xs font-medium px-1.5 cursor-grab hover:brightness-110 transition-all z-10 overflow-hidden select-none"
-            style={{left:`${left+0.3}%`,width:`${width-0.6}%`,top,...st,borderRadius:ev.cl?"0 4px 4px 0":ev.cr?"4px 0 0 4px":"4px"}}>
+            style={{left:`calc(${wk}px + (100% - ${wk}px) * ${ev.sc} / 7 + 2px)`,width:`calc((100% - ${wk}px) * ${span} / 7 - 4px)`,top,...st,borderRadius:ev.cl?"0 4px 4px 0":ev.cr?"4px 0 0 4px":"4px"}}>
             {ev.cl&&<span className="mr-1 opacity-70 flex-shrink-0">◀</span>}
             <span className="truncate">{label}</span>
             {ev.cr&&<span className="ml-1 opacity-70 flex-shrink-0">▶</span>}
@@ -2102,7 +2139,8 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
 }){
   const dc=useDC();
   const selectedDateKey=toDateStr(date);
-  const dayProjs=projects.filter(p=>datePart(p.startdatum)===selectedDateKey&&!!timePart(p.startdatum));
+  // Alleen werken die binnen deze ene dag vallen krijgen een tijdblok; meerdaagse werken staan bovenaan (één keer)
+  const dayProjs=projects.filter(p=>datePart(p.startdatum)===selectedDateKey&&datePart(p.afloopdatum)===selectedDateKey&&!!timePart(p.startdatum));
   const allDay=projects.filter(p=>{const s=new Date(p.startdatum),e=new Date(p.afloopdatum);return!sameDay(s,e)&&(sameDay(s,date)||sameDay(e,date)||s<date&&e>date);});
   const resizeRef=useRef<{id:string;startY:number;origEndMs:number;origStartMs:number}|null>(null);
   const [resizingId,setResizingId]=useState<string|null>(null);
@@ -2129,7 +2167,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
         <p className="text-xs text-[#6B7A99]">Week {wn}{hol&&<span className="text-red-500 ml-2">🎉 {hol}</span>}</p>
       </div>
       <div className="flex flex-wrap gap-1 ml-2">
-        {allDay.map(p=><button key={p.id} title={agendaLabel(p,employees)} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}</button>)}
+        {allDay.map(p=><button key={p.id} title={agendaLabel(p,employees)} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}{agendaEmpNames(p,employees)?` · ${agendaEmpNames(p,employees)}`:""}</button>)}
       </div>
     </div>
     <div className="flex flex-1 overflow-y-auto">
@@ -2239,12 +2277,9 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                 })}
               </div>
               {evs.map(ev=>{
-                const totalCols=7+(showWeekNumbers?1:0);
-                const colW=100/totalCols;
-                const leftOffset=showWeekNumbers?colW:0;
-                const cellW=100/totalCols;
-                const left=leftOffset+ev.sc*cellW;
-                const width=(ev.ec-ev.sc+1)*cellW;
+                // Zelfde maatvoering als het raster: vaste weeknummerkolom (24px) + 7 gelijke dagkolommen
+                const wk=showWeekNumbers?24:0;
+                const span=ev.ec-ev.sc+1;
                 const top=26+ev.slot*18;
                 const st=agendaProjStyle(ev.project,dc);
                 const label=agendaLabel(ev.project,employees);
@@ -2252,7 +2287,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                   onDragStart={e=>handleDragStart(e,ev.project,week[ev.sc])}
                   onClick={e=>{e.stopPropagation();onClickProject(ev.project);}}
                   className="absolute h-4 rounded flex items-center text-white font-medium px-1 cursor-grab hover:brightness-110 transition-all z-10 overflow-hidden select-none"
-                  style={{left:`${left+0.2}%`,width:`${width-0.4}%`,top,...st,fontSize:"9px",borderRadius:ev.cl?"0 3px 3px 0":ev.cr?"3px 0 0 3px":"3px"}}>
+                  style={{left:`calc(${wk}px + (100% - ${wk}px) * ${ev.sc} / 7 + 1px)`,width:`calc((100% - ${wk}px) * ${span} / 7 - 2px)`,top,...st,fontSize:"9px",borderRadius:ev.cl?"0 3px 3px 0":ev.cr?"3px 0 0 3px":"3px"}}>
                   {ev.cl&&<span className="mr-0.5 opacity-70 flex-shrink-0">◀</span>}
                   <span className="truncate">{label}</span>
                   {ev.cr&&<span className="ml-0.5 opacity-70 flex-shrink-0">▶</span>}
@@ -2300,66 +2335,72 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
-  // Projecten met planningregels worden per tijdvak getoond: zelfde tijd = één blok, andere tijd = apart blok
+  // Elk werk staat maar één keer in de Agenda: alle planningregels (alle medewerkers, alle dagen)
+  // vormen samen één blok van de eerste t/m de laatste ingeplande dag.
   const agendaProjects:Project[]=[];
   filteredProjects.forEach(p=>{
     const rows=projectPlans(availability,p.id);
     if(!rows.length){agendaProjects.push(p);return;}
-    const groups=new Map<string,AvailEntry[]>();
-    // Zelfde werk + dag + tijdvak = één blok met alle ingeplande medewerkers, ook als ze apart zijn ingepland (eigen reeks)
-    rows.forEach(r=>{const k=`${r.date}|${r.startTime}|${r.endTime}||${r.teamId||""}`;groups.set(k,[...(groups.get(k)||[]),r]);});
-    [...groups.entries()].forEach(([k,rs])=>{
-      const [date,st,et,rk,tm]=k.split("|");
-      const ids=[...new Set(rs.map(r=>r.employeeId))].sort();
-      agendaProjects.push({...p,id:`${p.id}::${date}::${st}::${et}::${rk}::${tm}`,medewerkers:ids,
-        startdatum:combineLocalDT(date,st,8,0),afloopdatum:combineLocalDT(date,et,17,0),
-        eersteVanDag:rs.some(r=>r.isFirstOfDay),
-        // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
-        teamKleur:undefined});
-    });
+    const dates=rows.map(r=>r.date).sort();
+    const first=dates[0],last=dates[dates.length-1];
+    const st=rows.filter(r=>r.date===first).map(r=>r.startTime).sort()[0]||"08:00";
+    const et=rows.filter(r=>r.date===last).map(r=>r.endTime).sort().slice(-1)[0]||"17:00";
+    const ids=[...new Set(rows.map(r=>r.employeeId))].sort();
+    agendaProjects.push({...p,id:`${p.id}::plan`,medewerkers:ids,
+      startdatum:combineLocalDT(first,st,8,0),afloopdatum:combineLocalDT(last,et,17,0),
+      eersteVanDag:rows.some(r=>r.isFirstOfDay),
+      // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
+      teamKleur:undefined});
   });
   // Agenda toont uitsluitend projecten/projectplanningen; persoonlijke afwezigheid blijft in Personeelsplanning.
   const realId=(id:string)=>id.split("::")[0];
+  const isPlanBlock=(id:string)=>id.includes("::");
   const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
+  // Maand/kwartaal: blok verslepen = alle planningregels van het werk verschuiven (weekend blijft leeg).
   const handleDropProject=(id:string,newStart:Date)=>{
+    if(isPlanBlock(id)){
+      const moved=shiftPlanRows(projectPlans(availability,realId(id)),toDateStr(newStart));
+      if(moved.length)void onSaveManyPlanning(moved);
+      return;
+    }
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
     newStart.setHours(origStart.getHours(),origStart.getMinutes(),0,0);
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
+  // Week/dag: blok naar een ander tijdstip slepen. Bij een werk van één dag krijgen alle medewerkers
+  // de nieuwe dag en begintijd (duur blijft gelijk); bij meerdere dagen schuift de hele planning mee.
   const handleDropProjectTime=(id:string,newStart:Date)=>{
+    if(isPlanBlock(id)){
+      const rows=projectPlans(availability,realId(id));
+      if(!rows.length)return;
+      const newDate=toDateStr(newStart);
+      if(new Set(rows.map(r=>r.date)).size>1){const moved=shiftPlanRows(rows,newDate);if(moved.length)void onSaveManyPlanning(moved);return;}
+      const newStartMin=newStart.getHours()*60+newStart.getMinutes();
+      void onSaveManyPlanning(rows.map(r=>{
+        const dur=Math.max(15,toMin(r.endTime)-toMin(r.startTime));
+        return {...r,date:newDate,startTime:fromMin(newStartMin),endTime:fromMin(Math.min(24*60-1,newStartMin+dur))};
+      }));
+      return;
+    }
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
-  // Dagweergave: sleep een blok dat uit planningregels komt -> verplaats die planningregels zelf.
-  const handleDropProjectDayTime=(id:string,newStart:Date)=>{
-    const parts=id.split("::");
-    if(parts.length>=4){
-      const [pid,oldDate,oldSt,oldEt,,oldTm=""]=parts;
-      // Alle medewerkers in dit agendablok verhuizen samen mee
-      const rows=availability.filter(r=>
-        String(r.projectId||"")===String(pid)
-        &&r.status==="Ingepland"
-        &&String(r.date).slice(0,10)===oldDate
-        &&r.startTime===oldSt
-        &&r.endTime===oldEt
-        &&String(r.teamId||"")===String(oldTm||""));
-      if(rows.length){
-        const newDate=toDateStr(newStart);
-        const newStartMin=newStart.getHours()*60+newStart.getMinutes();
-        const updated=rows.map(r=>{
-          const dur=Math.max(15,toMin(r.endTime)-toMin(r.startTime));
-          return {...r,date:newDate,startTime:fromMin(newStartMin),endTime:fromMin(Math.min(24*60,newStartMin+dur))};
-        });
-        void onSaveManyPlanning(updated);
-        return;
-      }
+  const handleDropProjectDayTime=handleDropProjectTime;
+  // Eindtijd verslepen: bij een werk van één dag krijgen alle regels van die dag de nieuwe eindtijd.
+  const handleResize=(id:string,newEnd:Date)=>{
+    if(isPlanBlock(id)){
+      const rows=projectPlans(availability,realId(id));
+      if(!rows.length||new Set(rows.map(r=>r.date)).size>1)return;
+      const et=fromMin(newEnd.getHours()*60+newEnd.getMinutes());
+      const ok=rows.filter(r=>toMin(et)>toMin(r.startTime));
+      if(ok.length)void onSaveManyPlanning(ok.map(r=>({...r,endTime:et})));
+      return;
     }
-    handleDropProjectTime(id,newStart);
+    updateProject(realId(id),{afloopdatum:newEnd.toISOString()});
   };
-  const handleResize=(id:string,newEnd:Date)=>{updateProject(realId(id),{afloopdatum:newEnd.toISOString()});};
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
@@ -2470,11 +2511,20 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
   },[wnMatches,wnQuery,projectId]);
   // Zoeken via de vooraf opgebouwde zoekindex, met harde limiet: nooit de volledige lijst mappen.
   const results=useMemo(()=>searchIndexedProjects(q,20),[q]);
-  const days=useMemo(()=>{
+  // Zaterdag en zondag worden standaard overgeslagen; alleen met het vinkje (of als je uitsluitend
+  // weekenddagen kiest) worden ze ingepland.
+  const [inclWeekend,setInclWeekend]=useState(false);
+  const allDays=useMemo(()=>{
     if(!d)return [];
     if(!multi||!dEnd||dEnd<=d)return [d];
     return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
   },[d,dEnd,multi]);
+  const weekendInRange=allDays.length>1&&allDays.some(isWeekendStr);
+  const days=useMemo(()=>{
+    if(inclWeekend)return allDays;
+    const wd=allDays.filter(x=>!isWeekendStr(x));
+    return wd.length?wd:allDays;
+  },[allDays,inclWeekend]);
   const chosenEmployeeIds=multiEmployeeSelect?empIds:(emp?[emp]:[]);
   // Staat de medewerker op die dag al op ditzelfde werk in dit tijdvak? Dan wordt die dag overgeslagen (geen dubbele regel).
   const alreadyOn=useCallback((employeeId:string,day:string)=>!!sel&&availability.some(a=>a.id!==editId&&a.employeeId===employeeId&&a.date===day
@@ -2522,7 +2572,11 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
         </div>
       </div>
       {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
-      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland.</p>}
+      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
+      {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#1A2744]">
+        <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
+        Ook op zaterdag en zondag inplannen
+      </label>}
 
       {!projectId&&<div className="space-y-2">
         <Input label="Werknummer" value={wn} onChange={setWn} placeholder="Bijv. 12345"/>
@@ -2645,7 +2699,8 @@ function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
         <Input label="Starttijd" value={f.startTime} onChange={v=>upd({startTime:v})} type="time"/>
         <Input label="Eindtijd" value={f.endTime} onChange={v=>upd({endTime:v})} type="time"/>
       </div>}
-      <Input label="Notitie" value={f.note} onChange={v=>upd({note:v})} placeholder="Optioneel"/>
+      <Input label={f.status==="Bezet"?"Omschrijving (waarmee bezet?)":"Omschrijving"} value={f.note} onChange={v=>upd({note:v})}
+        placeholder={f.status==="Bezet"?"Bijv. cursus, keuring, ander werk…":"Optioneel"}/>
       <p className="text-xs text-[#6B7A99]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
       {conflicts.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
         <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
@@ -2667,8 +2722,8 @@ function findConflictsMulti(av:AvailEntry[],employees:Employee[],getProject:(id?
 }
 
 // ===== KLEUREN BEHEREN =====
-function ColorManagerModal({settings,teams,onSave,onClose}:{
-  settings:AppSettings;teams:{key:string;label:string}[];
+function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
+  settings:AppSettings;teams:{key:string;label:string}[];projectleiders?:string[];
   onSave:(s:AppSettings)=>void;onClose:()=>void;
 }){
   const [s,setS]=useState<AppSettings>(settings);
@@ -2700,6 +2755,9 @@ function ColorManagerModal({settings,teams,onSave,onClose}:{
       {section("Filters",filters.map(f=>row("fl-"+f.id,f.naam,f.kleur,
         c=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:c}:x)})),
         ()=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:DEFAULT_DC[(x.afdeling as Afdeling)]?.bg||"#0ABFB8"}:x)})))))}
+      {projectleiders.length>0&&section("Projectleiders (Schilderwerk — tweede kleur in het blok)",projectleiders.map(n=>row("pl-"+n,n,projectleiderColorOf(n,s.projectleiderColors||{}),
+        c=>setS(p=>({...p,projectleiderColors:{...(p.projectleiderColors||{}),[n]:c}})),
+        ()=>setS(p=>{const m={...(p.projectleiderColors||{})};delete m[n];return{...p,projectleiderColors:m};}))))}
       {teams.length>0&&section("Teams",teams.map(t=>row("tm-"+t.key,t.label,teamColor(t.key,teamColors),
         c=>setS(p=>({...p,teamColors:{...(p.teamColors||{}),[t.key]:c}})),
         ()=>setS(p=>{const n={...(p.teamColors||{})};delete n[t.key];return{...p,teamColors:n};}))))}
@@ -2720,7 +2778,7 @@ function ColorManagerModal({settings,teams,onSave,onClose}:{
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};})))}</>)}
     </div>
     <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
-      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
+      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},projectleiderColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
         <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
@@ -2774,6 +2832,9 @@ function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
 
 // ===== PERSONEELSPLANNING =====
 type PlanView="dag"|"week"|"maand"|"kwartaal";
+// Vaste kolombreedtes (px) zodat iedere dag/week even breed is
+const MONTH_COL_W=72;
+const QUARTER_COL_W=96;
 // Greep rechts op een blok: slepen (week) of het venster "Periode aanpassen" (kleine cellen)
 // Periode/tijd van een blok aanpassen via een venster (kleine cellen of mobiel)
 function PeriodResizeModal({block,start,end,onClose,onSave}:{block:AvailEntry;start:string;end:string;onClose:()=>void;onSave:(p:{endTime?:string;endDate?:string})=>Promise<void>;}){
@@ -2955,16 +3016,25 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
   // Alles komt uit dezelfde planningregels (availability met projectId)
   const rowsFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!!a.projectId&&a.status==="Ingepland").sort(byVolgorde);
+  // ===== Filter op projectleider (alleen weergave) =====
+  const [plFilter,setPlFilter]=useState("");
+  const plOk=(p?:Project|null)=>!plFilter||(!!p&&projectleiderKey(p,employees)===plFilter);
+  const {plOptions,plSchilder}=useMemo(()=>{
+    const s=new Set<string>(),sw=new Set<string>();
+    avIdx.planByProjectId.forEach((_rows,pid)=>{const p=getIndexedProject(pid);if(p){const n=projectleiderKey(p,employees);if(n){s.add(n);if(isSchilderwerk(p))sw.add(n);}}});
+    const sort=(x:Set<string>)=>[...x].sort((a,b)=>a.localeCompare(b,"nl"));
+    return {plOptions:sort(s),plSchilder:sort(sw)};
+  },[avIdx,projVersion,employees]);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
-    return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj) as {row:AvailEntry;proj:Project}[];
+    return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj&&plOk(x.proj)) as {row:AvailEntry;proj:Project}[];
   };
   const getEmpProjsWeek=(empId:string,wk:Date)=>{
     const days=Array.from({length:7},(_,i)=>{const d=new Date(wk);d.setDate(wk.getDate()+i);return toDateStr(d);});
     const seen=new Set<string>();const out:Project[]=[];
     days.flatMap(d=>rowsFor(empId,d)).forEach(a=>{
       const p=visProj(a.projectId);
-      if(p&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
+      if(p&&plOk(p)&&!seen.has(p.id)){seen.add(p.id);out.push(p);}
     });
     return out;
   };
@@ -2973,6 +3043,15 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const absFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   // Kleur van een planningregel: uitsluitend op projectId (teamkleur telt hier niet mee).
   const rowColor=(a:AvailEntry)=>projectPlanningColorOf(a.projectId,projectColors);
+  // Schilderwerk: tweede kleur voor de projectleider
+  const plColors=settings.projectleiderColors||{};
+  const plColorFor=(p:Project):string|null=>{
+    if(!isSchilderwerk(p))return null;
+    const n=projectleiderKey(p,employees);
+    return n?projectleiderColorOf(n,plColors):null;
+  };
+  const blockStyle=(row:AvailEntry,p:Project)=>planBlockBg(rowColor(row),plColorFor(p));
+  const blockTitle=(row:AvailEntry,p:Project)=>`${tooltipText(row,p,employees)}${plColorFor(p)?`\nProjectleider: ${projectleiderKey(p,employees)}`:""}`;
 
   const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
@@ -3054,7 +3133,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       const start=dts[0]||row.date;
       const endDate=patch.endDate&&patch.endDate>=start?patch.endDate:(patch.endDate?start:(dts[dts.length-1]||row.date));
       const endTime=patch.endTime||row.endTime;
-      const span=getDatesInRange(new Date(start+"T12:00"),new Date(endDate+"T12:00"));
+      // Doortrekken slaat zaterdag/zondag over; bestaande (bewust geplande) weekenddagen blijven staan.
+      const fullSpan=getDatesInRange(new Date(start+"T12:00"),new Date(endDate+"T12:00"));
+      const kept=fullSpan.filter(d=>!isWeekendStr(d)||rows.some(r=>r.date===d));
+      const span=kept.length?kept:[start];
       span.forEach(d=>{
         const key=`${row.employeeId}|${row.projectId}|${reeks}|${d}|${row.startTime}|${endTime}`;
         if(seen.has(key))return;seen.add(key);
@@ -3189,6 +3271,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   // Snelmenu op een cel: direct een afwezigheidsstatus zetten of inplannen
   const quickStatus=async(empId:string,ds:string,status:AvailStatus)=>{
     setCellMenu(null);
+    // Bezet: eerst een omschrijving laten invullen (bijv. waarmee de medewerker bezet is)
+    if(status==="Bezet"){setAbsModal({employeeId:empId,startDate:ds,endDate:ds,startTime:"00:00",endTime:"23:59",status:"Bezet",note:"",wholeDay:true});return;}
     await onSaveAbsence({employeeId:empId,startDate:ds,endDate:ds,startTime:"00:00",endTime:"23:59",status,note:"",wholeDay:true});
   };
 
@@ -3292,7 +3376,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     const ds=toDateStr(date);
     const abs=avIdx.forEmployeeDate(empId,ds).filter(a=>!planRows([a]).length)
       .map(av=>({av,proj:undefined as Project|undefined})).sort((a,b)=>a.av.startTime.localeCompare(b.av.startTime));
-    const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!!x.proj);
+    const plans=rowsFor(empId,ds).map(av=>({av,proj:visProj(av.projectId)})).filter(x=>!!x.proj&&plOk(x.proj));
     return [...abs,...plans];
   };
 
@@ -3315,6 +3399,14 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const visibleDateStrings=useMemo(()=>(
     periodStart&&periodEnd?getDatesInRange(new Date(periodStart),new Date(periodEnd)):[]
   ),[periodStart?.getTime(),periodEnd?.getTime()]);
+  // Met een projectleiderfilter: alleen medewerkers die in deze periode op een werk van die projectleider staan.
+  const plEmpIds=useMemo(()=>{
+    if(!plFilter)return null;
+    const s=new Set<string>();
+    planRows(avIdx.forDates(visibleDateStrings)).forEach(a=>{const p=visProj(a.projectId);if(p&&projectleiderKey(p,employees)===plFilter)s.add(a.employeeId);});
+    return s;
+  },[plFilter,avIdx,visibleDateStrings,visProj,employees]);
+  const shownEmp=plEmpIds?visEmp.filter(e=>plEmpIds.has(e.id)):visEmp;
 
   // ===== Doorlopende meerdaagse balken =====
   // Alleen regels met hetzelfde reeksId (of aantoonbaar dezelfde doortrekactie) worden
@@ -3417,14 +3509,21 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:f.actief?"rgba(255,255,255,0.9)":f.kleur}}/>{f.naam}
         </button>)}
         <Btn variant="secondary" size="sm" onClick={()=>setShowFilters(true)}><Settings className="w-3.5 h-3.5"/>Filters</Btn>
+        <select value={plFilter} onChange={ev=>setPlFilter(ev.target.value)} title="Filter op projectleider"
+          className={`py-1.5 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 ${plFilter?"border-[#0ABFB8] text-[#1A2744] font-semibold bg-[#E0F7F6]":"border-[rgba(26,39,68,0.12)] text-[#6B7A99] bg-white"}`}>
+          <option value="">Alle projectleiders</option>
+          {plOptions.map(n=><option key={n} value={n}>{n}</option>)}
+        </select>
+        {plFilter&&<button onClick={()=>setPlFilter("")} className="text-xs text-[#0ABFB8] font-semibold">Wis</button>}
       </div>
     </div>
+    {plFilter&&shownEmp.length===0&&<p className="text-xs text-[#6B7A99]">Geen medewerkers ingepland op werken van {plFilter} in deze periode.</p>}
 
     {view==="dag"&&<div className="space-y-3">
       {getDHol(toDateStr(refDate))&&<div className="rounded-2xl px-4 py-2.5 text-sm font-semibold" style={{backgroundColor:withAlpha(holColor,0.1),borderLeft:`4px solid ${holColor}`,color:holColor}}>
         Landelijke feestdag — {getDHol(toDateStr(refDate))}
       </div>}
-      {visEmp.map(e=>{
+      {shownEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
         return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
@@ -3443,7 +3542,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                   className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
-                  {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}}/>}
+                  {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}} title="Kleur van het werk"/>}
+                  {proj&&plColorFor(proj)&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-2 ring-2 ring-white" style={{backgroundColor:plColorFor(proj)||undefined}} title={`Projectleider: ${projectleiderKey(proj,employees)}`}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
@@ -3466,12 +3566,13 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
     {(view==="week"||view==="maand")&&(
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
-      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{minWidth:`${180+dates.length*(view==="week"?90:44)}px`}}>
+      {/* Vaste tabelindeling: elke dag is even breed, lange teksten lopen nooit een kolom op */}
+      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${176+dates.length*(view==="week"?90:MONTH_COL_W)}px`,...(view==="maand"?{width:`${176+dates.length*MONTH_COL_W}px`}:null)}}>
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 w-44 min-w-44">Medewerker</th>
+            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20" style={{width:176}}>Medewerker</th>
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
-              style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`,minWidth:90}:null),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
+              style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
               className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
               <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1A2744] text-white":""}`}>{d.getDate()}</div>
@@ -3481,7 +3582,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           </tr>
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {visEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
+          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
             <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
               <div className="flex items-center gap-1.5">
                 <EmpOrderControls empId={e.id}/>
@@ -3492,7 +3593,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
             const blockState=dayBlockState(availability,e.id,ds);
             // Cellen met een doorlopende reeks krijgen geen horizontale padding, zodat de balk aansluit
-            const linkedCell=ps.some(x=>{const s=segInfo(x.row);return s.prev||s.next;});
+            const linkedCell=view==="week"&&ps.some(x=>{const s=segInfo(x.row);return s.prev||s.next;});
             const cellHol=getDHol(ds);
             return<td key={ds} onClick={ev=>cellClick(e.id,ds,ev)} onContextMenu={ev=>{ev.preventDefault();setCellMenu({empId:e.id,date:ds,x:ev.clientX,y:ev.clientY});}}
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
@@ -3502,18 +3603,22 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
-                    className="rounded px-1 py-0.5 text-[10px] font-semibold truncate block w-full text-left hover:opacity-90"
-                    style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>{a.status.slice(0,4)}</button>
+                    className="rounded px-1 py-0.5 text-[10px] font-semibold block w-full text-left hover:opacity-90"
+                    style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>
+                    <span style={TWO_LINES}>{a.note?`${view==="week"?a.status:a.status.slice(0,4)}: ${a.note}`:(view==="week"?a.status:a.status.slice(0,4))}</span>
+                  </button>
                   {seriesEnd(a)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===a.id} label={resizePv?.id===a.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,a,"date");}} onOpen={()=>setPeriodModal(a)}/>}
                 </div>)}
-                {ps.map(({row,proj},bi)=>{const seg=segInfo(row);return<div key={row.id} className="group relative">
+                {ps.map(({row,proj},bi)=>{
+                  // Maand: losse blokjes per dag (geen doorlopende balk); week: aansluitende reeksbalken
+                  const seg=view==="maand"?{prev:false,next:false}:segInfo(row);return<div key={row.id} className="group relative">
 
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""} ${view==="maand"?"truncate":""}`} style={{backgroundColor:rowColor(row),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={tooltipText(row, proj, employees)}>
+                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{...blockStyle(row,proj),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={blockTitle(row,proj)}>
                     {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0 mb-0.5" fill="currentColor"/>}
-                    <span className={`${view==="maand"?"truncate":"whitespace-normal leading-tight"}`} style={view==="maand"?undefined:{overflowWrap:"anywhere"}}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
+                    <span style={view==="maand"?TWO_LINES:{overflowWrap:"anywhere",whiteSpace:"normal",lineHeight:1.2,display:"block"}}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
@@ -3536,14 +3641,14 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
     {view==="kwartaal"&&(
     <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
-      <table className="text-xs" style={{minWidth:`${180+weeks.length*72}px`}}>
+      <table className="text-xs" style={{tableLayout:"fixed",width:`${176+weeks.length*QUARTER_COL_W}px`}}>
         <thead className="bg-[#F0F3F8] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20 min-w-40">Medewerker</th>
+            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20" style={{width:176}}>Medewerker</th>
             {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
               const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
-              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99] min-w-16" title={hols.join(", ")||undefined}
-                style={hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:undefined}>
+              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99]" title={hols.join(", ")||undefined}
+                style={{width:QUARTER_COL_W,...(hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:null)}}>
               <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
               {!!hols.length&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
@@ -3551,7 +3656,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           </tr>
         </thead>
         <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {visEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
+          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
             <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
               <div className="flex items-center gap-1.5">
                 <EmpOrderControls empId={e.id}/>
@@ -3561,8 +3666,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium truncate hover:opacity-80 transition-opacity block w-full text-left" style={{backgroundColor:projectPlanningColorOf(p.id,projectColors)}} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
-                  {p.projectnaam||p.werknummer}
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(projectPlanningColorOf(p.id,projectColors),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                  <span style={TWO_LINES}>{p.projectnaam||p.werknummer}</span>
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
@@ -3583,6 +3688,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
       {AVAIL_STATS.filter(s=>s!=="Vrij").map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
     </div>
+    {plSchilder.length>0&&<div className="flex items-center gap-3 flex-wrap">
+      <span className="text-xs font-semibold text-[#6B7A99]">Projectleiders Schilderwerk (rechterdeel van het blok):</span>
+      {plSchilder.map(n=><div key={n} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:projectleiderColorOf(n,plColors)}}/><span className="text-xs text-[#6B7A99]">{n}</span></div>)}
+    </div>}
     {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
       <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
       <div className="flex flex-wrap gap-3">
@@ -3655,7 +3764,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       onSave={async d=>{await onSaveAbsence(d);setAbsModal(null);}}
       onDelete={async pid=>{await onDeleteAbsence(pid);setAbsModal(null);}}
       onClose={()=>setAbsModal(null)}/>}
-    {showColors&&<ColorManagerModal settings={settings} teams={teams.map(t=>({key:t.key,label:t.label}))}
+    {showColors&&<ColorManagerModal settings={settings} teams={teams.map(t=>({key:t.key,label:t.label}))} projectleiders={plSchilder}
       onSave={s=>onSaveSettings(s)} onClose={()=>setShowColors(false)}/>}
     {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#1A2744] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
       Kies de einddag voor de afwezigheid
@@ -3685,7 +3794,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");
         }}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
-          <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s} (hele dag)
+          <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s==="Bezet"?"Bezet (met omschrijving)…":`${s} (hele dag)`}
         </button>)}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openFixedFree(c.empId);}}>Vaste vrije dagen…</button>
@@ -3978,7 +4087,7 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
 }
 
 // ===== Instellingen: verschil bepalen zodat alleen gewijzigde onderdelen naar de database gaan =====
-const NESTED_SETTING_MAPS=["projectColors","deptColors","teamColors","statusColors","borderColors","badgeColors"] as const;
+const NESTED_SETTING_MAPS=["projectColors","projectleiderColors","deptColors","teamColors","statusColors","borderColors","badgeColors"] as const;
 function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,unknown>;paths:SettingsPathPatch[]}{
   const changes:Record<string,unknown>={};const paths:SettingsPathPatch[]=[];
   const keys=new Set([...Object.keys(prev||{}),...Object.keys(next||{})]);
@@ -4312,11 +4421,11 @@ export default function PlanningApp(){
     // Alleen toevoegen: bestaande werken (match op Werknr.) worden genegeerd.
     const next=[...projects];
     const bekendeNrs=new Set<string>();
-    next.forEach(p=>{const nr=normalizeProjectnr(p.werknummer).toLowerCase();if(nr)bekendeNrs.add(nr);});
+    next.forEach(p=>{const nr=werkKey(p.werknummer);if(nr)bekendeNrs.add(nr);});
     const changed:Project[]=[];
     let nieuw=0,overgeslagen=0;
     rows.forEach(r=>{
-      const nr=normalizeProjectnr(r.werknummer).toLowerCase();
+      const nr=werkKey(r.werknummer);
       if(nr&&bekendeNrs.has(nr)){overgeslagen++;return;}
       const created=createProjectFromImportRow(r);
       next.push(created);changed.push(created);nieuw++;
