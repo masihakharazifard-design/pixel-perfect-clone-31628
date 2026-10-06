@@ -1710,9 +1710,9 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject}:{
 // Kolomfilters van de Werken-tabel: vrije tekst voor de tekstkolommen,
 // multi-select voor Status, A/R en Type.
 type TextFilterKey="werknummer"|"calculatiecode"|"opdrachtgever"|"straat"|"plaatsobject"|"opmerkingen";
-type MultiFilterKey="status"|"ar"|"type";
+type MultiFilterKey="status"|"ar"|"type"|"projStatus";
 type ColFilters = Record<TextFilterKey,string> & Record<MultiFilterKey,string[]>;
-const EMPTY_FILTERS:ColFilters={werknummer:"",calculatiecode:"",opdrachtgever:"",straat:"",plaatsobject:"",opmerkingen:"",status:[],ar:[],type:[]};
+const EMPTY_FILTERS:ColFilters={werknummer:"",calculatiecode:"",opdrachtgever:"",straat:"",plaatsobject:"",opmerkingen:"",status:[],ar:[],type:[],projStatus:[]};
 /** Type = afdelingsindeling van het werk (Turnkey/Combinatie bij meerdere afdelingen). */
 function typeLabel(p:Project):string{
   const afds=getAllAfds(p);
@@ -1784,10 +1784,11 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
   </div>;
 }
 
-function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport}:{
+function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport,onStatusChange}:{
   projects:Project[];employees:Employee[];
   onAdd:(prefill?:Partial<Project>)=>void;onEdit:(p:Project)=>void;onDelete:(id:string)=>void;onOpen:(p:Project)=>void;
   onImport:(rows:ImportRow[])=>void|Promise<void>;
+  onStatusChange:(p:Project,s:ProjectStatus)=>Promise<void>;
 }){
   const dc=useDC();
   const [filters,setFilters]=useState<ColFilters>(EMPTY_FILTERS);
@@ -1816,6 +1817,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       if(filters.opmerkingen&&!inc(projOpm(p),filters.opmerkingen))return false;
       if(filters.status.length&&!filters.status.includes(p.statusExcel||""))return false;
       if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
+      if(filters.projStatus.length&&!filters.projStatus.includes(p.status))return false;
       if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
       return true;
     });
@@ -1855,6 +1857,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       </div>
       <div className="grid grid-cols-1 gap-3">
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></div>
+        <div><label className="text-xs text-[#6B7A99] mb-1 block">Werkstatus</label><ColMulti values={filters.projStatus} onChange={setMulti("projStatus")} options={STATS}/></div>
         <div><label className="text-xs text-[#6B7A99] mb-1 block">A/R</label><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></div>
         <div><label className="text-xs text-[#6B7A99] mb-1 block">Type</label><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></div>
       </div>
@@ -1871,6 +1874,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
           <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
+          <StatusCell project={p} onStatusChange={onStatusChange}/>
           <span className="text-sm font-medium text-[#1A2744]">{p.statusExcel||"-"}</span>
         </div>
         <div className="px-4 py-3 space-y-1.5">
@@ -1897,6 +1901,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         <thead className="bg-[#FFFF00]">
           <tr>
             <ColHeader label="S" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
+            <ColHeader label="Status" active={filters.projStatus.length>0}><ColMulti values={filters.projStatus} onChange={setMulti("projStatus")} options={STATS}/></ColHeader>
             <ColHeader label="A/R" active={filters.ar.length>0}><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></ColHeader>
             <ColHeader label="Type" active={filters.type.length>0}><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></ColHeader>
             <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
@@ -1915,6 +1920,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
             const afds=getAllAfds(p);
             return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
               <td className="px-3 py-3 text-[#1A2744] font-medium">{p.statusExcel||"-"}</td>
+              <td className="px-3 py-3 whitespace-nowrap"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
               <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
               <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
               <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
@@ -4283,6 +4289,44 @@ export default function PlanningApp(){
   },[projects,derivedByProject]);
   // Centrale projectindex synchroon houden: alle schermen lezen hieruit met O(1) lookups.
   useEffect(()=>{projectIndex.rebuildProjectIndex(viewProjects);},[viewProjects]);
+
+  // ===== Automatisch "In uitvoering" =====
+  // Een werk met status Offerte/Bevestigd gaat vanzelf naar "In uitvoering" zodra vandaag binnen de
+  // ingeplande periode valt (eerste t/m laatste planningsdag). Afgeronde/gefactureerde werken blijven ongemoeid.
+  const [todayStr,setTodayStr]=useState(()=>toDateStr(new Date()));
+  useEffect(()=>{
+    const t=setInterval(()=>{const d=toDateStr(new Date());setTodayStr(p=>p===d?p:d);},60000);
+    return()=>clearInterval(t);
+  },[]);
+  const autoStartedRef=useRef(new Set<string>());
+  useEffect(()=>{
+    if(!dbReady)return;
+    const byId=new Map(projects.map(p=>[p.id,p]));
+    const due:Project[]=[];
+    availIndexes.planByProjectId.forEach((rows,pid)=>{
+      if(autoStartedRef.current.has(pid))return;
+      const p=byId.get(pid);
+      if(!p||(p.status!=="Offerte"&&p.status!=="Bevestigd"))return;
+      const dates=rows.filter(r=>r.status==="Ingepland").map(r=>r.date).sort();
+      if(!dates.length||dates[0]>todayStr||dates[dates.length-1]<todayStr)return;
+      due.push(p);
+    });
+    if(!due.length)return;
+    due.forEach(p=>autoStartedRef.current.add(p.id));
+    const ids=new Set(due.map(p=>p.id));
+    setProjects(cur=>cur.map(x=>ids.has(x.id)?{...x,status:"In uitvoering"}:x));
+    void Promise.allSettled(due.map(p=>setProjectStatusDb(p.id,"In uitvoering"))).then(res=>{
+      const failed=due.filter((_p,i)=>res[i].status==="rejected");
+      if(failed.length){
+        const back=new Map(failed.map(p=>[p.id,p.status]));
+        setProjects(cur=>cur.map(x=>back.has(x.id)?{...x,status:back.get(x.id) as ProjectStatus}:x));
+        failed.forEach(p=>autoStartedRef.current.delete(p.id));
+        toast.error(`${failed.length} werk${failed.length===1?"":"en"} kon${failed.length===1?"":"den"} niet automatisch op "In uitvoering" worden gezet.`);
+      }
+      const ok=due.filter((_p,i)=>res[i].status==="fulfilled");
+      if(ok.length)toast.success(ok.length===1?`${ok[0].werknummer} staat ingepland en is op "In uitvoering" gezet.`:`${ok.length} ingeplande werken zijn op "In uitvoering" gezet.`);
+    });
+  },[availIndexes,projects,todayStr,dbReady]);
   // ===== Facturatie =====
   // Querygebaseerd: filters + sortering globaal in de querylaag, daarna pas 50 rijen.
   // Facturatie krijgt nooit de volledige projectenlijst als prop.
@@ -4517,7 +4561,7 @@ export default function PlanningApp(){
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject}/>}
-          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport}/>}
+          {nav==="projecten"&&<ProjectenView projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
