@@ -2346,18 +2346,27 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
-  // Elk werk staat maar één keer in de Agenda: alle planningregels (alle medewerkers, alle dagen)
-  // vormen samen één blok van de eerste t/m de laatste ingeplande dag.
+  // Elk werk staat maar één keer in de Agenda. Werken met hetzelfde werknummer (dubbel ingelezen
+  // werken) tellen als één werk: al hun planningregels (alle medewerkers, alle dagen) vormen samen
+  // één blok van de eerste t/m de laatste ingeplande dag.
   const agendaProjects:Project[]=[];
-  filteredProjects.forEach(p=>{
-    const rows=projectPlans(availability,p.id);
-    if(!rows.length){agendaProjects.push(p);return;}
+  // Agendablok (id van het hoofdwerk) → alle werk-id's met hetzelfde werknummer
+  const blockGroups=new Map<string,string[]>();
+  const groups=new Map<string,Project[]>();
+  filteredProjects.forEach(p=>{const k=werkKey(p.werknummer)||"id:"+p.id;groups.set(k,[...(groups.get(k)||[]),p]);});
+  groups.forEach(list=>{
+    const withRows=list.map(p=>({p,rows:projectPlans(availability,p.id)}));
+    const rows=withRows.flatMap(x=>x.rows);
+    // Hoofdwerk: het werk met de meeste planningregels (anders het eerste)
+    const main=[...withRows].sort((a,b)=>b.rows.length-a.rows.length)[0].p;
+    if(!rows.length){agendaProjects.push(main);return;}
+    blockGroups.set(main.id,list.map(p=>p.id));
     const dates=rows.map(r=>r.date).sort();
     const first=dates[0],last=dates[dates.length-1];
     const st=rows.filter(r=>r.date===first).map(r=>r.startTime).sort()[0]||"08:00";
     const et=rows.filter(r=>r.date===last).map(r=>r.endTime).sort().slice(-1)[0]||"17:00";
     const ids=[...new Set(rows.map(r=>r.employeeId))].sort();
-    agendaProjects.push({...p,id:`${p.id}::plan`,medewerkers:ids,
+    agendaProjects.push({...main,id:`${main.id}::plan`,medewerkers:ids,
       startdatum:combineLocalDT(first,st,8,0),afloopdatum:combineLocalDT(last,et,17,0),
       eersteVanDag:rows.some(r=>r.isFirstOfDay),
       // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
@@ -2366,11 +2375,13 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   // Agenda toont uitsluitend projecten/projectplanningen; persoonlijke afwezigheid blijft in Personeelsplanning.
   const realId=(id:string)=>id.split("::")[0];
   const isPlanBlock=(id:string)=>id.includes("::");
+  // Alle planningregels achter één agendablok (ook van dubbele werken met hetzelfde werknummer)
+  const blockRows=(id:string)=>(blockGroups.get(realId(id))||[realId(id)]).flatMap(pid=>projectPlans(availability,pid));
   const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   // Maand/kwartaal: blok verslepen = alle planningregels van het werk verschuiven (weekend blijft leeg).
   const handleDropProject=(id:string,newStart:Date)=>{
     if(isPlanBlock(id)){
-      const moved=shiftPlanRows(projectPlans(availability,realId(id)),toDateStr(newStart));
+      const moved=shiftPlanRows(blockRows(id),toDateStr(newStart));
       if(moved.length)void onSaveManyPlanning(moved);
       return;
     }
@@ -2384,7 +2395,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   // de nieuwe dag en begintijd (duur blijft gelijk); bij meerdere dagen schuift de hele planning mee.
   const handleDropProjectTime=(id:string,newStart:Date)=>{
     if(isPlanBlock(id)){
-      const rows=projectPlans(availability,realId(id));
+      const rows=blockRows(id);
       if(!rows.length)return;
       const newDate=toDateStr(newStart);
       if(new Set(rows.map(r=>r.date)).size>1){const moved=shiftPlanRows(rows,newDate);if(moved.length)void onSaveManyPlanning(moved);return;}
@@ -2403,7 +2414,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   // Eindtijd verslepen: bij een werk van één dag krijgen alle regels van die dag de nieuwe eindtijd.
   const handleResize=(id:string,newEnd:Date)=>{
     if(isPlanBlock(id)){
-      const rows=projectPlans(availability,realId(id));
+      const rows=blockRows(id);
       if(!rows.length||new Set(rows.map(r=>r.date)).size>1)return;
       const et=fromMin(newEnd.getHours()*60+newEnd.getMinutes());
       const ok=rows.filter(r=>toMin(et)>toMin(r.startTime));
