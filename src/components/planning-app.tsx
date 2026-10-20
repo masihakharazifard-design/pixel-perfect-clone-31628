@@ -77,16 +77,16 @@ interface AvailEntry { id:string; employeeId:string; date:string; startTime:stri
   isSeriesException?:boolean; serieType?:"vastevrij"; serieWeekdays?:number[]; serieStartDate?:string; serieEndDate?:string; vasteVrijExceptionIds?:string[]; }
 interface FixedFreeSeries { periodeId:string; employeeId:string; serieWeekdays:number[]; serieStartDate:string; serieEndDate:string; }
 // Standaard werkdag: 07:00 – 17:00 (gebruikt als begin- en eindtijd bij inplannen, afwezigheid en nieuwe werken)
-const WORKDAY_START="07:00";
-const WORKDAY_END="17:00";
-// Standaard begintijd per afdeling: Stoffering en Schilderwerk 07:00, Zonwering 08:00.
-// Een werk met meerdere afdelingen (Combinatie/Turnkey) begint om 07:00 zodra Stoffering of Schilderwerk erbij hoort.
-const ZONWERING_START="08:00";
-function defaultStartFor(p?:Project|null):string{
-  if(!p)return WORKDAY_START;
-  const afds=p.afdelingen?.length?p.afdelingen:[p.afdeling];
-  return afds.some(a=>a==="Stoffering"||a==="Schilderwerk")?WORKDAY_START:ZONWERING_START;
+// Standaard werkdag voor alle afdelingen: 07:00–17:00. Aan te passen in Instellingen
+// (settings.werkdagStart / werkdagEind); per planning ook zelf in te stellen in het inplanvenster.
+let WORKDAY_START="07:00";
+let WORKDAY_END="17:00";
+const geldigeTijd=(t?:string)=>!!t&&/^\d{2}:\d{2}$/.test(t);
+function setWerkdag(start?:string,end?:string){
+  WORKDAY_START=geldigeTijd(start)?start!:"07:00";
+  WORKDAY_END=geldigeTijd(end)&&end!>WORKDAY_START?end!:"17:00";
 }
+function defaultStartFor(_p?:Project|null):string{return WORKDAY_START;}
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
 const shiftDate=(ds:string,days:number)=>{const d=new Date(ds+"T12:00");d.setDate(d.getDate()+days);return toDateStr(d);};
@@ -100,6 +100,8 @@ interface AppSettings {
   projectColors?:Record<string,string>;
   /** Kleur per projectleider (sleutel = naam zoals getoond), gebruikt bij Schilderwerk-blokken */
   projectleiderColors?:Record<string,string>;
+  /** Standaard werkdag bij nieuwe planning, bijv. "07:00" en "17:00" */
+  werkdagStart?:string; werkdagEind?:string;
   /** Afkorting projectleider (bijv. "RV") → volledige naam; aanvulling op de standaardlijst */
   projectleiderNamen?:Record<string,string>;
   borderColors?:Record<string,string>;
@@ -382,7 +384,7 @@ function buildProjectPlanRows(p:Project,empIds:string[],av:AvailEntry[],employee
   const all=getDatesInRange(new Date(p.startdatum),new Date(end));
   const weekdays=all.filter(d=>weekdayIdx(d)<5);
   const days=weekdays.length?weekdays:all;
-  // Vaste werkdag per afdeling (zie defaultStartFor), eindtijd 17:00
+  // Standaard werkdag (Instellingen, standaard 07:00–17:00)
   const st=defaultStartFor(p),et=WORKDAY_END;
   const reeksId=days.length>1?"reeks-"+nid():undefined;
   const rows:AvailEntry[]=[],skipped:PlanConflict[]=[];
@@ -2581,7 +2583,8 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
   const [busy,setBusy]=useState(false);
   // Nieuwe planning krijgt automatisch de werkdag van de afdeling van het gekozen werk
   // (Stoffering/Schilderwerk 07:00–17:00, Zonwering 08:00–17:00). Bewerken houdt de eigen tijden.
-  useEffect(()=>{if(!editId&&sel){setSt(defaultStartFor(sel));setEt(WORKDAY_END);}},[sel?.id,editId]);
+  const tijdAangepast=useRef(false);
+  useEffect(()=>{if(!editId&&sel&&!tijdAangepast.current){setSt(defaultStartFor(sel));setEt(WORKDAY_END);}},[sel?.id,editId]);
   // Startdatum bepaalt de ondergrens van de einddatum; bewerken blijft altijd één dag.
   const multi=!editId;
   useEffect(()=>{if(dEnd<d)setDEnd(d);},[d,dEnd]);
@@ -2623,7 +2626,8 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
   const needsConfirm=warnings.length>0&&!confirmed;
   const inRange=(!minDate||d>=minDate)&&(!maxDate||(dEnd||d)<=maxDate);
   const dateOk=!!d&&(!multi||!dEnd||dEnd>=d)&&inRange;
-  const canSave=!!sel&&chosenEmployeeIds.length>0&&dateOk&&newPairs.length>0&&blockers.length===0&&!needsConfirm&&!busy;
+  const timeOk=geldigeTijd(st)&&geldigeTijd(et)&&et>st;
+  const canSave=!!sel&&chosenEmployeeIds.length>0&&dateOk&&timeOk&&newPairs.length>0&&blockers.length===0&&!needsConfirm&&!busy;
   const save=async()=>{
     if(!sel||busy)return;
     setBusy(true);
@@ -2654,7 +2658,13 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
           <Input label={multi?"Startdatum":"Datum"} value={d} onChange={setD} type="date"/>
           {multi&&<Input label="Einddatum" value={dEnd} onChange={v=>setDEnd(v<d?d:v)} type="date"/>}
         </div>
+        {/* Tijden: standaard de werkdag uit Instellingen, per planning zelf aan te passen */}
+        <div className="grid grid-cols-2 gap-2 sm:col-start-2">
+          <Input label="Begintijd" value={st} onChange={v=>{tijdAangepast.current=true;setSt(v);}} type="time"/>
+          <Input label="Eindtijd" value={et} onChange={v=>{tijdAangepast.current=true;setEt(v);}} type="time"/>
+        </div>
       </div>
+      {!timeOk&&<p className="text-xs text-red-600">De eindtijd moet na de begintijd liggen.</p>}
       {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
       {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#1A2744]">
@@ -3137,9 +3147,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const blockStyle=(row:AvailEntry,p:Project)=>planBlockBg(rowColor(row),plColorFor(p));
   const blockTitle=(row:AvailEntry,p:Project)=>`${tooltipText(row,p,employees)}${plColorFor(p)?`\nProjectleider: ${projectleiderKey(p,employees)}`:""}`;
 
-  const openPlan=(empId:string,date:string,startTime=WORKDAY_START,endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
+  const openPlan=(empId:string,date:string,startTime=WORKDAY_START,endTime=WORKDAY_END,projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
-  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:WORKDAY_START,endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
+  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:WORKDAY_START,endTime:WORKDAY_END,status:"Vakantie",note:"",wholeDay:true});
   const openEditAbsence=(a:AvailEntry)=>{
     const rows=a.periodeId?availability.filter(x=>x.periodeId===a.periodeId):[a];
     const dates=rows.map(r=>r.date).sort();
@@ -3790,7 +3800,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
     {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability} multiEmployeeSelect
       empId="" date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
-      startTime={timePart(projMenu.startdatum)||WORKDAY_START} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
+      startTime={timePart(projMenu.startdatum)||WORKDAY_START} endTime={timePart(projMenu.afloopdatum)||WORKDAY_END} projectId={projMenu.id}
       onSave={async es=>{setProjMenu(null);await commitPlanning(es,undefined,true);}} onClose={()=>setProjMenu(null)}/>}
     {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
@@ -3876,7 +3886,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           const c=cellMenu;setCellMenu(null);
           const vrij=availability.find(a=>a.employeeId===c.empId&&a.date===c.date&&isSeriesVrij(a)&&a.status==="Vrij");
           if(vrij){setVrijAsk(vrij);return;}
-          openPlan(c.empId,c.date,c.startTime||WORKDAY_START,c.endTime||"17:00");
+          openPlan(c.empId,c.date,c.startTime||WORKDAY_START,c.endTime||WORKDAY_END);
         }}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s==="Bezet"?"Bezet (met omschrijving)…":`${s} (hele dag)`}
@@ -4141,6 +4151,14 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
         <Input label="Postcode" value={form.postcode} onChange={v=>setForm(p=>({...p,postcode:v}))}/>
       </div>
       <Input label="Plaats" value={form.plaats} onChange={v=>setForm(p=>({...p,plaats:v}))}/>
+      <div>
+        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Standaard werkdag (nieuwe planning)</p>
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Begintijd" type="time" value={form.werkdagStart||"07:00"} onChange={v=>setForm(p=>({...p,werkdagStart:v}))}/>
+          <Input label="Eindtijd" type="time" value={form.werkdagEind||"17:00"} onChange={v=>setForm(p=>({...p,werkdagEind:v}))}/>
+        </div>
+        <p className="text-xs text-[#6B7A99] mt-1">Geldt voor alle afdelingen. Per planning kun je de tijden in het inplanvenster nog aanpassen.</p>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Telefoon" value={form.telefoon} onChange={v=>setForm(p=>({...p,telefoon:v}))}/>
         <Input label="E-mail" value={form.email} onChange={v=>setForm(p=>({...p,email:v}))}/>
@@ -4234,6 +4252,7 @@ export default function PlanningApp(){
   const [settings,setSettings]=useState<AppSettings>(INIT_SETTINGS);
   // Afkortingen van projectleiders direct beschikbaar voor alle schermen (plName)
   setProjectleiderAliases(settings.projectleiderNamen);
+  setWerkdag(settings.werkdagStart,settings.werkdagEind);
   const [showVacImport,setShowVacImport]=useState(false);
   const [dbReady,setDbReady]=useState(false);
   const [loadError,setLoadError]=useState<string>("");
