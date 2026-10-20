@@ -76,6 +76,8 @@ interface Employee {
 interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean;
   isSeriesException?:boolean; serieType?:"vastevrij"; serieWeekdays?:number[]; serieStartDate?:string; serieEndDate?:string; vasteVrijExceptionIds?:string[]; }
 interface FixedFreeSeries { periodeId:string; employeeId:string; serieWeekdays:number[]; serieStartDate:string; serieEndDate:string; }
+// Standaard werkdag: 07:00 – 17:00 (gebruikt als begin- en eindtijd bij inplannen, afwezigheid en nieuwe werken)
+const WORKDAY_START="07:00";
 const WORKDAY_END="17:00";
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
@@ -317,7 +319,7 @@ function planPeriod(rows:AvailEntry[]):{start:string;end:string}|null{
   if(!rows.length)return null;
   let start="",end="";
   rows.forEach(r=>{
-    const s=combineLocalDT(r.date,r.startTime||"08:00",8,0);
+    const s=combineLocalDT(r.date,r.startTime||WORKDAY_START,7,0);
     const e=combineLocalDT(r.date,r.endTime||"17:00",17,0);
     if(!start||new Date(s)<new Date(start))start=s;
     if(!end||new Date(e)>new Date(end))end=e;
@@ -372,8 +374,8 @@ function buildProjectPlanRows(p:Project,empIds:string[],av:AvailEntry[],employee
   const all=getDatesInRange(new Date(p.startdatum),new Date(end));
   const weekdays=all.filter(d=>weekdayIdx(d)<5);
   const days=weekdays.length?weekdays:all;
-  let st=timePart(p.startdatum)||"08:00",et=timePart(end)||"17:00";
-  if(toMin(et)<=toMin(st)){st="08:00";et="17:00";}
+  let st=timePart(p.startdatum)||WORKDAY_START,et=timePart(end)||"17:00";
+  if(toMin(et)<=toMin(st)){st=WORKDAY_START;et="17:00";}
   const reeksId=days.length>1?"reeks-"+nid():undefined;
   const rows:AvailEntry[]=[],skipped:PlanConflict[]=[];
   empIds.forEach(employeeId=>days.forEach(date=>{
@@ -549,7 +551,8 @@ function applyFirstOfDay(rows:AvailEntry[],targetId:string|null):AvailEntry[]{
 // Volledige dagafwezigheid: kleurt de celrand
 function dayBlockState(av:AvailEntry[],empId:string,date:string):AvailStatus|null{
   const rows=av.filter(a=>!a.projectId&&a.employeeId===empId&&a.date===date&&ABSENCE_STATS.includes(a.status));
-  const full=rows.find(a=>a.startTime<="08:00"&&a.endTime>="17:00");
+  // Bestaande afwezigheid van 08:00–17:00 telt ook nog als hele dag
+  const full=rows.find(a=>a.startTime<="08:00"&&a.endTime>=WORKDAY_END);
   return full?full.status:(rows[0]?.status??null);
 }
 // ===== KLEURBEHEER =====
@@ -1148,7 +1151,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     plaats:initial.plaats||"",afdeling:initial.afdeling||"Stoffering",
     afdelingen:initial.afdelingen||[initial.afdeling||"Stoffering"],
     projectleider:initial.projectleider||"",
-    startdatum:initial.startdatum||combineLocalDT(toDateStr(new Date()),"08:00",8,0),
+    startdatum:initial.startdatum||combineLocalDT(toDateStr(new Date()),WORKDAY_START,7,0),
     afloopdatum:initial.afloopdatum||combineLocalDT(toDateStr(new Date()),"17:00",17,0),
     medewerkers:initial.medewerkers||[],status:initial.status||"Offerte",
     notities:initial.notities||"",uurprijs:initial.uurprijs||65,uren:initial.uren||8,
@@ -1160,11 +1163,11 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
   // Losse datum-/tijdvelden; ze schrijven altijd naar dezelfde projectvelden
   // (startdatum / afloopdatum) die de agenda gebruikt.
   const [sDate,setSDate]=useState(()=>datePart(f.startdatum));
-  const [sTime,setSTime]=useState(()=>timePart(f.startdatum)||"08:00");
+  const [sTime,setSTime]=useState(()=>timePart(f.startdatum)||WORKDAY_START);
   const [eDate,setEDate]=useState(()=>datePart(f.afloopdatum));
   const [eTime,setETime]=useState(()=>timePart(f.afloopdatum)||"17:00");
   const applyDates=(sd:string,st:string,ed:string,et:string)=>{
-    const startISO=combineLocalDT(sd,st,8,0);
+    const startISO=combineLocalDT(sd,st,7,0);
     const endISO=combineLocalDT(ed||sd,et,17,0);
     setF(prev=>({...prev,startdatum:startISO,afloopdatum:endISO}));
   };
@@ -1339,10 +1342,10 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   },[employees,project]);
   const pStart=datePart(project.startdatum||"");const pEnd=datePart(project.afloopdatum||"");
   const addDate=pStart||new Date().toISOString().slice(0,10);
-  const addStRaw=timePart(project.startdatum||"")||"08:00";
+  const addStRaw=timePart(project.startdatum||"")||WORKDAY_START;
   const addEtRaw=timePart(project.afloopdatum||"")||"17:00";
   const timesOk=addStRaw<addEtRaw;
-  const addSt=timesOk?addStRaw:"08:00";
+  const addSt=timesOk?addStRaw:WORKDAY_START;
   const addEt=timesOk?addEtRaw:"17:00";
   const [tab,setTab]=useState<ProjTab>("overzicht");
   const [notities,setNotities]=useState(project.notities);
@@ -2364,11 +2367,12 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
   // Elk werk staat maar één keer in de Agenda. Werken met hetzelfde werknummer (dubbel ingelezen
-  // werken) tellen als één werk: al hun planningregels (alle medewerkers, alle dagen) vormen samen
-  // één blok van de eerste t/m de laatste ingeplande dag.
+  // werken) tellen als één werk: al hun planningregels (alle medewerkers) vormen samen één blok.
+  // Het blok wordt alleen onderbroken waar geen planning is (zoals het weekend): elke reeks
+  // aaneengesloten ingeplande dagen is één blok, zodat zaterdag en zondag leeg blijven.
   const agendaProjects:Project[]=[];
-  // Agendablok (id van het hoofdwerk) → alle werk-id's met hetzelfde werknummer
-  const blockGroups=new Map<string,string[]>();
+  // Agendablok-id → de planningregels die erbij horen
+  const blockRowsById=new Map<string,AvailEntry[]>();
   const groups=new Map<string,Project[]>();
   filteredProjects.forEach(p=>{const k=werkKey(p.werknummer)||"id:"+p.id;groups.set(k,[...(groups.get(k)||[]),p]);});
   groups.forEach(list=>{
@@ -2376,24 +2380,47 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     const rows=withRows.flatMap(x=>x.rows);
     // Hoofdwerk: het werk met de meeste planningregels (anders het eerste)
     const main=[...withRows].sort((a,b)=>b.rows.length-a.rows.length)[0].p;
-    if(!rows.length){agendaProjects.push(main);return;}
-    blockGroups.set(main.id,list.map(p=>p.id));
-    const dates=rows.map(r=>r.date).sort();
-    const first=dates[0],last=dates[dates.length-1];
-    const st=rows.filter(r=>r.date===first).map(r=>r.startTime).sort()[0]||"08:00";
-    const et=rows.filter(r=>r.date===last).map(r=>r.endTime).sort().slice(-1)[0]||"17:00";
-    const ids=[...new Set(rows.map(r=>r.employeeId))].sort();
-    agendaProjects.push({...main,id:`${main.id}::plan`,medewerkers:ids,
-      startdatum:combineLocalDT(first,st,8,0),afloopdatum:combineLocalDT(last,et,17,0),
-      eersteVanDag:rows.some(r=>r.isFirstOfDay),
-      // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
-      teamKleur:undefined});
+    if(!rows.length){
+      // Werk zonder planningregels: periode uit het werk zelf, zonder zaterdag/zondag.
+      const all=getDatesInRange(new Date(main.startdatum),new Date(main.afloopdatum));
+      const wd=all.filter(d=>!isWeekendStr(d));
+      if(all.length<=1||!wd.length||wd.length===all.length){agendaProjects.push(main);return;}
+      const spans:string[][]=[];
+      wd.forEach(d=>{const cur=spans[spans.length-1];if(cur&&shiftDate(cur[cur.length-1],1)===d)cur.push(d);else spans.push([d]);});
+      const firstDay=all[0],lastDay=all[all.length-1];
+      spans.forEach((sp,i)=>{
+        const s=sp[0],e=sp[sp.length-1];
+        agendaProjects.push({...main,id:`${main.id}~${i}`,
+          startdatum:s===firstDay?main.startdatum:combineLocalDT(s,WORKDAY_START,7,0),
+          afloopdatum:e===lastDay?main.afloopdatum:combineLocalDT(e,WORKDAY_END,17,0)});
+      });
+      return;
+    }
+    // Opsplitsen in reeksen aaneengesloten dagen
+    const dates=[...new Set(rows.map(r=>r.date))].sort();
+    const runs:string[][]=[];
+    dates.forEach(d=>{const cur=runs[runs.length-1];if(cur&&shiftDate(cur[cur.length-1],1)===d)cur.push(d);else runs.push([d]);});
+    runs.forEach((run,i)=>{
+      const runSet=new Set(run);
+      const rs=rows.filter(r=>runSet.has(r.date));
+      const first=run[0],last=run[run.length-1];
+      const st=rs.filter(r=>r.date===first).map(r=>r.startTime).sort()[0]||WORKDAY_START;
+      const et=rs.filter(r=>r.date===last).map(r=>r.endTime).sort().slice(-1)[0]||WORKDAY_END;
+      const id=`${main.id}::plan::${i}`;
+      blockRowsById.set(id,rs);
+      agendaProjects.push({...main,id,medewerkers:[...new Set(rs.map(r=>r.employeeId))].sort(),
+        startdatum:combineLocalDT(first,st,7,0),afloopdatum:combineLocalDT(last,et,17,0),
+        eersteVanDag:rs.some(r=>r.isFirstOfDay),
+        // Agenda kleurt projectblokken uitsluitend op afdeling (geen team-/statuskleur)
+        teamKleur:undefined});
+    });
   });
   // Agenda toont uitsluitend projecten/projectplanningen; persoonlijke afwezigheid blijft in Personeelsplanning.
-  const realId=(id:string)=>id.split("::")[0];
+  // Agenda-id's: "werk::plan::n" (planningsblok) of "werk~n" (deel van een werk zonder planning)
+  const realId=(id:string)=>id.split("::")[0].split("~")[0];
   const isPlanBlock=(id:string)=>id.includes("::");
-  // Alle planningregels achter één agendablok (ook van dubbele werken met hetzelfde werknummer)
-  const blockRows=(id:string)=>(blockGroups.get(realId(id))||[realId(id)]).flatMap(pid=>projectPlans(availability,pid));
+  // De planningregels achter één agendablok (ook van dubbele werken met hetzelfde werknummer)
+  const blockRows=(id:string)=>blockRowsById.get(id)||projectPlans(availability,realId(id));
   const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   // Maand/kwartaal: blok verslepen = alle planningregels van het werk verschuiven (weekend blijft leeg).
   const handleDropProject=(id:string,newStart:Date)=>{
@@ -2402,7 +2429,14 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       if(moved.length)void onSaveManyPlanning(moved);
       return;
     }
-    const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
+    const p=projects.find(x=>x.id===realId(id));if(!p)return;
+    // Versleept deel van een werk (zonder planning): verschuif het hele werk met hetzelfde aantal dagen
+    const seg=id.includes("~")?agendaProjects.find(x=>x.id===id):undefined;
+    if(seg){
+      const days=Math.round((new Date(toDateStr(newStart)+"T12:00").getTime()-new Date(datePart(seg.startdatum)+"T12:00").getTime())/86400000);
+      newStart=new Date(p.startdatum);newStart.setDate(newStart.getDate()+days);
+    }
+    id=p.id;
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     const origStart=new Date(p.startdatum);
     newStart.setHours(origStart.getHours(),origStart.getMinutes(),0,0);
@@ -2440,7 +2474,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     }
     updateProject(realId(id),{afloopdatum:newEnd.toISOString()});
   };
-  const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(8,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
+  const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(7,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const qLabels=["Q1 (jan–mrt)","Q2 (apr–jun)","Q3 (jul–sep)","Q4 (okt–dec)"];
   const titleStr=view==="month"?`${MONTHS_NL[month]} ${year}`:view==="week"?`${weekDays[0].getDate()} ${MONTHS_NL[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTHS_NL[weekDays[6].getMonth()]} ${year}`:view==="kwartaal"?`${qLabels[quarter]} ${year}`:`${DAYS_FULL[(date.getDay()+6)%7]} ${date.getDate()} ${MONTHS_NL[date.getMonth()]} ${year}`;
@@ -3092,9 +3126,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const blockStyle=(row:AvailEntry,p:Project)=>planBlockBg(rowColor(row),plColorFor(p));
   const blockTitle=(row:AvailEntry,p:Project)=>`${tooltipText(row,p,employees)}${plColorFor(p)?`\nProjectleider: ${projectleiderKey(p,employees)}`:""}`;
 
-  const openPlan=(empId:string,date:string,startTime="08:00",endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
+  const openPlan=(empId:string,date:string,startTime=WORKDAY_START,endTime="17:00",projectId?:string)=>setPlanModal({empId,date,startTime,endTime,projectId});
   const openEditPlan=(a:AvailEntry)=>{if(!canAct(a.projectId,a.employeeId))return;setPlanModal({empId:a.employeeId,date:a.date,startTime:a.startTime,endTime:a.endTime,projectId:a.projectId,editId:a.id});};
-  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:"08:00",endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
+  const openAbsence=(empId:string,startDate:string,endDate:string)=>setAbsModal({employeeId:empId,startDate,endDate,startTime:WORKDAY_START,endTime:"17:00",status:"Vakantie",note:"",wholeDay:true});
   const openEditAbsence=(a:AvailEntry)=>{
     const rows=a.periodeId?availability.filter(x=>x.periodeId===a.periodeId):[a];
     const dates=rows.map(r=>r.date).sort();
@@ -3290,7 +3324,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     }
     if(!pid)return;
     const p=visProj(pid);if(!p||!visEmpIds.has(empId)){toast.error(FILTER_MSG);return;}
-    const st=timePart(p.startdatum)||"08:00";const et=timePart(p.afloopdatum)||"17:00";
+    const st=timePart(p.startdatum)||WORKDAY_START;const et=timePart(p.afloopdatum)||"17:00";
     await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
   };
 
@@ -3744,7 +3778,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {showFilters&&<FilterManagerModal filters={filters} onSave={saveFilters} onClose={()=>setShowFilters(false)}/>}
     {projMenu&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability} multiEmployeeSelect
       empId="" date={toDateStr(validDate(projMenu.startdatum)?new Date(projMenu.startdatum):refDate)}
-      startTime={timePart(projMenu.startdatum)||"08:00"} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
+      startTime={timePart(projMenu.startdatum)||WORKDAY_START} endTime={timePart(projMenu.afloopdatum)||"17:00"} projectId={projMenu.id}
       onSave={async es=>{setProjMenu(null);await commitPlanning(es,undefined,true);}} onClose={()=>setProjMenu(null)}/>}
     {planModal&&<PlanEmployeeModal employees={visEmp.length?visEmp:employees} availability={availability}
       empId={planModal.empId} date={planModal.date} startTime={planModal.startTime} endTime={planModal.endTime}
@@ -3830,7 +3864,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           const c=cellMenu;setCellMenu(null);
           const vrij=availability.find(a=>a.employeeId===c.empId&&a.date===c.date&&isSeriesVrij(a)&&a.status==="Vrij");
           if(vrij){setVrijAsk(vrij);return;}
-          openPlan(c.empId,c.date,c.startTime||"08:00",c.endTime||"17:00");
+          openPlan(c.empId,c.date,c.startTime||WORKDAY_START,c.endTime||"17:00");
         }}>Project inplannen…</button>
         {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s==="Bezet"?"Bezet (met omschrijving)…":`${s} (hele dag)`}

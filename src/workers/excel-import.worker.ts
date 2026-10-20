@@ -200,7 +200,7 @@ function handleAvail(buffer: ArrayBuffer): void {
       rawName,
       startDate,
       endDate,
-      startTime: startTimeRaw || "08:00",
+      startTime: startTimeRaw || "07:00",
       endTime: endTimeRaw || "17:00",
       hasExplicitTimes: !!(startTimeRaw || endTimeRaw),
       status,
