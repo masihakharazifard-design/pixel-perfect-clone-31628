@@ -4328,6 +4328,9 @@ function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,
 // ===== APP =====
 export default function PlanningApp(){
   const [nav,setNav]=useState<Nav>("dashboard");
+  // Alleen beheerders en planners mogen werken opruimen (zelfde regel als de database: can_plan)
+  const {roles:mijnRollen}=useAuth();
+  const magPlannen=mijnRollen.includes("beheerder")||mijnRollen.includes("planner");
   // Eenmalig startfilter voor Werken (bijv. "In uitvoering" vanuit het Dashboard); vervalt bij weggaan.
   const [werkenPreset,setWerkenPreset]=useState<string[]>([]);
   useEffect(()=>{if(nav!=="projecten")setWerkenPreset([]);},[nav]);
@@ -4496,8 +4499,13 @@ export default function PlanningApp(){
     });
     return [...map.values()].filter(g=>g.length>1);
   },[projects]);
-  const dubbeleOpruimen=async()=>{
-    const groepen=dubbeleGroepen;
+  // Groepen die al eens automatisch zijn behandeld (bijv. omdat een dubbel werk eigen gegevens heeft)
+  // worden niet steeds opnieuw geprobeerd.
+  const geprobeerdeGroepen=useRef(new Set<string>());
+  const groepSleutel=(g:Project[])=>g.map(p=>p.id).sort().join(",");
+  const dubbeleOpruimen=async(automatisch=false)=>{
+    const groepen=automatisch?dubbeleGroepen.filter(g=>!geprobeerdeGroepen.current.has(groepSleutel(g))):dubbeleGroepen;
+    groepen.forEach(g=>geprobeerdeGroepen.current.add(groepSleutel(g)));
     if(!groepen.length)return;
     const alleIds=groepen.flat().map(p=>p.id);
     const blokken=<T,>(l:T[],n:number)=>Array.from({length:Math.ceil(l.length/n)},(_,i)=>l.slice(i*n,i*n+n));
@@ -4530,7 +4538,7 @@ export default function PlanningApp(){
           weg.push(p.id);
         });
       });
-      if(!weg.length){toast.info("Er zijn geen dubbele werken die veilig verwijderd kunnen worden.");return;}
+      if(!weg.length){if(!automatisch)toast.info("Er zijn geen dubbele werken die veilig verwijderd kunnen worden.");return;}
       for(const b of blokken(ups,200))await savePlanningRows(b,[],"werken_samengevoegd");
       for(const b of blokken(rem,200))await savePlanningRows([],b,"werken_samengevoegd");
       for(const b of blokken(weg,150))await deleteRows("projects",b);
@@ -4539,11 +4547,20 @@ export default function PlanningApp(){
       setAvail(cur=>cur.filter(a=>!remSet.has(a.id)).map(a=>upMap.get(a.id)||a));
       setProjects(cur=>cur.filter(p=>!wegSet.has(p.id)));
       setDbError("");
-      toast.success(`${weg.length} dubbele werk${weg.length===1?"":"en"} opgeruimd${behouden?` — ${behouden} met eigen gegevens bleven staan`:""}.`);
+      toast.success(`${weg.length} dubbele werk${weg.length===1?"":"en"} ${automatisch?"automatisch ":""}opgeruimd${behouden?` — ${behouden} met eigen gegevens bleven staan`:""}.`);
     }catch(e){
       fail("Dubbele werken opruimen is (deels) mislukt:",e);
     }
   };
+  // Automatisch opruimen: zodra de gegevens geladen zijn en er (nieuwe) dubbele werken zijn,
+  // ruimt de app ze zelf op. Alleen voor beheerders/planners; één opruimronde tegelijk.
+  const opruimenBezig=useRef(false);
+  useEffect(()=>{
+    if(!dbReady||!magPlannen||opruimenBezig.current)return;
+    if(!dubbeleGroepen.some(g=>!geprobeerdeGroepen.current.has(groepSleutel(g))))return;
+    opruimenBezig.current=true;
+    void dubbeleOpruimen(true).finally(()=>{opruimenBezig.current=false;});
+  },[dbReady,magPlannen,dubbeleGroepen]);
   const deleteProject=async(id:string)=>{
     const prevP=projects,prevA=avail;
     const rowIds=avail.filter(a=>a.projectId===id).map(a=>a.id);
@@ -4850,7 +4867,7 @@ export default function PlanningApp(){
         {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject} onShowActive={showActiveWerken}/>}
-          {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus} dubbelAantal={dubbeleGroepen.reduce((n,g)=>n+g.length-1,0)} onDubbeleOpruimen={dubbeleOpruimen}/>}
+          {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus} dubbelAantal={dubbeleGroepen.reduce((n,g)=>n+g.length-1,0)} onDubbeleOpruimen={()=>dubbeleOpruimen()}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
