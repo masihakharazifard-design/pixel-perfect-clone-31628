@@ -79,6 +79,14 @@ interface FixedFreeSeries { periodeId:string; employeeId:string; serieWeekdays:n
 // Standaard werkdag: 07:00 – 17:00 (gebruikt als begin- en eindtijd bij inplannen, afwezigheid en nieuwe werken)
 const WORKDAY_START="07:00";
 const WORKDAY_END="17:00";
+// Standaard begintijd per afdeling: Stoffering en Schilderwerk 07:00, Zonwering 08:00.
+// Een werk met meerdere afdelingen (Combinatie/Turnkey) begint om 07:00 zodra Stoffering of Schilderwerk erbij hoort.
+const ZONWERING_START="08:00";
+function defaultStartFor(p?:Project|null):string{
+  if(!p)return WORKDAY_START;
+  const afds=p.afdelingen?.length?p.afdelingen:[p.afdeling];
+  return afds.some(a=>a==="Stoffering"||a==="Schilderwerk")?WORKDAY_START:ZONWERING_START;
+}
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
 const shiftDate=(ds:string,days:number)=>{const d=new Date(ds+"T12:00");d.setDate(d.getDate()+days);return toDateStr(d);};
@@ -374,8 +382,8 @@ function buildProjectPlanRows(p:Project,empIds:string[],av:AvailEntry[],employee
   const all=getDatesInRange(new Date(p.startdatum),new Date(end));
   const weekdays=all.filter(d=>weekdayIdx(d)<5);
   const days=weekdays.length?weekdays:all;
-  let st=timePart(p.startdatum)||WORKDAY_START,et=timePart(end)||"17:00";
-  if(toMin(et)<=toMin(st)){st=WORKDAY_START;et="17:00";}
+  // Vaste werkdag per afdeling (zie defaultStartFor), eindtijd 17:00
+  const st=defaultStartFor(p),et=WORKDAY_END;
   const reeksId=days.length>1?"reeks-"+nid():undefined;
   const rows:AvailEntry[]=[],skipped:PlanConflict[]=[];
   empIds.forEach(employeeId=>days.forEach(date=>{
@@ -2571,6 +2579,9 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
   const [wnQuery,setWnQuery]=useState("");
   const [sel,setSel]=useState<Project|null>(projectId?getIndexedProject(projectId)||null:null);
   const [busy,setBusy]=useState(false);
+  // Nieuwe planning krijgt automatisch de werkdag van de afdeling van het gekozen werk
+  // (Stoffering/Schilderwerk 07:00–17:00, Zonwering 08:00–17:00). Bewerken houdt de eigen tijden.
+  useEffect(()=>{if(!editId&&sel){setSt(defaultStartFor(sel));setEt(WORKDAY_END);}},[sel?.id,editId]);
   // Startdatum bepaalt de ondergrens van de einddatum; bewerken blijft altijd één dag.
   const multi=!editId;
   useEffect(()=>{if(dEnd<d)setDEnd(d);},[d,dEnd]);
@@ -3324,8 +3335,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     }
     if(!pid)return;
     const p=visProj(pid);if(!p||!visEmpIds.has(empId)){toast.error(FILTER_MSG);return;}
-    const st=timePart(p.startdatum)||WORKDAY_START;const et=timePart(p.afloopdatum)||"17:00";
-    await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et<=st?"17:00":et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
+    // Werkdag van de afdeling (Stoffering/Schilderwerk 07:00, Zonwering 08:00) tot 17:00
+    const st=defaultStartFor(p);const et=WORKDAY_END;
+    await tryCommit([{id:"plan-"+nid(),employeeId:empId,date:ds,startTime:st,endTime:et,status:"Ingepland",note:`${p.werknummer} – ${p.projectnaam}`,projectId:p.id}],[],true);
   };
 
   // Planning verwijderen: de dag hernummeren en zo nodig het volgende project promoveren
