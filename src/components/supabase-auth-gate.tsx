@@ -1,8 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
-import { Button } from "@/components/ui/button";
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -30,27 +28,6 @@ export function LoginScreen({ melding }: { melding?: string }) {
   const [bezig, setBezig] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-
-  const inloggenMicrosoft = async () => {
-    setError("");
-    setInfo("");
-    setBezig(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("microsoft", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) {
-        setError(MSG.fout);
-        return;
-      }
-      if (result.redirected) return;
-      // De bestaande sessie- en rolcontrole handelt ook Microsoft-login af.
-    } catch {
-      setError(MSG.fout);
-    } finally {
-      setBezig(false);
-    }
-  };
 
   const vraagCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,17 +86,6 @@ export function LoginScreen({ melding }: { melding?: string }) {
         </div>
 
         {stap === "email" ? (
-          <>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={bezig}
-            onClick={() => void inloggenMicrosoft()}
-            className="w-full h-11 mb-4"
-          >
-            <LogIn aria-hidden="true" />
-            Inloggen met Microsoft
-          </Button>
           <form onSubmit={vraagCode} className="space-y-3">
             <label className="block text-xs font-semibold text-[#1A2744]" htmlFor="login-email">
               E-mailadres
@@ -142,7 +108,6 @@ export function LoginScreen({ melding }: { melding?: string }) {
               Inloggen
             </button>
           </form>
-          </>
         ) : (
           <form onSubmit={bevestigCode} className="space-y-3">
             <label className="block text-xs font-semibold text-[#1A2744]" htmlFor="login-code">
