@@ -327,6 +327,17 @@ function primaryAfd(p:Project):Afdeling{return getAllAfds(p)[0];}
 function planRows(av:AvailEntry[]):AvailEntry[]{return av.filter(a=>!!a.projectId&&a.status==="Ingepland");}
 function projectPlans(av:AvailEntry[],projectId:string):AvailEntry[]{return planRows(av).filter(a=>a.projectId===projectId);}
 function assignedEmpIds(av:AvailEntry[],projectId:string):string[]{return [...new Set(projectPlans(av,projectId).map(a=>a.employeeId))];}
+// Alle werk-id's die bij hetzelfde werk horen: dit werk + werken met hetzelfde werknummer (dubbel ingelezen).
+// Alleen voor tellen en tonen; werknummers en werken zelf worden nooit aangepast.
+function werkIdsVan(p:Pick<Project,"id"|"werknummer">):string[]{
+  const wn=String(p.werknummer||"").trim();
+  return [...new Set([p.id,...(wn?getIndexedProjectsByWerknummer(wn).map(x=>x.id):[])])];
+}
+// Ingeplande medewerkers van een werk, inclusief planning op werken met hetzelfde werknummer
+function werkEmpIds(av:AvailEntry[],p:Pick<Project,"id"|"werknummer">):string[]{
+  const ids=new Set(werkIdsVan(p));
+  return [...new Set(planRows(av).filter(a=>ids.has(a.projectId||"")).map(a=>a.employeeId))];
+}
 function planPeriod(rows:AvailEntry[]):{start:string;end:string}|null{
   if(!rows.length)return null;
   let start="",end="";
@@ -341,7 +352,7 @@ function planPeriod(rows:AvailEntry[]):{start:string;end:string}|null{
 function benodigd(p:Project):number{return Math.max(1,Number(p.benodigdeMedewerkers)||1);}
 type PlanStatus="Niet ingepland"|"Gedeeltelijk ingepland"|"Ingepland";
 function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
-  const n=assignedEmpIds(av,p.id).length;
+  const n=werkEmpIds(av,p).length;
   if(n===0)return "Niet ingepland";
   return n>=benodigd(p)?"Ingepland":"Gedeeltelijk ingepland";
 }
@@ -526,10 +537,11 @@ function shiftPlanRows(rows:AvailEntry[],newStart:string):AvailEntry[]{
 }
 
 // Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
-function getProjectAssignedEmployees<E extends {id:string}>(projectId:string,av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
+function getProjectAssignedEmployees<E extends {id:string}>(projectIds:string|string[],av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
   const out:{employee:E;rows:AvailEntry[]}[]=[];
   const seen=new Map<string,number>();
-  projectPlans(av,projectId).forEach(r=>{
+  const ids=new Set(Array.isArray(projectIds)?projectIds:[projectIds]);
+  planRows(av).filter(a=>ids.has(a.projectId||"")).forEach(r=>{
     const emp=employees.find(e=>e.id===r.employeeId);
     if(!emp)return;
     const idx=seen.get(emp.id);
@@ -1248,7 +1260,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
   };
 
   // Medewerkers die al planningregels op dit werk hebben, blijven gekozen; verwijderen gaat via Personeelsplanning.
-  const plannedIds=useMemo(()=>new Set(assignedEmpIds(availability,f.id)),[availability,f.id]);
+  const plannedIds=useMemo(()=>new Set(werkEmpIds(availability,f)),[availability,f.id,f.werknummer]);
   const toggleMed=(id:string)=>{if(plannedIds.has(id))return;setF(prev=>({...prev,medewerkers:prev.medewerkers.includes(id)?prev.medewerkers.filter(x=>x!==id):[...prev.medewerkers,id]}));};
   const handleAssignAfdChange=(afd:Afdeling)=>{setAssignAfd(afd);setAssignComps([]);};
   const valid=f.projectnaam&&f.opdrachtgever&&f.afdelingen?.length;
@@ -1459,7 +1471,8 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
 
   const plNaam=plName(project,employees);
   // Ingeplande medewerkers komen altijd uit de planningregels (availability), nooit uit het projectrecord
-  const assigned=getProjectAssignedEmployees(project.id,availability,employees);
+  // Ook planning op werken met hetzelfde werknummer telt mee (alleen tonen, niets wordt aangepast)
+  const assigned=getProjectAssignedEmployees(werkIdsVan(project),availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
   const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities"];
@@ -4477,7 +4490,7 @@ export default function PlanningApp(){
     }
     // Medewerkers uit "Medewerkers toewijzen" die nog niet op dit werk staan, krijgen echte planningregels.
     // Alleen planningregels tellen voor het tabblad Medewerkers, Personeelsplanning en Agenda.
-    const planned=new Set(assignedEmpIds(basisAvail,p.id));
+    const planned=new Set(werkEmpIds(basisAvail,p));
     const toPlan=[...new Set(p.medewerkers)].filter(id=>!planned.has(id)&&employees.some(e=>e.id===id));
     const {rows}=buildProjectPlanRows(p,toPlan,basisAvail,employees);
     if(!rows.length){
