@@ -3618,20 +3618,48 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   // Alleen werken met Excel-status "O" én zonder enige planningregel blijven openstaan.
   const avIdxRef=useRef(avIdx);
   avIdxRef.current=avIdx;
+  // ===== Ingeplande medewerkers per werk =====
+  // Planning telt voor een werk als ze op hetzelfde werk-ID staat óf op een werk met hetzelfde
+  // werknummer (dubbel ingelezen werken). Planningregels waarvan het werk niet meer bestaat,
+  // worden via de omschrijving ("werknummer – naam") aan het juiste werk gekoppeld.
+  const werkSleutel=(p:Project)=>werkKey(p.werknummer)||"id:"+p.id;
+  const ingeplandPerWerk=useMemo(()=>{
+    const map=new Map<string,Set<string>>();
+    const voegToe=(k:string,emp:string)=>{if(!k)return;const s=map.get(k);if(s)s.add(emp);else map.set(k,new Set([emp]));};
+    avIdx.planByProjectId.forEach((rows,pid)=>{
+      const p=getIndexedProject(pid);
+      rows.forEach(r=>{
+        if(p){voegToe(werkSleutel(p),r.employeeId);voegToe("id:"+p.id,r.employeeId);return;}
+        // Werk-ID onbekend: werknummer uit de omschrijving halen
+        const wn=String(r.note||"").split(" – ")[0];
+        const gevonden=wn?getIndexedProjectsByWerknummer(wn.trim())[0]:undefined;
+        voegToe(gevonden?werkSleutel(gevonden):werkKey(wn),r.employeeId);
+      });
+    });
+    return map;
+  },[avIdx,projVersion]);
+  const aantalIngepland=(p:Project)=>{
+    const a=ingeplandPerWerk.get(werkSleutel(p)),b=ingeplandPerWerk.get("id:"+p.id);
+    return new Set([...(a||[]),...(b||[])]).size;
+  };
+  const aantalIngeplandRef=useRef(aantalIngepland);
+  aantalIngeplandRef.current=aantalIngepland;
   const openProjectsProvider=useMemo<OpenProjectsProvider<Project>>(()=>createIndexOpenProjectsProvider<Project>({
     index:projectIndex,
+    // Uit de lijst zodra er minstens één medewerker op het werk staat
     isHidden:p=>String((p as Project).statusExcel||"").trim().toUpperCase()!=="O"
-      ||(avIdxRef.current.plannedCountByProject.get(p.id)||0)>0,
+      ||aantalIngeplandRef.current(p as Project)>0,
     getAfdelingen:p=>getAllAfds(p as Project),
   }),[]);
   // Verandert alleen na een echte planningwijziging (nieuwe availability-referentie).
   const planningVersionRef=useRef(0);
-  const planningVersion=useMemo(()=>++planningVersionRef.current,[avIdx]);
+  const planningVersion=useMemo(()=>++planningVersionRef.current,[avIdx,ingeplandPerWerk]);
   // Zware renderdata wordt uitsluitend voor de zichtbare (max 100) rijen opgebouwd.
   const openRowData=useCallback((p:Project)=>{
-    const n=avIdx.plannedCountByProject.get(p.id)||0;
+    // Teller en label op basis van de echte toewijzingen (ook via werknummer gekoppeld)
+    const n=aantalIngepland(p);
     const nodig=benodigd(p);
-    const st=planStatusOf(p,availability);
+    const st:PlanStatus=n===0?"Niet ingepland":n>=nodig?"Ingepland":"Gedeeltelijk ingepland";
     const rest=Math.max(0,nodig-n);
     return{
       title:`${p.werknummer} – ${p.projectnaam}`,
@@ -3641,7 +3669,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
       countLabel:`${n}/${nodig}`,
     };
-  },[avIdx,projectColors,badgeColors,availability]);
+  },[ingeplandPerWerk,projectColors,badgeColors]);
 
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
