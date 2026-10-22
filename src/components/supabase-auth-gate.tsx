@@ -39,13 +39,30 @@ export function LoginScreen({ melding }: { melding?: string }) {
     }
     setError("");
     setBezig(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: mail,
-      options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
-    });
+    const vraagAan = () =>
+      supabase.auth.signInWithOtp({
+        email: mail,
+        options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
+      });
+    const isLimiet = (e: { status?: number; message: string }) =>
+      e.status === 429 || /rate limit|too many|security purposes/i.test(e.message);
+    let { error: err } = await vraagAan();
+    // Bij de allereerste keer inloggen wordt eerst een account aangemaakt; dat mislukt soms één keer.
+    // Dan direct zelf nog een keer proberen (zoals wanneer iemand het handmatig opnieuw probeert).
+    if (err && !isLimiet(err) && !/maasmond/i.test(err.message)) {
+      await new Promise((r) => setTimeout(r, 1500));
+      ({ error: err } = await vraagAan());
+    }
     setBezig(false);
     if (err) {
-      setError(/maasmond/i.test(err.message) ? MSG.domein : MSG.fout);
+      console.warn("Inlogcode aanvragen mislukt:", err.status, err.message);
+      setError(
+        /maasmond/i.test(err.message)
+          ? MSG.domein
+          : isLimiet(err)
+            ? "Er zijn net te veel inlogcodes aangevraagd. Wacht een paar minuten en probeer het dan opnieuw."
+            : `${MSG.fout} (${err.message})`,
+      );
       return;
     }
     setInfo(MSG.verzonden);
