@@ -3588,7 +3588,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   else if(view==="maand"){const dm=new Date(year,month+1,0).getDate();dates=Array.from({length:dm},(_,i)=>new Date(year,month,i+1));}
   else{const qStart=new Date(year,quarter*3,1);const qEnd=new Date(year,quarter*3+3,0);const wk=new Date(getWeekDays(qStart)[0]);while(wk<=qEnd){weeks.push(new Date(wk));wk.setDate(wk.getDate()+7);}}
   const wd7=getWeekDays(refDate);
-  const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
+  const titleStr=view==="dag"?`${DAYS_FULL[(refDate.getDay()+6)%7]} ${refDate.getDate()} ${MONTHS_NL[month]} ${year} · week ${getWeekNumber(refDate)}`:view==="week"?`${wd7[0].getDate()} ${MONTHS_NL[wd7[0].getMonth()].slice(0,3)} – ${wd7[6].getDate()} ${MONTHS_NL[wd7[6].getMonth()].slice(0,3)} ${year} · week ${getWeekNumber(wd7[0])}`:view==="maand"?`${MONTHS_NL[month]} ${year}`:`Q${quarter+1} ${year}`;
 
   // ===== Periode =====
   const periodStart=view==="kwartaal"?new Date(year,quarter*3,1):dates[0];
@@ -3802,6 +3802,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
               style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
               className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
+              {/* Weeknummer boven elke maandag (en boven de eerste dag in beeld) */}
+              <div className="text-[9px] leading-none h-3 text-[#0ABFB8] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
               <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1A2744] text-white":""}`}>{d.getDate()}</div>
               {hol&&view!=="maand"&&<div className="text-[8px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
