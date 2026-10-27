@@ -201,9 +201,43 @@
   --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
 body { font-family: var(--font-ui); font-size: 14px; line-height: 20px; color: #242424; -webkit-font-smoothing: antialiased; }
-/* Kaarten krijgen de subtiele Fluent-schaduw */
-.bg-white.rounded-lg.border { box-shadow: var(--fluent-shadow-2); }
-.fixed .bg-white.rounded-lg { box-shadow: var(--fluent-shadow-8); }
+/* ===== Liquid Glass (Maasmond) =====
+ * Achtergrond: zachte kleurvlakken in Maasmond-blauw en logo-rood, zodat het glas iets heeft om te breken.
+ * Glas: doorschijnend wit met vervaging, glansrand bovenaan en zachte schaduw.
+ * Drukke tabellen krijgen bijna dekkend glas (.glas-dicht) voor leesbaarheid. */
+.mm-achtergrond {
+  background:
+    radial-gradient(60rem 42rem at 8% -12%, rgba(30, 58, 123, 0.24), transparent 62%),
+    radial-gradient(48rem 34rem at 102% 2%, rgba(224, 64, 47, 0.15), transparent 60%),
+    radial-gradient(64rem 46rem at 78% 112%, rgba(30, 58, 123, 0.18), transparent 62%),
+    #edf0f5;
+}
+.glas, .bg-white.rounded-lg.border {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.56));
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 10px 30px rgba(21, 36, 74, 0.08),
+    0 1px 2px rgba(21, 36, 74, 0.06);
+}
+.glas-sterk {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.78)) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  backdrop-filter: blur(36px) saturate(190%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 24px 64px rgba(21, 36, 74, 0.22) !important;
+}
+.glas-dicht { background: rgba(255, 255, 255, 0.93) !important; }
+/* Geen transparantie gewenst (Windows/macOS-instelling) of geen ondersteuning: gewone dichte vlakken */
+@media (prefers-reduced-transparency: reduce) {
+  .glas, .glas-sterk, .bg-white.rounded-lg.border { background: #ffffff !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .mm-achtergrond { background: #f5f5f5; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glas, .glas-sterk, .bg-white.rounded-lg.border { background: #ffffff !important; }
+}
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
