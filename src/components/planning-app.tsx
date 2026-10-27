@@ -15,6 +15,7 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
+import { MaasmondScene } from "@/components/maasmond-scene";
 import { werkKey, cellStr, parseXlDate, parseTimeCell, mapVacStatus, type ImportRow, type VacBaseRow, type ImportWorkerRequest, type ImportWorkerResponse } from "@/lib/excel-parse";
 import { createProjectIndex, useProjectIndexVersion } from "@/lib/project-index";
 import { buildAvailabilityIndexes, type AvailabilityIndexes } from "@/lib/availability-index";
@@ -4906,7 +4907,8 @@ export default function PlanningApp(){
 
 
   return <DeptColorCtx.Provider value={settings.deptColors}>
-    <div className="flex h-screen mm-achtergrond overflow-hidden" style={{fontFamily:"var(--font-ui)"}}>
+    <div className="relative isolate flex h-screen mm-achtergrond overflow-hidden" style={{fontFamily:"var(--font-ui)"}}>
+      <MaasmondScene variant="app"/>
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>

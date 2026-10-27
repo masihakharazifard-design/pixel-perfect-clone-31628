@@ -265,6 +265,10 @@ button[class*="bg-[#1E3A7B]"]:active { transform: scale(0.96); box-shadow: 2px 3
   border-radius: 12px;
   box-shadow: var(--clay-in);
 }
+/* Parallax-scène (inlogscherm): lucht en laag-voor-laag opkomen */
+.mm-scene-login { background: linear-gradient(180deg, #e4ebf8 0%, #f3f1f4 55%, #eef2fa 100%); }
+@keyframes mm-opkomst { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+.mm-laag-op { animation: mm-opkomst 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
