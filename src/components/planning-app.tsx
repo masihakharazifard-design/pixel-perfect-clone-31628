@@ -498,11 +498,18 @@ function canonPl(naam:string):string{
   return plSpelling.get(k)!;
 }
 function projectleiderKey(p:Project,employees:Employee[]):string{return canonPl(plName(p,employees));}
+// Projectleiderkleuren: vaste reeks die duidelijk afwijkt van de afdelingskleuren
+// (Stoffering turquoise, Schilderwerk koraal, Zonwering oranje), zodat het tweede kleurvlak altijd opvalt.
+const PL_PALETTE=["#2563EB","#7C3AED","#15803D","#C026D3","#1E3A8A","#92400E","#4338CA","#65A30D","#9F1239","#0369A1","#6D28D9","#334155"];
 function projectleiderColorOf(name:string,map:Record<string,string>={}):string{
   if(!name)return FALLBACK_PROJECT_COLOR;
   // Handmatige kleur (ook als die onder een andere schrijfwijze is opgeslagen), anders vast op naam
   const eigen=map[name]||Object.entries(map).find(([k])=>k.toLowerCase()===name.toLowerCase())?.[1];
-  return eigen||generatedProjectColor(stableIdx("pl:"+name.toLowerCase())+311);
+  return eigen||PL_PALETTE[stableIdx("pl:"+name.toLowerCase())%PL_PALETTE.length];
+}
+// Kleur van een werk in de Personeelsplanning: de kleur van de (eerste) afdeling van het werk
+function werkAfdKleur(p:Project|undefined|null,dc:Record<Afdeling,{bg:string;light:string;border:string}>):string{
+  return p?(dc[primaryAfd(p)]?.bg||FALLBACK_PROJECT_COLOR):FALLBACK_PROJECT_COLOR;
 }
 function isSchilderwerk(p:Project):boolean{return getAllAfds(p).includes("Schilderwerk");}
 // Achtergrond van een planningblok: Schilderwerk met projectleider = tweekleurig (werk | projectleider).
@@ -1561,7 +1568,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         </div>
         {assigned.length===0&&<p className="text-[#6B7A99] text-sm">Nog geen medewerkers ingepland.</p>}
         {assigned.map(({employee:e,rows})=>{
-          const kleur=projectPlanningColorOf(project.id,projectColors);
+          const kleur=werkAfdKleur(project,dc);
           return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1 min-w-0">
@@ -2962,7 +2969,7 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
       {section("Feestdagen",[row("holiday","Landelijke feestdag",holidayColorOf(s),
         c=>setS(p=>({...p,holidayColor:c})),
         ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
-      {section("Werken",<><input value={projZoek} onChange={e=>setProjZoek(e.target.value)} placeholder="Zoek werk…"
+      {false&&section("Werken",<><input value={projZoek} onChange={e=>setProjZoek(e.target.value)} placeholder="Zoek werk…"
         className="w-full py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
         {projZoek.trim()&&projectHits.length===0&&<p className="text-xs text-[#B8C3D9]">Geen werken gevonden.</p>}
         {projectHits.map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
@@ -3234,7 +3241,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   // Afwezigheidsregels (vakantie/ziek/vrij/bezet) horen bij dezelfde bron
   const absFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!a.projectId&&ABSENCE_STATS.includes(a.status)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
   // Kleur van een planningregel: uitsluitend op projectId (teamkleur telt hier niet mee).
-  const rowColor=(a:AvailEntry)=>projectPlanningColorOf(a.projectId,projectColors);
+  // Kleur van een planningblok: de afdelingskleur van het werk (Schilderwerk krijgt daarnaast de projectleiderkleur)
+  const rowColor=(a:AvailEntry)=>werkAfdKleur(getIndexedProject(a.projectId),dc);
   // Schilderwerk: tweede kleur voor de projectleider
   const plColors=settings.projectleiderColors||{};
   const plColorFor=(p:Project):string|null=>{
@@ -3677,7 +3685,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     return{
       title:`${p.werknummer} – ${p.projectnaam}`,
       subtitle:`${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)} · ${p.projectnaam||"—"}`,
-      color:projectPlanningColorOf(p.id,projectColors),
+      color:werkAfdKleur(p,dc),
       badgeStyle:badgeStyle(st,badgeColors),
       statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
       countLabel:`${n}/${nodig}`,
@@ -3896,7 +3904,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(projectPlanningColorOf(p.id,projectColors),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(werkAfdKleur(p,dc),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
                   <span style={TWO_LINES}>{p.projectnaam||p.werknummer}</span>
                 </button>)}
                 {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
