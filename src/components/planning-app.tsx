@@ -134,7 +134,7 @@ function useDC(){return useContext(DeptColorCtx);}
 const INIT_SETTINGS:AppSettings = {
   bedrijfsnaam:"PlanPro BV",adres:"Industrieweg 14",postcode:"1234 AB",
   plaats:"Amsterdam",telefoon:"020-1234567",email:"info@planpro.nl",
-  primaryColor:"#1A2744",accentColor:"#0ABFB8",
+  primaryColor:"#15244A",accentColor:"#0ABFB8",
   deptColors:DEFAULT_DC,
 };
 
@@ -308,7 +308,7 @@ function projStyle(p:Project,dc:Record<Afdeling,{bg:string;light:string;border:s
   const afds=getAllAfds(p);
   // Offertes blijven zichtbaar in de agenda, maar met een grijze, gestippelde stijl
   if(p.teamKleur&&!isOfferte(p))return{backgroundColor:p.teamKleur};
-  if(isOfferte(p))return{backgroundColor:"#9AA5B8",backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)",border:"1px dashed #6B7A99",opacity:0.9};
+  if(isOfferte(p))return{backgroundColor:"#9AA5B8",backgroundImage:"repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)",border:"1px dashed #5F6878",opacity:0.9};
   if(afds.length===1)return{backgroundColor:dc[afds[0]].bg};
   if(afds.length===2)return{background:`linear-gradient(135deg, ${dc[afds[0]].bg} 50%, ${dc[afds[1]].bg} 50%)`};
   return{background:`linear-gradient(90deg, ${dc[afds[0]].bg} 33.3%, ${dc[afds[1]].bg} 33.3% 66.6%, ${dc[afds[2]].bg} 66.6%)`};
@@ -709,22 +709,22 @@ function AvailBadge({status}:{status:AvailStatus}){
   </span>;
 }
 function Btn({children,onClick,variant="primary",size="md",className="",disabled=false}:{children:React.ReactNode;onClick?:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";size?:"sm"|"md";className?:string;disabled?:boolean}){
-  const v={primary:"bg-[#1A2744] text-white hover:bg-[#243660]",secondary:"bg-white border border-[rgba(26,39,68,0.15)] text-[#1A2744] hover:bg-[#F0F3F8]",ghost:"text-[#6B7A99] hover:text-[#1A2744] hover:bg-[#E8EDF5]",danger:"bg-[#FF6B5B] text-white hover:bg-[#e05c4d]"};
+  const v={primary:"bg-[#15244A] text-white hover:bg-[#1E3A7B]",secondary:"bg-white border border-[rgba(21,36,74,0.15)] text-[#15244A] hover:bg-[#EFF1EE]",ghost:"text-[#5F6878] hover:text-[#15244A] hover:bg-[#E6E9E4]",danger:"bg-[#FF6B5B] text-white hover:bg-[#e05c4d]"};
   const s={sm:"px-2.5 py-1.5 text-xs",md:"px-3.5 py-2 text-sm"};
   return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors ${v[variant]} ${s[size]} ${disabled?"opacity-40 cursor-not-allowed":""} ${className}`}>{children}</button>;
 }
 function Input({label,value,onChange,type="text",placeholder="",required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;type?:string;placeholder?:string;required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40 focus:border-[#0ABFB8] placeholder-[#B8C3D9]" />
+      className="w-full px-3 py-2 bg-[#EFF1EE] border border-[rgba(21,36,74,0.1)] rounded-lg text-sm text-[#15244A] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#A7AEB8]" />
   </div>;
 }
 function Select({label,value,onChange,options,required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[];required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
     <select value={value} onChange={e=>onChange(e.target.value)}
-      className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40 focus:border-[#0ABFB8]">
+      className="w-full px-3 py-2 bg-[#EFF1EE] border border-[rgba(21,36,74,0.1)] rounded-lg text-sm text-[#15244A] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B]">
       <option value="">Selecteer...</option>
       {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -732,18 +732,18 @@ function Select({label,value,onChange,options,required=false,className=""}:{labe
 }
 function Textarea({label,value,onChange,rows=3,placeholder="",className=""}:{label?:string;value:string;onChange:(v:string)=>void;rows?:number;placeholder?:string;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">{label}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">{label}</label>}
     <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows} placeholder={placeholder}
-      className="w-full px-3 py-2 bg-[#F0F3F8] border border-[rgba(26,39,68,0.1)] rounded-lg text-sm text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40 focus:border-[#0ABFB8] placeholder-[#B8C3D9] resize-none" />
+      className="w-full px-3 py-2 bg-[#EFF1EE] border border-[rgba(21,36,74,0.1)] rounded-lg text-sm text-[#15244A] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#A7AEB8] resize-none" />
   </div>;
 }
 function Modal({title,children,onClose,width="max-w-2xl"}:{title:string;children:React.ReactNode;onClose:()=>void;width?:string}){
   return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
     <div className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full ${width} max-h-[92vh] sm:max-h-[90vh] flex flex-col`}>
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[rgba(26,39,68,0.08)]">
-        <h2 className="font-bold text-base md:text-lg text-[#1A2744] truncate pr-2">{title}</h2>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#F0F3F8] text-[#6B7A99] transition-colors flex-shrink-0"><X className="w-4 h-4"/></button>
+      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[rgba(21,36,74,0.08)]">
+        <h2 className="font-bold text-base md:text-lg text-[#15244A] truncate pr-2">{title}</h2>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#EFF1EE] text-[#5F6878] transition-colors flex-shrink-0"><X className="w-4 h-4"/></button>
       </div>
       <div className="overflow-y-auto flex-1">{children}</div>
     </div>
@@ -755,7 +755,7 @@ function ConfirmModal({message,onConfirm,onCancel,confirmLabel="Verwijderen",con
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-[#FF6B5B]"/></div>
-        <div><h3 className="font-semibold text-[#1A2744]">Bevestigen</h3><p className="text-sm text-[#6B7A99]">{message}</p></div>
+        <div><h3 className="font-semibold text-[#15244A]">Bevestigen</h3><p className="text-sm text-[#5F6878]">{message}</p></div>
       </div>
       <div className="flex gap-2 justify-end"><Btn variant="secondary" onClick={onCancel}>Annuleren</Btn><Btn variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Btn></div>
     </div>
@@ -855,24 +855,24 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
   return <Modal title="Excel importeren" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-4">
       {step==="upload"&&<>
-        <p className="text-sm text-[#6B7A99]">Upload uw originele Excel-bestand. De importer herkent de kolommen aan de namen in de kopregel — u hoeft niets te hernoemen of te herordenen.</p>
-        <div className={`border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center transition-colors ${loading?"opacity-60 cursor-not-allowed":"hover:border-[#0ABFB8] cursor-pointer"}`} onClick={()=>{if(!loading)fileRef.current?.click();}}>
-          <Table2 className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
-          <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
-          <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
+        <p className="text-sm text-[#5F6878]">Upload uw originele Excel-bestand. De importer herkent de kolommen aan de namen in de kopregel — u hoeft niets te hernoemen of te herordenen.</p>
+        <div className={`border-2 border-dashed border-[rgba(21,36,74,0.15)] rounded-xl p-8 text-center transition-colors ${loading?"opacity-60 cursor-not-allowed":"hover:border-[#1E3A7B] cursor-pointer"}`} onClick={()=>{if(!loading)fileRef.current?.click();}}>
+          <Table2 className="w-10 h-10 text-[#5F6878] mx-auto mb-3"/>
+          <p className="text-sm font-semibold text-[#15244A] mb-1">Klik om Excel-bestand te selecteren</p>
+          <p className="text-xs text-[#A7AEB8]">.xlsx, .xls</p>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading}
             onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
         </div>
         {loading&&<div className="space-y-2">
-          <p className="text-center text-sm text-[#6B7A99]">Excelbestand verwerken… {progress}%</p>
-          <div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div>
+          <p className="text-center text-sm text-[#5F6878]">Excelbestand verwerken… {progress}%</p>
+          <div className="h-1.5 rounded-full bg-[#EFF1EE] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div>
         </div>}
         {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
-        <div className="bg-[#F0F3F8] rounded-xl p-4 space-y-3 text-xs">
-          <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
-          <table className="w-full text-left text-[#6B7A99]">
-            <thead><tr className="border-b border-[rgba(26,39,68,0.1)]"><th className="py-1 font-semibold text-[#1A2744]">Excel kolom</th><th className="py-1 font-semibold text-[#1A2744]">Veld</th><th className="py-1 font-semibold text-[#1A2744]">Verplicht</th></tr></thead>
-            <tbody className="divide-y divide-[rgba(26,39,68,0.06)]">
+        <div className="bg-[#EFF1EE] rounded-xl p-4 space-y-3 text-xs">
+          <p className="font-semibold text-[#5F6878] uppercase tracking-wide">Verwachte kolommen</p>
+          <table className="w-full text-left text-[#5F6878]">
+            <thead><tr className="border-b border-[rgba(21,36,74,0.1)]"><th className="py-1 font-semibold text-[#15244A]">Excel kolom</th><th className="py-1 font-semibold text-[#15244A]">Veld</th><th className="py-1 font-semibold text-[#15244A]">Verplicht</th></tr></thead>
+            <tbody className="divide-y divide-[rgba(21,36,74,0.06)]">
               {[
                 ["Werknr.","Werknummer (uniek)","✓"],
                 ["S","Status",""],
@@ -885,7 +885,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
                 ["Straat object","Adres",""],
                 ["Plaats object","Plaats",""],
                 ["Opmerkingen","Opmerkingen",""],
-              ].map(([col,veld,req])=><tr key={col}><td className="py-1 font-mono">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>)}
+              ].map(([col,veld,req])=><tr key={col}><td className="py-1 font-mono">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>)}
             </tbody>
           </table>
           <div className="flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2">
@@ -900,9 +900,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>}
         {warning&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
-          <div className="bg-[#F0F3F8] rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-[#1A2744]">{preview.total}</p>
-            <p className="text-[10px] text-[#6B7A99] font-medium">Rijen gelezen</p>
+          <div className="bg-[#EFF1EE] rounded-xl p-3 text-center">
+            <p className="text-xl font-bold text-[#15244A]">{preview.total}</p>
+            <p className="text-[10px] text-[#5F6878] font-medium">Rijen gelezen</p>
           </div>
           <div className="bg-emerald-50 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-emerald-700">{preview.nieuwCount}</p>
@@ -917,44 +917,44 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
             <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
           </div>
         </div>
-        {preview.duplicaten>0&&<p className="text-xs text-[#6B7A99]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
+        {preview.duplicaten>0&&<p className="text-xs text-[#5F6878]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuwCount>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
             {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg text-xs flex-wrap">
               <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.werknummer}</span>
-              <span className="font-medium text-[#1A2744] flex-1 min-w-0 truncate">{r.projectnaam}</span>
-              {r.opdrachtgever&&<span className="text-[#6B7A99] truncate max-w-28">{r.opdrachtgever}</span>}
-              {r.projectleider&&<span className="text-[#6B7A99] italic truncate max-w-20">{r.projectleider}</span>}
+              <span className="font-medium text-[#15244A] flex-1 min-w-0 truncate">{r.projectnaam}</span>
+              {r.opdrachtgever&&<span className="text-[#5F6878] truncate max-w-28">{r.opdrachtgever}</span>}
+              {r.projectleider&&<span className="text-[#5F6878] italic truncate max-w-20">{r.projectleider}</span>}
               {r.turnkey
                 ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#0ABFB8 33%,#FF6B5B 33% 66%,#F5A623 66%)"}}>Turnkey</span>
                 :<span className="flex gap-0.5 flex-shrink-0">{r.afdelingen.map(a=><span key={a} className="w-2 h-2 rounded-full" style={{backgroundColor:DEFAULT_DC[a].bg}} title={a}/>)}</span>
               }
             </div>)}
-            {preview.nieuwCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.nieuwCount-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.nieuwCount>PREVIEW_LIMIT&&<p className="text-xs text-[#5F6878] px-1">Nog {preview.nieuwCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.bestaandCount>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-xs">
               <span className="font-mono text-amber-700 flex-shrink-0">{r.werknummer}</span>
-              <span className="text-[#6B7A99] truncate">{r.projectnaam}</span>
+              <span className="text-[#5F6878] truncate">{r.projectnaam}</span>
             </div>)}
-            {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
+            {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#5F6878] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
           </div>
         </div>}
         {preview.ongeldigCount>0&&<div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
               <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
-            {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6B7A99] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
+            {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#5F6878] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
         </div>}
-        <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
+        <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(21,36,74,0.08)]">
           <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");rowsRef.current=[];}} disabled={importing}>Terug</Btn>
           <Btn onClick={handleImport} disabled={importing||preview.nieuwCount===0}>
             <Download className="w-4 h-4"/>
@@ -1106,26 +1106,26 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
   if(!preview||step==="upload")return <Modal title="Beschikbaarheid importeren" onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-4">
-      <p className="text-sm text-[#6B7A99]">Upload een Excel-bestand met beschikbaarheid (vakantie, ziek, vrij, beschikbaar…). Bestaande planning wordt <strong>niet</strong> overschreven.</p>
+      <p className="text-sm text-[#5F6878]">Upload een Excel-bestand met beschikbaarheid (vakantie, ziek, vrij, beschikbaar…). Bestaande planning wordt <strong>niet</strong> overschreven.</p>
 
-      <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
-        <Calendar className="w-10 h-10 text-[#6B7A99] mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-[#1A2744] mb-1">Klik om Excel-bestand te selecteren</p>
-        <p className="text-xs text-[#B8C3D9]">.xlsx, .xls</p>
+      <div className="border-2 border-dashed border-[rgba(21,36,74,0.15)] rounded-xl p-8 text-center hover:border-[#1E3A7B] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
+        <Calendar className="w-10 h-10 text-[#5F6878] mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-[#15244A] mb-1">Klik om Excel-bestand te selecteren</p>
+        <p className="text-xs text-[#A7AEB8]">.xlsx, .xls</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
-      {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#6B7A99]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F0F3F8] overflow-hidden"><div className="h-full bg-[#0ABFB8] transition-all" style={{width:`${progress}%`}}/></div></div>}
+      {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#5F6878]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#EFF1EE] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div></div>}
       {parseError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{parseError}</div>}
-      <div className="bg-[#F0F3F8] rounded-xl p-4 text-xs space-y-2">
-        <p className="font-semibold text-[#6B7A99] uppercase tracking-wide">Verwachte kolommen</p>
-        <table className="w-full text-left text-[#6B7A99]">
-          <tbody className="divide-y divide-[rgba(26,39,68,0.06)]">
+      <div className="bg-[#EFF1EE] rounded-xl p-4 text-xs space-y-2">
+        <p className="font-semibold text-[#5F6878] uppercase tracking-wide">Verwachte kolommen</p>
+        <table className="w-full text-left text-[#5F6878]">
+          <tbody className="divide-y divide-[rgba(21,36,74,0.06)]">
             {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Eerste dag","✓"],["Einddatum","Laatste dag",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Status / Type","Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
-              <tr key={col}><td className="py-1 font-mono pr-2">{col}</td><td className="py-1 text-[#B8C3D9]">{desc}</td><td className="py-1 text-[#0ABFB8] font-bold">{req}</td></tr>
+              <tr key={col}><td className="py-1 font-mono pr-2">{col}</td><td className="py-1 text-[#A7AEB8]">{desc}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>
             )}
           </tbody>
         </table>
-        <p className="text-[#B8C3D9] pt-1">Als Einddatum ontbreekt → alleen Startdatum. Zonder tijden → volledige werkdag (08:00–17:00).</p>
+        <p className="text-[#A7AEB8] pt-1">Als Einddatum ontbreekt → alleen Startdatum. Zonder tijden → volledige werkdag (08:00–17:00).</p>
       </div>
     </div>
   </Modal>;
@@ -1142,7 +1142,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     <div className="p-4 md:p-6 space-y-4">
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#F0F3F8] text-[#1A2744]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-emerald-50 text-emerald-700"},{label:"Al bestaand",val:totalDup,cls:"bg-amber-50 text-amber-700"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-red-50 text-red-700":"bg-[#F0F3F8] text-[#6B7A99]"}].map(s=>
+        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#EFF1EE] text-[#15244A]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-emerald-50 text-emerald-700"},{label:"Al bestaand",val:totalDup,cls:"bg-amber-50 text-amber-700"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-red-50 text-red-700":"bg-[#EFF1EE] text-[#5F6878]"}].map(s=>
           <div key={s.label} className={`rounded-xl p-3 text-center ${s.cls}`}>
             <p className="text-xl font-bold">{s.val}</p>
             <p className="text-[10px] font-medium mt-0.5">{s.label}</p>
@@ -1152,13 +1152,13 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Import rows */}
       {validRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Te importeren ({validRows.length} medewerkers)</p>
+        <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Te importeren ({validRows.length} medewerkers)</p>
         <div className="max-h-56 overflow-y-auto space-y-1.5">
           {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-lg text-xs flex-wrap ${r.conflicts.length?"bg-amber-50 border border-amber-200":"bg-emerald-50"}`}>
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{backgroundColor:DEFAULT_DC[r.matchedEmployee!.afdeling].bg}}>{r.matchedEmployee!.naam.slice(0,1)}</div>
-            <span className="font-medium text-[#1A2744] flex-shrink-0">{r.matchedEmployee!.naam}</span>
-            <span className="text-[#6B7A99]">{fmtDate(r.startDate)}{r.endDate!==r.startDate&&` – ${fmtDate(r.endDate)}`}</span>
-            {r.hasExplicitTimes&&<span className="text-[#6B7A99]">{r.startTime}–{r.endTime}</span>}
+            <span className="font-medium text-[#15244A] flex-shrink-0">{r.matchedEmployee!.naam}</span>
+            <span className="text-[#5F6878]">{fmtDate(r.startDate)}{r.endDate!==r.startDate&&` – ${fmtDate(r.endDate)}`}</span>
+            {r.hasExplicitTimes&&<span className="text-[#5F6878]">{r.startTime}–{r.endTime}</span>}
             <span className="px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 text-[10px]" style={{backgroundColor:AS[r.status].bg,color:AS[r.status].text}}>{r.status}</span>
             {r.entriesToCreate.length>0&&<span className="text-emerald-600 font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
             {r.duplicateDates.length>0&&<span className="text-amber-600 flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
@@ -1172,10 +1172,10 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">⚠ Conflicten — projectplanning overlapt</p>
         <div className="max-h-40 overflow-y-auto space-y-1.5 bg-amber-50 rounded-xl p-3">
           {conflictRows.flatMap(r=>r.conflicts.map((c,ci)=><div key={`${r.rowIndex}-${ci}`} className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-[#1A2744] flex-shrink-0">{r.matchedEmployee!.naam}</span>
-            <span className="text-[#6B7A99]">·</span>
-            <span className="text-[#1A2744] truncate">{c.project.projectnaam}</span>
-            <span className="text-[#6B7A99] font-mono flex-shrink-0">{c.project.werknummer}</span>
+            <span className="font-semibold text-[#15244A] flex-shrink-0">{r.matchedEmployee!.naam}</span>
+            <span className="text-[#5F6878]">·</span>
+            <span className="text-[#15244A] truncate">{c.project.projectnaam}</span>
+            <span className="text-[#5F6878] font-mono flex-shrink-0">{c.project.werknummer}</span>
             <span className="text-amber-700 flex-shrink-0">{fmtDate(c.date)}</span>
           </div>))}
           <p className="text-[10px] text-amber-600 pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
@@ -1184,19 +1184,19 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Unmatched */}
       {unmatchedRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Niet gevonden ({unmatchedRows.length})</p>
+        <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Niet gevonden ({unmatchedRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
-          {unmatchedRows.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#F0F3F8] rounded-lg text-xs">
-            <span className="font-mono text-[#6B7A99]">R{r.rowIndex}</span>
-            <span className="font-medium text-[#1A2744]">"{r.rawName}"</span>
-            <span className="text-[#6B7A99]">{r.ambiguous?"Meerdere medewerkers gevonden — specificeer in Excel":"Medewerker niet gevonden"}</span>
+          {unmatchedRows.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#EFF1EE] rounded-lg text-xs">
+            <span className="font-mono text-[#5F6878]">R{r.rowIndex}</span>
+            <span className="font-medium text-[#15244A]">"{r.rawName}"</span>
+            <span className="text-[#5F6878]">{r.ambiguous?"Meerdere medewerkers gevonden — specificeer in Excel":"Medewerker niet gevonden"}</span>
           </div>)}
         </div>
       </div>}
 
       {/* Invalid */}
       {invalidRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
+        <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
           {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs">
             <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
@@ -1205,7 +1205,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         </div>
       </div>}
 
-      <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(26,39,68,0.08)]">
+      <div className="flex gap-2 justify-between pt-2 border-t border-[rgba(21,36,74,0.08)]">
         <Btn variant="secondary" onClick={()=>{setStep("upload");setPreview(null);setParseError("");}} disabled={importing}>Terug</Btn>
         <Btn onClick={handleImport} disabled={importing||totalNew===0}>
           <Check className="w-4 h-4"/>
@@ -1306,9 +1306,9 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <div>
-        <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Afdeling(en)<span className="text-[#FF6B5B] ml-0.5">*</span></label>
+        <label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">Afdeling(en)<span className="text-[#FF6B5B] ml-0.5">*</span></label>
         <div className="flex gap-2 flex-wrap">
-          {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(26,39,68,0.15)] text-[#6B7A99] hover:border-[#6B7A99]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
+          {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(21,36,74,0.15)] text-[#5F6878] hover:border-[#5F6878]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
         </div>
       </div>
       <Input label="Calculator" value={plName(f as Project,employees)} onChange={v=>set("projectleider",v)} placeholder="Naam calculator"/>
@@ -1329,39 +1329,39 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <Input label="Benodigde medewerkers" value={String(f.benodigdeMedewerkers??1)} onChange={v=>set("benodigdeMedewerkers",Math.max(1,parseInt(v)||1))} type="number"/>
     </div>
-    <div className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
-      <div className="bg-[#F0F3F8] px-4 py-2.5 border-b border-[rgba(26,39,68,0.1)]">
-        <span className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide">Medewerkers toewijzen</span>
+    <div className="border border-[rgba(21,36,74,0.1)] rounded-xl overflow-hidden">
+      <div className="bg-[#EFF1EE] px-4 py-2.5 border-b border-[rgba(21,36,74,0.1)]">
+        <span className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide">Medewerkers toewijzen</span>
       </div>
       <div className="p-4 space-y-4">
         <div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">1. Afdeling</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">1. Afdeling</p>
           <div className="flex gap-2">
-            {AFDS.map(a=><button key={a} type="button" onClick={()=>handleAssignAfdChange(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${assignAfd===a?"text-white border-transparent":"border-[rgba(26,39,68,0.15)] text-[#6B7A99] hover:border-[#6B7A99]"}`} style={assignAfd===a?{backgroundColor:dc[a].bg}:{}}>{a}</button>)}
+            {AFDS.map(a=><button key={a} type="button" onClick={()=>handleAssignAfdChange(a)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${assignAfd===a?"text-white border-transparent":"border-[rgba(21,36,74,0.15)] text-[#5F6878] hover:border-[#5F6878]"}`} style={assignAfd===a?{backgroundColor:dc[a].bg}:{}}>{a}</button>)}
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">2. Competenties <span className="normal-case font-normal text-[#B8C3D9]">(optioneel)</span></p>
-          {afdComps.length===0?<p className="text-xs text-[#B8C3D9]">Geen competenties gevonden.</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">2. Competenties <span className="normal-case font-normal text-[#A7AEB8]">(optioneel)</span></p>
+          {afdComps.length===0?<p className="text-xs text-[#A7AEB8]">Geen competenties gevonden.</p>
           :<div className="flex flex-wrap gap-1.5">
-            {afdComps.map(c=>{const sel=assignComps.includes(c);return<button key={c} type="button" onClick={()=>setAssignComps(prev=>sel?prev.filter(x=>x!==c):[...prev,c])} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${sel?"bg-[#1A2744] text-white border-[#1A2744]":"border-[rgba(26,39,68,0.15)] text-[#6B7A99] hover:border-[#1A2744]"}`}>{sel&&<Check className="w-2.5 h-2.5 inline mr-0.5"/>}{c}</button>;})}
+            {afdComps.map(c=>{const sel=assignComps.includes(c);return<button key={c} type="button" onClick={()=>setAssignComps(prev=>sel?prev.filter(x=>x!==c):[...prev,c])} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${sel?"bg-[#15244A] text-white border-[#15244A]":"border-[rgba(21,36,74,0.15)] text-[#5F6878] hover:border-[#15244A]"}`}>{sel&&<Check className="w-2.5 h-2.5 inline mr-0.5"/>}{c}</button>;})}
           </div>}
         </div>
-        <div className="bg-[#F0F3F8] rounded-lg px-3 py-2 flex items-center gap-2 text-xs">
-          <Clock className="w-3.5 h-3.5 text-[#6B7A99] flex-shrink-0"/>
-          <span className="font-semibold text-[#1A2744]">3. Periode:&nbsp;</span>
-          <span className="text-[#6B7A99]">{fmtDate(f.startdatum)} {fmtTime(f.startdatum)} – {fmtDate(f.afloopdatum)} {fmtTime(f.afloopdatum)}</span>
+        <div className="bg-[#EFF1EE] rounded-lg px-3 py-2 flex items-center gap-2 text-xs">
+          <Clock className="w-3.5 h-3.5 text-[#5F6878] flex-shrink-0"/>
+          <span className="font-semibold text-[#15244A]">3. Periode:&nbsp;</span>
+          <span className="text-[#5F6878]">{fmtDate(f.startdatum)} {fmtTime(f.startdatum)} – {fmtDate(f.afloopdatum)} {fmtTime(f.afloopdatum)}</span>
         </div>
         <div>
-          <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">4. Beschikbare medewerkers</p>
+          <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">4. Beschikbare medewerkers</p>
           {availableEmps.length===0
-            ?<p className="text-xs text-[#6B7A99] italic py-1">Geen beschikbare medewerkers gevonden voor deze afdeling, competenties en periode.</p>
+            ?<p className="text-xs text-[#5F6878] italic py-1">Geen beschikbare medewerkers gevonden voor deze afdeling, competenties en periode.</p>
             :<div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-              {availableEmps.map(({emp,av:av0})=>{const isPlanned=plannedIds.has(emp.id);const sel=isPlanned||f.medewerkers.includes(emp.id);const av=isPlanned?{ok:true,reason:undefined}:av0;return<button key={emp.id} type="button" onClick={()=>{if(av.ok||sel)toggleMed(emp.id);}} className={`w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all ${sel?"border-[#0ABFB8] bg-[#E0F7F6]":av.ok?"border-[rgba(26,39,68,0.1)] hover:border-[#0ABFB8] bg-white":"border-[rgba(26,39,68,0.08)] bg-[#F8F9FC] opacity-60"}`}>
+              {availableEmps.map(({emp,av:av0})=>{const isPlanned=plannedIds.has(emp.id);const sel=isPlanned||f.medewerkers.includes(emp.id);const av=isPlanned?{ok:true,reason:undefined}:av0;return<button key={emp.id} type="button" onClick={()=>{if(av.ok||sel)toggleMed(emp.id);}} className={`w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all ${sel?"border-[#1E3A7B] bg-[#E4E9F4]":av.ok?"border-[rgba(21,36,74,0.1)] hover:border-[#1E3A7B] bg-white":"border-[rgba(21,36,74,0.08)] bg-[#F7F8F6] opacity-60"}`}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[emp.afdeling].bg}}>{emp.naam.slice(0,1)}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5"><p className="font-semibold text-[#1A2744] text-xs">{emp.naam}</p>{sel&&<Check className="w-3 h-3 text-[#0ABFB8] flex-shrink-0"/>}</div>
-                  <p className="text-[10px] text-[#6B7A99] truncate">{emp.functie} · {emp.competenties.join(", ")}</p>
+                  <div className="flex items-center gap-1.5"><p className="font-semibold text-[#15244A] text-xs">{emp.naam}</p>{sel&&<Check className="w-3 h-3 text-[#1E3A7B] flex-shrink-0"/>}</div>
+                  <p className="text-[10px] text-[#5F6878] truncate">{emp.functie} · {emp.competenties.join(", ")}</p>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 ${av.ok?"bg-[#D1FAE5] text-[#065F46]":"bg-[#FEE2E2] text-[#991B1B]"}`}>{isPlanned?"Ingepland":sel?"Wordt ingepland":av.ok?"Beschikbaar":av.reason}</span>
               </button>;})}
@@ -1371,7 +1371,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
       </div>
     </div>
     <Textarea label="Notities" value={f.notities} onChange={v=>set("notities",v)} rows={2} placeholder="Interne notities..."/>
-    <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.08)]">
+    <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(21,36,74,0.08)]">
       <Btn variant="secondary" onClick={onCancel}>Annuleren</Btn>
       <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{isEdit?"Opslaan":"Werk aanmaken"}</Btn>
     </div>
@@ -1487,9 +1487,9 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];
   return <Modal title={project.projectnaam} onClose={onClose} width="max-w-3xl">
-    <div className="border-b border-[rgba(26,39,68,0.08)]">
+    <div className="border-b border-[rgba(21,36,74,0.08)]">
       <div className="flex items-center gap-0.5 px-3 md:px-6 pt-2 overflow-x-auto">
-        {tabs.map(t=><button key={t} onClick={()=>setTab(t)} className={`px-2.5 md:px-3 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${tab===t?"text-[#1A2744] border-b-2 border-[#0ABFB8]":"text-[#6B7A99] hover:text-[#1A2744]"}`}>{tabLabels[t]}</button>)}
+        {tabs.map(t=><button key={t} onClick={()=>setTab(t)} className={`px-2.5 md:px-3 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${tab===t?"text-[#15244A] border-b-2 border-[#1E3A7B]":"text-[#5F6878] hover:text-[#15244A]"}`}>{tabLabels[t]}</button>)}
       </div>
     </div>
     <div className="p-4 md:p-6">
@@ -1497,8 +1497,8 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap"><DeptBadges afds={afds}/><StatusBadge status={project.status}/></div>
-            <p className="text-xl md:text-2xl font-bold text-[#1A2744]">{project.projectnaam}</p>
-            <p className="text-[#6B7A99] text-sm">{project.werknummer}</p>
+            <p className="text-xl md:text-2xl font-bold text-[#15244A]">{project.projectnaam}</p>
+            <p className="text-[#5F6878] text-sm">{project.werknummer}</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
             {onAddEmployees&&<Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Medewerker toevoegen</span></Btn>}
@@ -1509,23 +1509,23 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         </div>
         <div className="grid grid-cols-2 gap-2 md:gap-3">
           {[["Opdrachtgever",project.opdrachtgever],["Adres",project.adres||project.plaats],["Startdatum",fmtDate(project.startdatum)+" "+fmtTime(project.startdatum)],["Afloopdatum",fmtDate(project.afloopdatum)+" "+fmtTime(project.afloopdatum)],["Duur",`${dur} dag${dur!==1?"en":""}`],["Benodigde medewerkers",`${project.benodigdeMedewerkers??1}`]].map(([k,v])=>
-            <div key={k} className="bg-[#F0F3F8] rounded-xl p-3">
-              <p className="text-xs text-[#6B7A99] mb-0.5">{k}</p>
-              <p className="font-semibold text-[#1A2744] text-sm">{v}</p>
+            <div key={k} className="bg-[#EFF1EE] rounded-xl p-3">
+              <p className="text-xs text-[#5F6878] mb-0.5">{k}</p>
+              <p className="font-semibold text-[#15244A] text-sm">{v}</p>
             </div>
           )}
         </div>
-        {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#E0F7F6] rounded-xl">
+        {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#E4E9F4] rounded-xl">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:primaryDc.bg}}>{plNaam.slice(0,1)}</div>
-          <div><p className="font-semibold text-[#1A2744] text-sm">{plNaam}</p><p className="text-xs text-[#6B7A99]">Calculator</p></div>
+          <div><p className="font-semibold text-[#15244A] text-sm">{plNaam}</p><p className="text-xs text-[#5F6878]">Calculator</p></div>
         </div>}
       </div>}
-      {tab==="taken"&&<Suspense fallback={<p className="text-sm text-[#6B7A99]">Taken laden…</p>}>
+      {tab==="taken"&&<Suspense fallback={<p className="text-sm text-[#5F6878]">Taken laden…</p>}>
         <TakenTab projectId={project.id}/>
       </Suspense>}
       {tab==="opmerkingen"&&<div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-2">Opmerkingen</p>
-        <p className="text-[#1A2744] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
+        <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-2">Opmerkingen</p>
+        <p className="text-[#15244A] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
       </div>}
       {tab==="planning"&&<div className="space-y-4">
         <div className="flex justify-end">
@@ -1534,21 +1534,21 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
           </Btn>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 border border-[rgba(26,39,68,0.1)] rounded-xl">
-            <p className="text-xs text-[#6B7A99] mb-1">Startdatum</p>
-            <p className="font-semibold text-[#1A2744]">{fmtDate(project.startdatum)}</p>
-            <p className="text-sm text-[#6B7A99]">{fmtTime(project.startdatum)}</p>
+          <div className="p-4 border border-[rgba(21,36,74,0.1)] rounded-xl">
+            <p className="text-xs text-[#5F6878] mb-1">Startdatum</p>
+            <p className="font-semibold text-[#15244A]">{fmtDate(project.startdatum)}</p>
+            <p className="text-sm text-[#5F6878]">{fmtTime(project.startdatum)}</p>
           </div>
-          <div className="p-4 border border-[rgba(26,39,68,0.1)] rounded-xl">
-            <p className="text-xs text-[#6B7A99] mb-1">Afloopdatum</p>
-            <p className="font-semibold text-[#1A2744]">{fmtDate(project.afloopdatum)}</p>
-            <p className="text-sm text-[#6B7A99]">{fmtTime(project.afloopdatum)}</p>
+          <div className="p-4 border border-[rgba(21,36,74,0.1)] rounded-xl">
+            <p className="text-xs text-[#5F6878] mb-1">Afloopdatum</p>
+            <p className="font-semibold text-[#15244A]">{fmtDate(project.afloopdatum)}</p>
+            <p className="text-sm text-[#5F6878]">{fmtTime(project.afloopdatum)}</p>
           </div>
         </div>
-        <div className="p-4 bg-[#F0F3F8] rounded-xl">
+        <div className="p-4 bg-[#EFF1EE] rounded-xl">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-[#6B7A99]">Voortgang</span>
-            <span className="font-semibold text-[#1A2744]">{project.status}</span>
+            <span className="text-[#5F6878]">Voortgang</span>
+            <span className="font-semibold text-[#15244A]">{project.status}</span>
           </div>
           <div className="h-2 bg-white rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all" style={{width:project.status==="Afgerond"||project.status==="Gefactureerd"?"100%":project.status==="In uitvoering"?"60%":project.status==="Bevestigd"?"30%":"10%",backgroundColor:primaryDc.bg}}/>
@@ -1564,18 +1564,18 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         {onAddEmployees&&<div className="flex justify-end"><Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-4 h-4"/>Medewerker toevoegen</Btn></div>}
         <div className="flex items-center gap-2">
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={badgeStyle(planStatusOf(project,availability),badgeColors)}>{PLAN_STATUS_LABEL[planStatusOf(project,availability)]}</span>
-          <span className="text-xs text-[#6B7A99]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
+          <span className="text-xs text-[#5F6878]">{assigned.length} van {benodigd(project)} benodigde medewerkers ingepland</span>
         </div>
-        {assigned.length===0&&<p className="text-[#6B7A99] text-sm">Nog geen medewerkers ingepland.</p>}
+        {assigned.length===0&&<p className="text-[#5F6878] text-sm">Nog geen medewerkers ingepland.</p>}
         {assigned.map(({employee:e,rows})=>{
           const kleur=werkAfdKleur(project,dc);
-          return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(26,39,68,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
+          return<div key={e.id} className="flex items-start gap-3 p-3 border border-[rgba(21,36,74,0.08)] rounded-xl" style={{borderLeftColor:kleur,borderLeftWidth:4}}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p>
-              <p className="text-xs text-[#6B7A99]">{e.functie}</p>
+              <p className="font-semibold text-[#15244A] text-sm">{e.naam}</p>
+              <p className="text-xs text-[#5F6878]">{e.functie}</p>
               {rows.length>0&&<div className="mt-1 space-y-0.5">
-                {rows.map(r=><p key={r.id} className="text-xs text-[#6B7A99] font-mono flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
+                {rows.map(r=><p key={r.id} className="text-xs text-[#5F6878] font-mono flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
               </div>}
             </div>
             <DeptBadge afd={e.afdeling}/>
@@ -1583,16 +1583,16 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         })}
       </div>}
       {tab==="documenten"&&<div>
-        <div className="border-2 border-dashed border-[rgba(26,39,68,0.15)] rounded-xl p-8 text-center mb-4 hover:border-[#0ABFB8] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
-          <Upload className="w-8 h-8 text-[#6B7A99] mx-auto mb-2"/>
-          <p className="text-sm text-[#6B7A99]">Klik om bestanden te uploaden</p>
-          <p className="text-xs text-[#B8C3D9] mt-1">PDF, Word, Excel, afbeeldingen</p>
+        <div className="border-2 border-dashed border-[rgba(21,36,74,0.15)] rounded-xl p-8 text-center mb-4 hover:border-[#1E3A7B] transition-colors cursor-pointer" onClick={()=>fileRef.current?.click()}>
+          <Upload className="w-8 h-8 text-[#5F6878] mx-auto mb-2"/>
+          <p className="text-sm text-[#5F6878]">Klik om bestanden te uploaden</p>
+          <p className="text-xs text-[#A7AEB8] mt-1">PDF, Word, Excel, afbeeldingen</p>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={e=>{if(e.target.files)setDocs(prev=>[...prev,...Array.from(e.target.files!).map(f=>f.name)]);}}/>
         </div>
-        {docs.map((d,i)=><div key={i} className="flex items-center gap-3 p-2.5 border border-[rgba(26,39,68,0.08)] rounded-lg mb-2">
-          <FileText className="w-4 h-4 text-[#0ABFB8]"/>
-          <span className="flex-1 text-sm text-[#1A2744]">{d}</span>
-          <button onClick={()=>setDocs(prev=>prev.filter((_,j)=>j!==i))} className="text-[#6B7A99] hover:text-[#FF6B5B]"><X className="w-3.5 h-3.5"/></button>
+        {docs.map((d,i)=><div key={i} className="flex items-center gap-3 p-2.5 border border-[rgba(21,36,74,0.08)] rounded-lg mb-2">
+          <FileText className="w-4 h-4 text-[#1E3A7B]"/>
+          <span className="flex-1 text-sm text-[#15244A]">{d}</span>
+          <button onClick={()=>setDocs(prev=>prev.filter((_,j)=>j!==i))} className="text-[#5F6878] hover:text-[#FF6B5B]"><X className="w-3.5 h-3.5"/></button>
         </div>)}
       </div>}
       {tab==="facturatie"&&<FacturatieTermijnen projectId={project.id}/>}
@@ -1620,7 +1620,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
       <Input label="E-mail" value={f.email} onChange={v=>set("email",v)}/>
     </div>
     <Input label="Competenties (kommagescheiden)" value={comp} onChange={v=>{setComp(v);set("competenties",v.split(",").map(s=>s.trim()).filter(Boolean));}}/>
-    <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.08)]">
+    <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(21,36,74,0.08)]">
       <Btn variant="secondary" onClick={onCancel}>Annuleren</Btn>
       <Btn onClick={()=>{if(valid)onSave(f);}} disabled={!valid}>{initial.id?"Opslaan":"Medewerker aanmaken"}</Btn>
     </div>
@@ -1639,21 +1639,21 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
   const {roles}=useAuth();
   const items=roles.includes("beheerder")?[...NAV_ITEMS,...ADMIN_NAV_ITEMS]:NAV_ITEMS;
   return <>
-    <div className="px-5 py-5">
-      <div className="flex items-center gap-2.5">
-        <div className="bg-white rounded-lg px-2 py-1.5 flex items-center justify-center">
-          <img src={maasmondLogo} alt="Maasmond logo" className="h-5 w-auto"/>
+    <div className="px-5 pt-6 pb-5 border-b border-[rgba(21,36,74,0.08)]">
+      <div className="flex items-center gap-3">
+        <img src={maasmondLogo} alt="Maasmond" className="h-9 w-auto"/>
+        <div className="leading-tight">
+          <p className="font-display text-[1.35rem] font-medium text-[#15244A] tracking-[-0.01em]">Maasmond</p>
+          <p className="text-[#5F6878] text-xs">Planning</p>
         </div>
-        <span className="text-white font-bold text-base tracking-tight">Maasmond planning</span>
       </div>
-      <p className="text-[#6B8099] text-xs mt-0.5">Projectplanning</p>
     </div>
-    <div className="px-3 py-1 space-y-0.5 flex-1">
-      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${active===id?"bg-white/15 text-white font-semibold":"text-[#8899BB] hover:text-white hover:bg-white/8"}`}>
+    <div className="py-3 space-y-0.5 flex-1">
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`relative w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm transition-colors ${active===id?"text-[#15244A] font-semibold bg-[#EFF1EE] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:bg-[#E0402F]":"text-[#5F6878] hover:text-[#15244A] hover:bg-[#F5F6F3]"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
-    <div className="p-4 border-t border-white/10">
+    <div className="p-4 border-t border-[rgba(21,36,74,0.08)]">
       <SidebarUser/>
     </div>
   </>;
@@ -1665,13 +1665,13 @@ function SidebarUser(){
   const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
   return <div className="space-y-2">
     <div className="flex items-center gap-2.5 min-w-0">
-      <div className="w-8 h-8 rounded-full bg-[#0ABFB8] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="w-8 h-8 rounded-full bg-[#1E3A7B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
       <div className="min-w-0">
-        <p className="text-white text-xs font-semibold truncate">{naam}</p>
-        <p className="text-[#6B8099] text-xs truncate">{roleLabel}</p>
+        <p className="text-[#15244A] text-xs font-semibold truncate">{naam}</p>
+        <p className="text-[#5F6878] text-xs truncate">{roleLabel}</p>
       </div>
     </div>
-    {user && <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#8899BB] hover:text-white hover:bg-white/10 transition-colors">
+    {user && <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#5F6878] hover:text-[#15244A] hover:bg-[#EFF1EE] transition-colors">
       <LogOut className="w-3.5 h-3.5"/>Uitloggen
     </button>}
   </div>;
@@ -1680,18 +1680,14 @@ function SidebarUser(){
 function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Nav)=>void;mobileOpen:boolean;onMobileClose:()=>void}){
   const handleNav=(n:Nav)=>{onNav(n);onMobileClose();};
   return <>
-    <div className="hidden md:flex w-56 min-h-screen bg-[#1A2744] flex-col flex-shrink-0">
+    <div className="hidden md:flex w-56 min-h-screen bg-white border-r border-[rgba(21,36,74,0.08)] flex-col flex-shrink-0">
       <SidebarContent active={active} onNav={onNav}/>
     </div>
     {mobileOpen&&<div className="fixed inset-0 z-50 md:hidden" onClick={onMobileClose}>
       <div className="absolute inset-0 bg-black/50"/>
-      <div className="absolute left-0 top-0 bottom-0 w-64 bg-[#1A2744] flex flex-col" onClick={e=>e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#0ABFB8] flex items-center justify-center"><Layers className="w-3.5 h-3.5 text-white"/></div>
-            <span className="text-white font-bold text-sm">PlanPro</span>
-          </div>
-          <button onClick={onMobileClose} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10"><X className="w-4 h-4"/></button>
+      <div className="absolute left-0 top-0 bottom-0 w-64 bg-white flex flex-col" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-end px-3 pt-3">
+          <button onClick={onMobileClose} aria-label="Menu sluiten" className="p-1.5 rounded-lg text-[#5F6878] hover:text-[#15244A] hover:bg-[#EFF1EE]"><X className="w-4 h-4"/></button>
         </div>
         <SidebarContent active={active} onNav={handleNav}/>
       </div>
@@ -1700,13 +1696,13 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
   const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",gebruikers:"Gebruikersbeheer"};
-  return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-[#1A2744] flex-shrink-0 z-10">
-    <button onClick={onOpenMenu} className="p-1.5 rounded-lg text-[#8899BB] hover:text-white hover:bg-white/10 flex-shrink-0"><Menu className="w-5 h-5"/></button>
+  return <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-[rgba(21,36,74,0.08)] flex-shrink-0 z-10">
+    <button onClick={onOpenMenu} aria-label="Menu openen" className="p-1.5 rounded-lg text-[#5F6878] hover:text-[#15244A] hover:bg-[#EFF1EE] flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
-      <div className="w-6 h-6 rounded bg-[#0ABFB8] flex items-center justify-center"><Layers className="w-3 h-3 text-white"/></div>
-      <span className="text-white font-bold text-sm">PlanPro</span>
+      <img src={maasmondLogo} alt="Maasmond" className="h-6 w-auto"/>
+      <span className="font-display text-lg font-medium text-[#15244A]">Maasmond</span>
     </div>
-    <span className="text-[#8899BB] text-sm ml-auto">{labels[nav]}</span>
+    <span className="text-[#5F6878] text-sm ml-auto">{labels[nav]}</span>
   </div>;
 }
 
@@ -1733,55 +1729,54 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
   ];
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6">
     <div>
-      <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Dashboard</h1>
-      <p className="text-[#6B7A99] text-xs md:text-sm">{now.toLocaleDateString("nl-NL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
+      <h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Dashboard</h1>
+      <p className="text-[#5F6878] text-xs md:text-sm">{now.toLocaleDateString("nl-NL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-      {stats.map(s=><button key={s.label} onClick={()=>s.label==="Actieve werken"?onShowActive():onNav(s.nav)}className="bg-white rounded-2xl p-3 md:p-4 text-left hover:shadow-md transition-all border border-[rgba(26,39,68,0.06)] hover:border-[rgba(26,39,68,0.12)]">
+      {stats.map(s=><button key={s.label} onClick={()=>s.label==="Actieve werken"?onShowActive():onNav(s.nav)}className="bg-white rounded-2xl p-3 md:p-4 text-left hover:shadow-md transition-all border border-[rgba(21,36,74,0.06)] hover:border-[rgba(21,36,74,0.12)]">
         <div className="flex items-center justify-between mb-2 md:mb-3">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center" style={{backgroundColor:s.bg}}><s.icon className="w-4 h-4 md:w-5 md:h-5" style={{color:s.color}}/></div>
-          {s.value>0&&<span className="text-xs text-[#6B7A99]">→</span>}
+          <s.icon className="w-4 h-4 text-[#5F6878]" aria-hidden="true"/>
         </div>
-        <p className="text-xl md:text-2xl font-bold text-[#1A2744]">{s.value}</p>
-        <p className="text-xs text-[#6B7A99] mt-0.5 leading-tight">{s.label}</p>
+        <p className="font-display text-[2rem] md:text-[2.4rem] leading-none font-medium text-[#15244A]">{s.value}</p>
+        <p className="text-xs text-[#5F6878] mt-0.5 leading-tight">{s.label}</p>
       </button>)}
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-      <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
-          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Actieve werken{active.length>0&&<span className="ml-1.5 text-xs font-medium text-[#6B7A99]">({active.length})</span>}</h3>
-          <button onClick={onShowActive} className="text-xs text-[#0ABFB8] hover:underline">Alle actieve werken</button>
+      <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(21,36,74,0.06)] flex items-center justify-between">
+          <h3 className="font-display text-lg md:text-xl font-medium text-[#15244A]">Actieve werken{active.length>0&&<span className="ml-1.5 text-xs font-medium text-[#5F6878]">({active.length})</span>}</h3>
+          <button onClick={onShowActive} className="text-xs text-[#1E3A7B] hover:underline">Alle actieve werken</button>
         </div>
         {/* Alle actieve werken; bij veel werken scrollt de lijst */}
-        <div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-[26rem] overflow-y-auto">
+        <div className="divide-y divide-[rgba(21,36,74,0.05)] max-h-[26rem] overflow-y-auto">
           {active.map(p=>{
             const afds=getAllAfds(p);
-            return <button key={p.id} onClick={()=>onOpenProject(p)} className="w-full px-4 md:px-5 py-2.5 md:py-3 flex items-center gap-3 hover:bg-[#F8F9FC] transition-colors text-left">
+            return <button key={p.id} onClick={()=>onOpenProject(p)} className="w-full px-4 md:px-5 py-2.5 md:py-3 flex items-center gap-3 hover:bg-[#F7F8F6] transition-colors text-left">
               <div className="w-2 h-7 md:h-8 rounded-full flex-shrink-0 overflow-hidden" style={afds.length===1?{backgroundColor:dc[afds[0]].bg}:{background:`linear-gradient(180deg, ${dc[afds[0]].bg} 50%, ${afds[1]?dc[afds[1]].bg:dc[afds[0]].bg} 50%)`}}/>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-[#1A2744] text-sm truncate">{p.werknummer?`${p.werknummer} – `:""}{p.projectnaam}</p>
-                <p className="text-xs text-[#6B7A99] truncate">{[p.opdrachtgever,p.plaats].filter(Boolean).join(" · ")}{validDate(p.startdatum)?` · ${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)}`:""}</p>
+                <p className="font-medium text-[#15244A] text-sm truncate">{p.werknummer?`${p.werknummer} – `:""}{p.projectnaam}</p>
+                <p className="text-xs text-[#5F6878] truncate">{[p.opdrachtgever,p.plaats].filter(Boolean).join(" · ")}{validDate(p.startdatum)?` · ${fmtDate(p.startdatum)} – ${fmtDate(p.afloopdatum)}`:""}</p>
               </div>
               <StatusBadge status={p.status}/>
             </button>;
           })}
-          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#6B7A99]">Geen actieve werken</p>}
+          {active.length===0&&<p className="px-5 py-8 text-center text-sm text-[#5F6878]">Geen actieve werken</p>}
         </div>
       </div>
-      <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between">
-          <h3 className="font-semibold text-[#1A2744] text-sm md:text-base">Medewerkers vandaag</h3>
-          <button onClick={()=>onNav("personeelsplanning")} className="text-xs text-[#0ABFB8] hover:underline">Personeelsplanning</button>
+      <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(21,36,74,0.06)] flex items-center justify-between">
+          <h3 className="font-display text-lg md:text-xl font-medium text-[#15244A]">Medewerkers vandaag</h3>
+          <button onClick={()=>onNav("personeelsplanning")} className="text-xs text-[#1E3A7B] hover:underline">Personeelsplanning</button>
         </div>
-        <div className="divide-y divide-[rgba(26,39,68,0.05)]">
+        <div className="divide-y divide-[rgba(21,36,74,0.05)]">
           {employees.slice(0,6).map(e=>{
             const avToday=availability.filter(a=>a.employeeId===e.id&&a.date===TODAY_STR);
             const status:AvailStatus=getDominantStatus(avToday);
             return <div key={e.id} className="px-4 md:px-5 py-2.5 md:py-3 flex items-center gap-3">
               <div className="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-[#1A2744] text-sm">{e.naam}</p>
-                <p className="text-xs text-[#6B7A99]">{e.functie}</p>
+                <p className="font-medium text-[#15244A] text-sm">{e.naam}</p>
+                <p className="text-xs text-[#5F6878]">{e.functie}</p>
               </div>
               <AvailBadge status={status}/>
             </div>;
@@ -1789,8 +1784,8 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
         </div>
       </div>
     </div>
-    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(26,39,68,0.06)]"><h3 className="font-semibold text-[#1A2744]">Werken per afdeling</h3></div>
+    <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+      <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(21,36,74,0.06)]"><h3 className="font-display text-lg md:text-xl font-medium text-[#15244A]">Werken per afdeling</h3></div>
       <div className="px-4 md:px-5 py-4 grid grid-cols-3 gap-3 md:gap-4">
         {AFDS.map(afd=>{
           const ps=projects.filter(p=>getAllAfds(p).includes(afd));
@@ -1798,10 +1793,10 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
           return <button key={afd} onClick={()=>onNav("projecten")} className="p-3 md:p-4 rounded-xl border-2 text-left hover:shadow-sm transition-all" style={{borderColor:dc[afd].bg,backgroundColor:dc[afd].light}}>
             <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2">
               <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0" style={{backgroundColor:dc[afd].bg}}/>
-              <span className="font-semibold text-xs md:text-sm text-[#1A2744] leading-tight">{afd}</span>
+              <span className="font-semibold text-xs md:text-sm text-[#15244A] leading-tight">{afd}</span>
             </div>
             <p className="text-xl md:text-2xl font-bold" style={{color:dc[afd].bg}}>{ps.length}</p>
-            <p className="text-xs text-[#6B7A99]">{act} actief</p>
+            <p className="text-xs text-[#5F6878]">{act} actief</p>
           </button>;
         })}
       </div>
@@ -1831,33 +1826,33 @@ function ColHeader({label,active,children}:{label:string;active:boolean;children
   const [open,setOpen]=useState(false);
   const ref=useRef<HTMLTableCellElement>(null);
   useEffect(()=>{const h=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
-  return <th ref={ref} className="relative px-3 py-3 text-left text-xs font-semibold text-[#6B7A99] uppercase tracking-wide">
+  return <th ref={ref} className="relative px-3 py-3 text-left text-xs font-semibold text-[#5F6878] uppercase tracking-wide">
     <div className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap" onClick={()=>setOpen(p=>!p)}>
       {label}
-      <Filter className={`w-3 h-3 flex-shrink-0 ${active?"text-[#0ABFB8]":"text-[#B8C3D9]"}`}/>
-      {active&&<span className="w-1.5 h-1.5 rounded-full bg-[#0ABFB8] flex-shrink-0"/>}
+      <Filter className={`w-3 h-3 flex-shrink-0 ${active?"text-[#1E3A7B]":"text-[#A7AEB8]"}`}/>
+      {active&&<span className="w-1.5 h-1.5 rounded-full bg-[#1E3A7B] flex-shrink-0"/>}
     </div>
-    {open&&<div className="absolute left-0 top-full z-50 mt-1 bg-white rounded-xl shadow-lg border border-[rgba(26,39,68,0.1)] p-2 min-w-44" onClick={e=>e.stopPropagation()}>
+    {open&&<div className="absolute left-0 top-full z-50 mt-1 bg-white rounded-xl shadow-lg border border-[rgba(21,36,74,0.1)] p-2 min-w-44" onClick={e=>e.stopPropagation()}>
       {children}
     </div>}
   </th>;
 }
 function ColSearch({value,onChange,placeholder}:{value:string;onChange:(v:string)=>void;placeholder:string}){
-  return <div className="relative"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#B8C3D9]"/><input autoFocus value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className="w-full pl-6 pr-2 py-1.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744]"/></div>;
+  return <div className="relative"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A7AEB8]"/><input autoFocus value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className="w-full pl-6 pr-2 py-1.5 text-xs border border-[rgba(21,36,74,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 text-[#15244A]"/></div>;
 }
 function ColSelect({value,onChange,options}:{value:string;onChange:(v:string)=>void;options:string[]}){
-  return <select value={value} onChange={e=>onChange(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 text-[#1A2744] bg-white">
+  return <select value={value} onChange={e=>onChange(e.target.value)} className="w-full py-1.5 px-2 text-xs border border-[rgba(21,36,74,0.12)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 text-[#15244A] bg-white">
     <option value="">Alle</option>
     {options.map(o=><option key={o} value={o}>{o}</option>)}
   </select>;
 }
 /** Multi-select filter met alleen de waarden die in de data voorkomen. */
 function ColMulti({values,onChange,options}:{values:string[];onChange:(v:string[])=>void;options:string[]}){
-  if(options.length===0)return <p className="text-xs text-[#6B7A99] px-1 py-1">Geen waarden</p>;
+  if(options.length===0)return <p className="text-xs text-[#5F6878] px-1 py-1">Geen waarden</p>;
   return <div className="max-h-56 overflow-y-auto space-y-1 min-w-40">
-    {values.length>0&&<button onClick={()=>onChange([])} className="text-[11px] text-[#0ABFB8] hover:underline px-1">Selectie wissen</button>}
-    {options.map(o=><label key={o} className="flex items-center gap-2 text-xs text-[#1A2744] px-1 py-0.5 cursor-pointer hover:bg-[#F0F3F8] rounded">
-      <input type="checkbox" checked={values.includes(o)} onChange={()=>onChange(values.includes(o)?values.filter(v=>v!==o):[...values,o])} className="accent-[#0ABFB8]"/>
+    {values.length>0&&<button onClick={()=>onChange([])} className="text-[11px] text-[#1E3A7B] hover:underline px-1">Selectie wissen</button>}
+    {options.map(o=><label key={o} className="flex items-center gap-2 text-xs text-[#15244A] px-1 py-0.5 cursor-pointer hover:bg-[#EFF1EE] rounded">
+      <input type="checkbox" checked={values.includes(o)} onChange={()=>onChange(values.includes(o)?values.filter(v=>v!==o):[...values,o])} className="accent-[#1E3A7B]"/>
       <span className="truncate">{o}</span>
     </label>)}
   </div>;
@@ -1868,8 +1863,8 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
   const [saving,setSaving]=useState(false);
   return <div className="relative inline-flex items-center gap-1" onClick={e=>e.stopPropagation()}>
     <StatusBadge status={project.status}/>
-    <ChevronDown className="w-3 h-3 text-[#B8C3D9] flex-shrink-0"/>
-    {saving&&<span className="text-[10px] text-[#6B7A99] whitespace-nowrap">Opslaan…</span>}
+    <ChevronDown className="w-3 h-3 text-[#A7AEB8] flex-shrink-0"/>
+    {saving&&<span className="text-[10px] text-[#5F6878] whitespace-nowrap">Opslaan…</span>}
     <select
       aria-label="Status wijzigen"
       value={project.status}
@@ -1958,7 +1953,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   const paged=useMemo(()=>filtered.slice((curPage-1)*PAGE_SIZE,curPage*PAGE_SIZE),[filtered,curPage]);
   const Pager=()=>filtered.length>PAGE_SIZE?<div className="flex items-center justify-between gap-3 py-2">
     <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.max(1,curPage-1))} disabled={curPage<=1}>Vorige</Btn>
-    <span className="text-xs text-[#6B7A99]">Pagina {curPage} van {pageCount}</span>
+    <span className="text-xs text-[#5F6878]">Pagina {curPage} van {pageCount}</span>
     <Btn variant="secondary" size="sm" onClick={()=>setPage(Math.min(pageCount,curPage+1))} disabled={curPage>=pageCount}>Volgende</Btn>
   </div>:null;
 
@@ -1968,12 +1963,12 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Werken</h1>
-        <p className="text-[#6B7A99] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>clearFilters()} className="text-[#0ABFB8] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
+        <h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Werken</h1>
+        <p className="text-[#5F6878] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>clearFilters()} className="text-[#1E3A7B] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
-        <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.15)] text-[#6B7A99] text-sm font-medium">
-          <Filter className="w-3.5 h-3.5"/>{activeCount>0&&<span className="w-4 h-4 rounded-full bg-[#0ABFB8] text-white text-xs flex items-center justify-center">{activeCount}</span>}
+        <button onClick={()=>setShowMobileFilters(p=>!p)} className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[rgba(21,36,74,0.15)] text-[#5F6878] text-sm font-medium">
+          <Filter className="w-3.5 h-3.5"/>{activeCount>0&&<span className="w-4 h-4 rounded-full bg-[#1E3A7B] text-white text-xs flex items-center justify-center">{activeCount}</span>}
         </button>
         <Btn variant="secondary" onClick={()=>setShowImport(true)} size="sm"><Table2 className="w-3.5 h-3.5"/>Excel importeren</Btn>
         <Btn onClick={()=>onAdd()}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuw werk</span></Btn>
@@ -1981,21 +1976,21 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     </div>
     {dubbelAantal>0&&onDubbeleOpruimen&&<DubbeleWerkenMelding aantal={dubbelAantal} onOpruimen={onDubbeleOpruimen}/>}
     <div className="relative">
-      <Search className="w-4 h-4 text-[#6B7A99] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"/>
+      <Search className="w-4 h-4 text-[#5F6878] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"/>
       <input value={zoek} onChange={e=>{setZoek(e.target.value);setPage(1);}} placeholder="Zoek op werknummer, naam, opdrachtgever, adres, plaats, projectleider…"
-        className="w-full pl-9 pr-9 py-2.5 text-sm bg-white border border-[rgba(26,39,68,0.12)] rounded-xl text-[#1A2744] focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
-      {zoek&&<button onClick={()=>{setZoek("");setPage(1);}} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7A99] hover:text-[#1A2744]" title="Zoekopdracht wissen"><X className="w-4 h-4"/></button>}
+        className="w-full pl-9 pr-9 py-2.5 text-sm bg-white border border-[rgba(21,36,74,0.12)] rounded-xl text-[#15244A] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40"/>
+      {zoek&&<button onClick={()=>{setZoek("");setPage(1);}} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6878] hover:text-[#15244A]" title="Zoekopdracht wissen"><X className="w-4 h-4"/></button>}
     </div>
-    {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
+    {showMobileFilters&&<div className="md:hidden bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#1A2744]">Filteren</span>
-        {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#0ABFB8]">Alles wissen</button>}
+        <span className="text-sm font-semibold text-[#15244A]">Filteren</span>
+        {activeCount>0&&<button onClick={()=>clearFilters()} className="text-xs text-[#1E3A7B]">Alles wissen</button>}
       </div>
       <div className="grid grid-cols-1 gap-3">
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Status</label><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Werkstatus</label><ColMulti values={filters.projStatus} onChange={setMulti("projStatus")} options={STATS}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">A/R</label><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></div>
-        <div><label className="text-xs text-[#6B7A99] mb-1 block">Type</label><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></div>
+        <div><label className="text-xs text-[#5F6878] mb-1 block">Status</label><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></div>
+        <div><label className="text-xs text-[#5F6878] mb-1 block">Werkstatus</label><ColMulti values={filters.projStatus} onChange={setMulti("projStatus")} options={STATS}/></div>
+        <div><label className="text-xs text-[#5F6878] mb-1 block">A/R</label><ColMulti values={filters.ar} onChange={setMulti("ar")} options={arOptions}/></div>
+        <div><label className="text-xs text-[#5F6878] mb-1 block">Type</label><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></div>
       </div>
       <ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/>
       <ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/>
@@ -2006,33 +2001,33 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     </div>}
     {/* Mobile card view */}
     <div className="md:hidden space-y-3">
-      {paged.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
-          <span className="font-mono text-xs text-[#6B7A99] flex-shrink-0">{p.werknummer}</span>
-          <span className="font-semibold text-[#1A2744] flex-1 truncate">{p.projectnaam}</span>
+      {paged.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(21,36,74,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
+          <span className="font-mono text-xs text-[#5F6878] flex-shrink-0">{p.werknummer}</span>
+          <span className="font-semibold text-[#15244A] flex-1 truncate">{p.projectnaam}</span>
           <StatusCell project={p} onStatusChange={onStatusChange}/>
-          <span className="text-sm font-medium text-[#1A2744]">{p.statusExcel||"-"}</span>
+          <span className="text-sm font-medium text-[#15244A]">{p.statusExcel||"-"}</span>
         </div>
         <div className="px-4 py-3 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
-          <div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><MapPin className="w-3.5 h-3.5 flex-shrink-0"/>{p.plaats}</div>
-          {pl&&<div className="flex items-center gap-1.5 text-sm text-[#6B7A99]"><UserCircle className="w-3.5 h-3.5 flex-shrink-0"/>{pl}</div>}
-          <div className="flex items-center gap-1.5 text-xs text-[#6B7A99]"><Calendar className="w-3 h-3 flex-shrink-0"/>{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)}</div>
+          <div className="flex items-center gap-1.5 text-sm text-[#5F6878]"><Building2 className="w-3.5 h-3.5 flex-shrink-0"/>{p.opdrachtgever}</div>
+          <div className="flex items-center gap-1.5 text-sm text-[#5F6878]"><MapPin className="w-3.5 h-3.5 flex-shrink-0"/>{p.plaats}</div>
+          {pl&&<div className="flex items-center gap-1.5 text-sm text-[#5F6878]"><UserCircle className="w-3.5 h-3.5 flex-shrink-0"/>{pl}</div>}
+          <div className="flex items-center gap-1.5 text-xs text-[#5F6878]"><Calendar className="w-3 h-3 flex-shrink-0"/>{fmtDate(p.startdatum)} – {fmtDate(p.afloopdatum)}</div>
           <div className="pt-1"><DeptBadges afds={afds}/></div>
         </div>
-        <div className="flex border-t border-[rgba(26,39,68,0.06)]">
-          <button onClick={()=>onOpen(p)} className="flex-1 py-2.5 text-xs font-semibold text-[#0ABFB8] hover:bg-[#E0F7F6] transition-colors">Openen</button>
-          <div className="w-px bg-[rgba(26,39,68,0.06)]"/>
-          <button onClick={()=>onEdit(p)} className="flex-1 py-2.5 text-xs font-medium text-[#6B7A99] hover:bg-[#F0F3F8] transition-colors">Bewerken</button>
-          <div className="w-px bg-[rgba(26,39,68,0.06)]"/>
+        <div className="flex border-t border-[rgba(21,36,74,0.06)]">
+          <button onClick={()=>onOpen(p)} className="flex-1 py-2.5 text-xs font-semibold text-[#1E3A7B] hover:bg-[#E4E9F4] transition-colors">Openen</button>
+          <div className="w-px bg-[rgba(21,36,74,0.06)]"/>
+          <button onClick={()=>onEdit(p)} className="flex-1 py-2.5 text-xs font-medium text-[#5F6878] hover:bg-[#EFF1EE] transition-colors">Bewerken</button>
+          <div className="w-px bg-[rgba(21,36,74,0.06)]"/>
           <button onClick={()=>setDel(p.id)} className="flex-1 py-2.5 text-xs font-medium text-[#FF6B5B] hover:bg-[#FFE8E5] transition-colors">Verwijderen</button>
         </div>
       </div>;})}
-      {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      {filtered.length===0&&<p className="text-center text-[#5F6878] text-sm py-12">Geen projecten gevonden</p>}
       <Pager/>
     </div>
     {/* Desktop table view */}
-    <div className="hidden md:block bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto">
+    <div className="hidden md:block bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-auto">
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
         <thead className="bg-[#FFFF00]">
           <tr>
@@ -2042,8 +2037,8 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
             <ColHeader label="Type" active={filters.type.length>0}><ColMulti values={filters.type} onChange={setMulti("type")} options={typeOptions}/></ColHeader>
             <ColHeader label="Werknr." active={!!filters.werknummer}><ColSearch value={filters.werknummer} onChange={set("werknummer")} placeholder="Zoek werknr..."/></ColHeader>
             <ColHeader label="Calculatie.Code" active={!!filters.calculatiecode}><ColSearch value={filters.calculatiecode} onChange={set("calculatiecode")} placeholder="Zoek calculatiecode..."/></ColHeader>
-            <ColHeader label="Projectl." active={false}><span className="text-xs text-[#6B7A99]">Geen filter</span></ColHeader>
-            <ColHeader label="Vestiging.Omschrijving" active={false}><span className="text-xs text-[#6B7A99]">Geen filter</span></ColHeader>
+            <ColHeader label="Projectl." active={false}><span className="text-xs text-[#5F6878]">Geen filter</span></ColHeader>
+            <ColHeader label="Vestiging.Omschrijving" active={false}><span className="text-xs text-[#5F6878]">Geen filter</span></ColHeader>
             <ColHeader label="Naam opdrachtgever" active={!!filters.opdrachtgever}><ColSearch value={filters.opdrachtgever} onChange={set("opdrachtgever")} placeholder="Zoek opdrachtgever..."/></ColHeader>
             <ColHeader label="Straat object" active={!!filters.straat}><ColSearch value={filters.straat} onChange={set("straat")} placeholder="Zoek straat..."/></ColHeader>
             <ColHeader label="Plaats object" active={!!filters.plaatsobject}><ColSearch value={filters.plaatsobject} onChange={set("plaatsobject")} placeholder="Zoek plaats..."/></ColHeader>
@@ -2051,15 +2046,15 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
             <th className="px-3 py-3"/>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
+        <tbody className="divide-y divide-[rgba(21,36,74,0.05)]">
           {paged.map(p=>{
             const afds=getAllAfds(p);
-            return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F8F9FC] cursor-pointer transition-colors">
-              <td className="px-3 py-3 text-[#1A2744] font-medium">{p.statusExcel||"-"}</td>
+            return <tr key={p.id} onClick={()=>onOpen(p)} className="hover:bg-[#F7F8F6] cursor-pointer transition-colors">
+              <td className="px-3 py-3 text-[#15244A] font-medium">{p.statusExcel||"-"}</td>
               <td className="px-3 py-3 whitespace-nowrap"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.ar||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] whitespace-nowrap">{typeLabel(p)||"-"}</td>
-              <td className="px-3 py-3 font-mono text-xs text-[#6B7A99]">
+              <td className="px-3 py-3 text-[#5F6878]">{p.ar||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878] whitespace-nowrap">{typeLabel(p)||"-"}</td>
+              <td className="px-3 py-3 font-mono text-xs text-[#5F6878]">
                 <div className="flex items-center gap-2">
                   {afds.length===1
                     ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
@@ -2067,24 +2062,24 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
                   <span>{p.werknummer}</span>
                 </div>
               </td>
-              <td className="px-3 py-3 text-[#6B7A99]">{p.calculatiecode||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{plName(p,employees)||"-"}</td>
-              <td className="px-3 py-3 text-[#1A2744] max-w-56 truncate" title={p.projectnaam}>{p.projectnaam||"-"}</td>
-              <td className="px-3 py-3 text-[#1A2744]">{p.opdrachtgever||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{projStraat(p)||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99]">{projPlaatsObj(p)||"-"}</td>
-              <td className="px-3 py-3 text-[#6B7A99] max-w-48 truncate" title={projOpm(p)}>{projOpm(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878]">{p.calculatiecode||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878]">{plName(p,employees)||"-"}</td>
+              <td className="px-3 py-3 text-[#15244A] max-w-56 truncate" title={p.projectnaam}>{p.projectnaam||"-"}</td>
+              <td className="px-3 py-3 text-[#15244A]">{p.opdrachtgever||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878]">{projStraat(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878]">{projPlaatsObj(p)||"-"}</td>
+              <td className="px-3 py-3 text-[#5F6878] max-w-48 truncate" title={projOpm(p)}>{projOpm(p)||"-"}</td>
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
-                  <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744]"><Pencil className="w-3.5 h-3.5"/></button>
-                  <button onClick={()=>setDel(p.id)} className="p-1.5 rounded hover:bg-[#FFE8E5] text-[#6B7A99] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
+                  <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#EFF1EE] text-[#5F6878] hover:text-[#15244A]"><Pencil className="w-3.5 h-3.5"/></button>
+                  <button onClick={()=>setDel(p.id)} className="p-1.5 rounded hover:bg-[#FFE8E5] text-[#5F6878] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
                 </div>
               </td>
             </tr>;
           })}
         </tbody>
       </table>
-      {filtered.length===0&&<p className="text-center text-[#6B7A99] text-sm py-12">Geen projecten gevonden</p>}
+      {filtered.length===0&&<p className="text-center text-[#5F6878] text-sm py-12">Geen projecten gevonden</p>}
       <Pager/>
     </div>
     {del&&<ConfirmModal message="Weet je zeker dat je dit werk wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(del);setDel(null);}} onCancel={()=>setDel(null)}/>}
@@ -2122,19 +2117,19 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
   };
 
   return <div>
-    <div className={`grid border-b border-[rgba(26,39,68,0.08)]`} style={{gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
-      {showWeekNumbers&&<div className="py-2 text-center text-[9px] font-semibold text-[#B8C3D9] uppercase">Wk</div>}
-      {DAYS_NL.map(d=><div key={d} className="py-2 text-center text-xs font-semibold text-[#6B7A99] uppercase tracking-wide">{d}</div>)}
+    <div className={`grid border-b border-[rgba(21,36,74,0.08)]`} style={{gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
+      {showWeekNumbers&&<div className="py-2 text-center text-[9px] font-semibold text-[#A7AEB8] uppercase">Wk</div>}
+      {DAYS_NL.map(d=><div key={d} className="py-2 text-center text-xs font-semibold text-[#5F6878] uppercase tracking-wide">{d}</div>)}
     </div>
     {weeks.map((week,wi)=>{
       const evs=layoutWeek(week,projects);
       const maxSlot=evs.length?Math.max(...evs.map(e=>e.slot)):-1;
       const rowH=Math.max(88,36+(maxSlot+1)*22+6);
       const wn=getWeekNumber(week[0]);
-      return <div key={wi} className="relative border-b border-[rgba(26,39,68,0.06)]" style={{height:rowH}}>
+      return <div key={wi} className="relative border-b border-[rgba(21,36,74,0.06)]" style={{height:rowH}}>
         <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
-          {showWeekNumbers&&<div className="border-r border-[rgba(26,39,68,0.06)] flex items-start justify-center pt-1">
-            <span className="text-[9px] text-[#B8C3D9] font-medium">W{wn}</span>
+          {showWeekNumbers&&<div className="border-r border-[rgba(21,36,74,0.06)] flex items-start justify-center pt-1">
+            <span className="text-[9px] text-[#A7AEB8] font-medium">W{wn}</span>
           </div>}
           {week.map((day,di)=>{
             const ds=toDateStr(day);
@@ -2143,12 +2138,12 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
             const hol=getDHol(ds);
             const shols=getSHols(ds,schoolRegions);
             const isDragOver=dragOverDate===ds;
-            return <div key={di} className={`border-r border-[rgba(26,39,68,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#E0F7F6]":hol?" bg-red-50/50":""}`}
+            return <div key={di} className={`border-r border-[rgba(21,36,74,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#E4E9F4]":hol?" bg-red-50/50":""}`}
               onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
               onDragLeave={()=>setDragOverDate(null)}
               onDrop={e=>handleDrop(e,day)}
               onClick={()=>onClickDate(day)}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${isToday?"bg-[#1A2744] text-white":"text-[#1A2744]"}`}>{day.getDate()}</div>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${isToday?"bg-[#15244A] text-white":"text-[#15244A]"}`}>{day.getDate()}</div>
               {hol&&<div className="text-[9px] text-red-500 leading-tight truncate mt-0.5">{hol}</div>}
               {shols.length>0&&<div className="text-[9px] text-purple-500 leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
             </div>;
@@ -2211,32 +2206,32 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
   const wn=getWeekNumber(weekDays[0]);
 
   return <div className="flex flex-col h-full overflow-hidden">
-    <div className="flex border-b border-[rgba(26,39,68,0.08)]">
-      <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[9px] text-[#B8C3D9] font-medium">Wk{wn}</span></div>
-      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(26,39,68,0.06)] ${hol?"bg-red-50/40":""}`}>
-        <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#0ABFB8]":"text-[#6B7A99]"}`}>{DAYS_NL[i]}</p>
-        <p className={`text-sm font-bold ${isT?"text-[#1A2744]":"text-[#6B7A99]"}`}>{d.getDate()}</p>
+    <div className="flex border-b border-[rgba(21,36,74,0.08)]">
+      <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[9px] text-[#A7AEB8] font-medium">Wk{wn}</span></div>
+      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(21,36,74,0.06)] ${hol?"bg-red-50/40":""}`}>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#1E3A7B]":"text-[#5F6878]"}`}>{DAYS_NL[i]}</p>
+        <p className={`text-sm font-bold ${isT?"text-[#15244A]":"text-[#5F6878]"}`}>{d.getDate()}</p>
         {hol&&<p className="text-[9px] text-red-400 truncate px-1">{hol}</p>}
       </div>;})}
     </div>
-    <div className="flex border-b border-[rgba(26,39,68,0.08)]" style={{minHeight:adH}}>
-      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[9px] text-[#6B7A99] uppercase">All-day</span></div>
+    <div className="flex border-b border-[rgba(21,36,74,0.08)]" style={{minHeight:adH}}>
+      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[9px] text-[#5F6878] uppercase">All-day</span></div>
       <div className="flex-1 relative" style={{height:adH}}>
-        <div className="grid grid-cols-7 h-full absolute inset-0">{weekDays.map((_,i)=><div key={i} className="border-l border-[rgba(26,39,68,0.06)]"/>)}</div>
+        <div className="grid grid-cols-7 h-full absolute inset-0">{weekDays.map((_,i)=><div key={i} className="border-l border-[rgba(21,36,74,0.06)]"/>)}</div>
         {allDayEvs.map(ev=>{const st=agendaProjStyle(ev.project,dc);const lbl=agendaLabel(ev.project,employees);return <div key={ev.project.id} title={lbl} onClick={()=>onClickProject(ev.project)} draggable className="absolute h-5 rounded text-white text-xs font-medium px-1.5 flex items-center cursor-pointer hover:brightness-110 z-10 overflow-hidden" style={{left:`${ev.sc/7*100+0.3}%`,width:`${(ev.ec-ev.sc+1)/7*100-0.6}%`,top:6+ev.slot*22,...st}}><span className="truncate">{lbl}</span></div>;})}
       </div>
     </div>
     <div className="flex flex-1 overflow-y-auto">
       <div className="w-14 flex-shrink-0">
-        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="border-b border-[rgba(26,39,68,0.04)] flex items-start justify-end pr-2 pt-0.5"><span className="text-[10px] text-[#B8C3D9]">{String(h).padStart(2,"0")}:00</span></div>)}
+        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="border-b border-[rgba(21,36,74,0.04)] flex items-start justify-end pr-2 pt-0.5"><span className="text-[10px] text-[#A7AEB8]">{String(h).padStart(2,"0")}:00</span></div>)}
       </div>
       <div className="flex-1 grid grid-cols-7">
         {weekDays.map((day,di)=>{
           const dayProjs=tdProjects.filter(p=>sameDay(new Date(p.startdatum),day));
-          return <div key={di} className="relative border-l border-[rgba(26,39,68,0.06)]" style={{height:HOURS.length*HOUR_HEIGHT}}>
+          return <div key={di} className="relative border-l border-[rgba(21,36,74,0.06)]" style={{height:HOURS.length*HOUR_HEIGHT}}>
             {HOURS.map(h=>{
               const slotKey=`${toDateStr(day)}-${h}`;
-              return <div key={h} style={{height:HOUR_HEIGHT}} className={`border-b border-[rgba(26,39,68,0.04)] cursor-pointer transition-colors ${dragOverSlot===slotKey?"bg-[#E0F7F6]":""}`}
+              return <div key={h} style={{height:HOUR_HEIGHT}} className={`border-b border-[rgba(21,36,74,0.04)] cursor-pointer transition-colors ${dragOverSlot===slotKey?"bg-[#E4E9F4]":""}`}
                 onDragOver={e=>{e.preventDefault();setDragOverSlot(slotKey);}}
                 onDragLeave={()=>setDragOverSlot(null)}
                 onDrop={e=>{e.preventDefault();setDragOverSlot(null);if(!dragRef.current)return;const ns=new Date(day);ns.setHours(h,0,0,0);onDropProject(dragRef.current.id,ns);dragRef.current=null;}}
@@ -2302,11 +2297,11 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
   const ds=toDateStr(date);const hol=getDHol(ds);const isT=ds===TODAY_STR;
   const wn=getWeekNumber(date);
   return <div className="flex flex-col h-full">
-    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(26,39,68,0.08)] ${hol?"bg-red-50/30":""}`}>
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-xl ${isT?"bg-[#1A2744] text-white":"bg-[#F0F3F8] text-[#1A2744]"}`}>{date.getDate()}</div>
+    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(21,36,74,0.08)] ${hol?"bg-red-50/30":""}`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-xl ${isT?"bg-[#15244A] text-white":"bg-[#EFF1EE] text-[#15244A]"}`}>{date.getDate()}</div>
       <div>
-        <p className="font-bold text-lg text-[#1A2744]">{DAYS_FULL[(date.getDay()+6)%7]} {date.getDate()} {MONTHS_NL[date.getMonth()]}</p>
-        <p className="text-xs text-[#6B7A99]">Week {wn}{hol&&<span className="text-red-500 ml-2">🎉 {hol}</span>}</p>
+        <p className="font-bold text-lg text-[#15244A]">{DAYS_FULL[(date.getDay()+6)%7]} {date.getDate()} {MONTHS_NL[date.getMonth()]}</p>
+        <p className="text-xs text-[#5F6878]">Week {wn}{hol&&<span className="text-red-500 ml-2">🎉 {hol}</span>}</p>
       </div>
       <div className="flex flex-wrap gap-1 ml-2">
         {allDay.map(p=><button key={p.id} title={agendaLabel(p,employees)} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}{agendaEmpNames(p,employees)?` · ${agendaEmpNames(p,employees)}`:""}</button>)}
@@ -2314,10 +2309,10 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
     </div>
     <div className="flex flex-1 overflow-y-auto">
       <div className="w-16 flex-shrink-0">
-        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="flex items-start justify-end pr-3 pt-0.5 border-b border-[rgba(26,39,68,0.04)]"><span className="text-[10px] text-[#B8C3D9]">{String(h).padStart(2,"0")}:00</span></div>)}
+        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="flex items-start justify-end pr-3 pt-0.5 border-b border-[rgba(21,36,74,0.04)]"><span className="text-[10px] text-[#A7AEB8]">{String(h).padStart(2,"0")}:00</span></div>)}
       </div>
-      <div className="flex-1 relative border-l border-[rgba(26,39,68,0.08)]" style={{height:HOURS.length*HOUR_HEIGHT}}>
-        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="border-b border-[rgba(26,39,68,0.04)] hover:bg-[#F8F9FC] cursor-pointer transition-colors"
+      <div className="flex-1 relative border-l border-[rgba(21,36,74,0.08)]" style={{height:HOURS.length*HOUR_HEIGHT}}>
+        {HOURS.map(h=><div key={h} style={{height:HOUR_HEIGHT}} className="border-b border-[rgba(21,36,74,0.04)] hover:bg-[#F7F8F6] cursor-pointer transition-colors"
           onDragOver={e=>e.preventDefault()}
           onDrop={e=>{e.preventDefault();if(!dragRef.current)return;const ns=new Date(date);ns.setHours(h,0,0,0);onDropProject(dragRef.current,ns);dragRef.current=null;}}
           onClick={()=>onClickTime(h)}/>)}
@@ -2378,26 +2373,26 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
   };
 
   return <div className="h-full overflow-y-auto">
-    <div className="grid grid-cols-3 min-h-full divide-x divide-[rgba(26,39,68,0.08)]">
+    <div className="grid grid-cols-3 min-h-full divide-x divide-[rgba(21,36,74,0.08)]">
       {months.map(month=>{
         const weeks=getMonthWeeks(year,month);
         return <div key={month} className="flex flex-col">
-          <div className="px-4 py-3 bg-[#F8F9FC] border-b border-[rgba(26,39,68,0.08)] sticky top-0 z-10">
-            <h3 className="font-bold text-sm text-[#1A2744]">{MONTHS_NL[month]} {year}</h3>
+          <div className="px-4 py-3 bg-[#F7F8F6] border-b border-[rgba(21,36,74,0.08)] sticky top-0 z-10">
+            <h3 className="font-bold text-sm text-[#15244A]">{MONTHS_NL[month]} {year}</h3>
           </div>
-          <div className="grid border-b border-[rgba(26,39,68,0.06)]" style={{gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
-            {showWeekNumbers&&<div className="py-1.5 text-center text-[8px] font-semibold text-[#B8C3D9]">W</div>}
-            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[9px] font-semibold text-[#6B7A99] uppercase tracking-wide">{d}</div>)}
+          <div className="grid border-b border-[rgba(21,36,74,0.06)]" style={{gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
+            {showWeekNumbers&&<div className="py-1.5 text-center text-[8px] font-semibold text-[#A7AEB8]">W</div>}
+            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[9px] font-semibold text-[#5F6878] uppercase tracking-wide">{d}</div>)}
           </div>
           {weeks.map((week,wi)=>{
             const evs=layoutWeek(week,projects);
             const maxSlot=evs.length?Math.max(...evs.map(e=>e.slot)):-1;
             const rowH=Math.max(60,26+(maxSlot+1)*18+4);
             const wn=getWeekNumber(week[0]);
-            return <div key={wi} className="relative border-b border-[rgba(26,39,68,0.05)]" style={{height:rowH}}>
+            return <div key={wi} className="relative border-b border-[rgba(21,36,74,0.05)]" style={{height:rowH}}>
               <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
-                {showWeekNumbers&&<div className="border-r border-[rgba(26,39,68,0.05)] flex items-start justify-center pt-0.5">
-                  <span className="text-[8px] text-[#B8C3D9] font-medium">W{wn}</span>
+                {showWeekNumbers&&<div className="border-r border-[rgba(21,36,74,0.05)] flex items-start justify-center pt-0.5">
+                  <span className="text-[8px] text-[#A7AEB8] font-medium">W{wn}</span>
                 </div>}
                 {week.map((day,di)=>{
                   const ds=toDateStr(day);
@@ -2407,12 +2402,12 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                   const shols=getSHols(ds,schoolRegions);
                   const isDragOver=dragOverDate===ds;
                   return <div key={di}
-                    className={`border-r border-[rgba(26,39,68,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#E0F7F6]":hol?" bg-red-50/60":""}`}
+                    className={`border-r border-[rgba(21,36,74,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#E4E9F4]":hol?" bg-red-50/60":""}`}
                     onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
                     onDragLeave={()=>setDragOverDate(null)}
                     onDrop={e=>handleDrop(e,day)}
                     onClick={()=>onClickDate(day)}>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${isToday?"bg-[#1A2744] text-white":"text-[#1A2744]"}`}>{day.getDate()}</div>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${isToday?"bg-[#15244A] text-white":"text-[#15244A]"}`}>{day.getDate()}</div>
                     {hol&&<div className="text-[7px] text-red-500 leading-tight truncate">{hol.split(" ")[0]}</div>}
                     {shols.length>0&&!hol&&<div className="text-[7px] text-purple-400 leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
                   </div>;
@@ -2591,24 +2586,24 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   const titleStr=view==="month"?`${MONTHS_NL[month]} ${year}`:view==="week"?`${weekDays[0].getDate()} ${MONTHS_NL[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTHS_NL[weekDays[6].getMonth()]} ${year}`:view==="kwartaal"?`${qLabels[quarter]} ${year}`:`${DAYS_FULL[(date.getDay()+6)%7]} ${date.getDate()} ${MONTHS_NL[date.getMonth()]} ${year}`;
 
   return <div className="flex flex-col h-full" style={{height:"calc(100vh - 0px)"}}>
-    <div className="px-3 md:px-5 py-2 md:py-3 border-b border-[rgba(26,39,68,0.08)] flex-shrink-0 bg-white space-y-2">
+    <div className="px-3 md:px-5 py-2 md:py-3 border-b border-[rgba(21,36,74,0.08)] flex-shrink-0 bg-white space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-base md:text-xl font-bold text-[#1A2744]">Agenda</h1>
+        <h1 className="mm-titel font-display text-[1.5rem] md:text-[1.9rem] leading-none font-medium tracking-[-0.015em] text-[#15244A]">Agenda</h1>
         <div className="flex items-center gap-1">
-          <button onClick={()=>navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744] transition-colors"><ChevronLeft className="w-4 h-4"/></button>
-          <span className="font-semibold text-[#1A2744] text-xs md:text-sm min-w-36 md:min-w-56 text-center">{titleStr}</span>
-          <button onClick={()=>navigate(1)} className="p-1.5 rounded-lg hover:bg-[#F0F3F8] text-[#6B7A99] hover:text-[#1A2744] transition-colors"><ChevronRight className="w-4 h-4"/></button>
+          <button onClick={()=>navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#EFF1EE] text-[#5F6878] hover:text-[#15244A] transition-colors"><ChevronLeft className="w-4 h-4"/></button>
+          <span className="font-semibold text-[#15244A] text-xs md:text-sm min-w-36 md:min-w-56 text-center">{titleStr}</span>
+          <button onClick={()=>navigate(1)} className="p-1.5 rounded-lg hover:bg-[#EFF1EE] text-[#5F6878] hover:text-[#15244A] transition-colors"><ChevronRight className="w-4 h-4"/></button>
         </div>
-        <button onClick={()=>setDate(new Date())} className="px-2 py-1 text-xs font-medium border border-[rgba(26,39,68,0.15)] rounded-lg text-[#6B7A99] hover:bg-[#F0F3F8]">Vandaag</button>
+        <button onClick={()=>setDate(new Date())} className="px-2 py-1 text-xs font-medium border border-[rgba(21,36,74,0.15)] rounded-lg text-[#5F6878] hover:bg-[#EFF1EE]">Vandaag</button>
         <div className="flex-1"/>
-        <div className="flex rounded-lg border border-[rgba(26,39,68,0.12)] overflow-hidden">
-          {([["month","Maand"],["week","Week"],["day","Dag"],["kwartaal","Kw."]] as [CalView,string][]).map(([v,l])=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{l}</button>)}
+        <div className="flex rounded-lg border border-[rgba(21,36,74,0.12)] overflow-hidden">
+          {([["month","Maand"],["week","Week"],["day","Dag"],["kwartaal","Kw."]] as [CalView,string][]).map(([v,l])=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#15244A] text-white":"text-[#5F6878] hover:bg-[#EFF1EE]"}`}>{l}</button>)}
         </div>
         <Btn size="sm" onClick={()=>onCreateProject({})}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Nieuw werk</span></Btn>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
-        <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${showWeekNumbers?"bg-[#E0F7F6] text-[#0ABFB8]":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>Wk#</button>
+        <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-lg font-medium transition-colors ${showWeekNumbers?"bg-[#E4E9F4] text-[#1E3A7B]":"text-[#5F6878] hover:bg-[#EFF1EE]"}`}>Wk#</button>
       </div>
 
     </div>
@@ -2638,10 +2633,10 @@ function EmployeePicker({employees,value,onChange}:{employees:Employee[];value:s
   const list=useMemo(()=>{const s=q.trim().toLowerCase();return (s?employees.filter(e=>e.naam.toLowerCase().includes(s)||String(e.functie).toLowerCase().includes(s)):employees).slice(0,50);},[q,employees]);
   return <div className="space-y-1">
     <Input label="Medewerker" value={q} onChange={setQ} placeholder={sel?sel.naam:"Zoek medewerker..."}/>
-    {sel&&<p className="text-xs text-[#1A2744]">Gekozen: <b>{sel.naam}</b> ({sel.afdeling})</p>}
-    <div className="max-h-40 overflow-y-auto border border-[rgba(26,39,68,0.1)] rounded-lg">
-      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#E6F9F8] font-semibold":""}`}>{e.naam} <span className="text-[#6B7A99]">· {e.afdeling}</span></button>)}
-      {list.length===0&&<p className="px-2 py-1 text-xs text-[#6B7A99]">Geen medewerkers gevonden.</p>}
+    {sel&&<p className="text-xs text-[#15244A]">Gekozen: <b>{sel.naam}</b> ({sel.afdeling})</p>}
+    <div className="max-h-40 overflow-y-auto border border-[rgba(21,36,74,0.1)] rounded-lg">
+      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#E4E9F4] font-semibold":""}`}>{e.naam} <span className="text-[#5F6878]">· {e.afdeling}</span></button>)}
+      {list.length===0&&<p className="px-2 py-1 text-xs text-[#5F6878]">Geen medewerkers gevonden.</p>}
     </div>
   </div>;
 }
@@ -2655,14 +2650,14 @@ function MultiEmployeePicker({employees,values,onChange}:{employees:Employee[];v
   const toggle=(id:string)=>onChange(selected.has(id)?values.filter(x=>x!==id):[...values,id]);
   return <div className="space-y-2 sm:col-span-2">
     <Input label="Medewerkers" value={q} onChange={setQ} placeholder="Zoek één of meer medewerkers..."/>
-    <p className="text-xs text-[#6B7A99]">{values.length===0?"Nog niemand gekozen":`${values.length} medewerker${values.length===1?"":"s"} gekozen`}</p>
-    <div className="max-h-52 overflow-y-auto border border-[rgba(26,39,68,0.1)] rounded-lg divide-y divide-[rgba(26,39,68,0.06)]">
+    <p className="text-xs text-[#5F6878]">{values.length===0?"Nog niemand gekozen":`${values.length} medewerker${values.length===1?"":"s"} gekozen`}</p>
+    <div className="max-h-52 overflow-y-auto border border-[rgba(21,36,74,0.1)] rounded-lg divide-y divide-[rgba(21,36,74,0.06)]">
       {list.map(e=>{const isSelected=selected.has(e.id);return <button type="button" key={e.id} onClick={()=>toggle(e.id)}
-        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#E6F9F8] font-semibold":""}`}>
-        <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected?"bg-[#0ABFB8] border-[#0ABFB8] text-white":"border-[rgba(26,39,68,0.2)]"}`}>{isSelected&&<Check className="w-3 h-3"/>}</span>
-        <span className="flex-1 min-w-0 truncate">{e.naam} <span className="font-normal text-[#6B7A99]">· {e.afdeling}</span></span>
+        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#E4E9F4] font-semibold":""}`}>
+        <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected?"bg-[#1E3A7B] border-[#1E3A7B] text-white":"border-[rgba(21,36,74,0.2)]"}`}>{isSelected&&<Check className="w-3 h-3"/>}</span>
+        <span className="flex-1 min-w-0 truncate">{e.naam} <span className="font-normal text-[#5F6878]">· {e.afdeling}</span></span>
       </button>;})}
-      {list.length===0&&<p className="px-3 py-2 text-xs text-[#6B7A99]">Geen medewerkers gevonden.</p>}
+      {list.length===0&&<p className="px-3 py-2 text-xs text-[#5F6878]">Geen medewerkers gevonden.</p>}
     </div>
   </div>;
 }
@@ -2770,8 +2765,8 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
       </div>
       {!timeOk&&<p className="text-xs text-red-600">De eindtijd moet na de begintijd liggen.</p>}
       {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
-      {multi&&days.length>1&&<p className="text-xs text-[#6B7A99]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
-      {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#1A2744]">
+      {multi&&days.length>1&&<p className="text-xs text-[#5F6878]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
+      {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#15244A]">
         <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
         Ook op zaterdag en zondag inplannen
       </label>}
@@ -2781,43 +2776,43 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
         {wnQuery&&wnMatches.length===0&&<p className="text-xs text-red-600">Geen bestaand werk gevonden met dit werknummer.</p>}
         {wnMatches.length>1&&<div className="space-y-1">
           <p className="text-xs font-semibold text-amber-700">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
-          <div className="border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-56 overflow-y-auto">
-            {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F8F9FC] ${sel?.id===p.id?"bg-[#E0F7F6]":""}`}>
-              <p className="text-xs font-semibold text-[#1A2744]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
-              <p className="text-[11px] text-[#6B7A99] truncate">{p.projectnaam||p.opmerkingen||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
+          <div className="border border-[rgba(21,36,74,0.1)] rounded-xl divide-y divide-[rgba(21,36,74,0.06)] max-h-56 overflow-y-auto">
+            {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#F7F8F6] ${sel?.id===p.id?"bg-[#E4E9F4]":""}`}>
+              <p className="text-xs font-semibold text-[#15244A]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
+              <p className="text-[11px] text-[#5F6878] truncate">{p.projectnaam||p.opmerkingen||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
             </button>)}
           </div>
         </div>}
       </div>}
       {!sel?<div>
         <Input label="Werk zoeken" value={q} onChange={setQ} placeholder="Werknummer of werknaam..."/>
-        {q.trim()&&<div className="mt-2 border border-[rgba(26,39,68,0.1)] rounded-xl divide-y divide-[rgba(26,39,68,0.06)] max-h-64 overflow-y-auto">
-          {results.length===0&&<p className="p-3 text-xs text-[#6B7A99]">Geen projecten gevonden.</p>}
-          {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F8F9FC]">
-            <p className="text-sm font-semibold text-[#1A2744]">{p.werknummer} – {p.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99] truncate">{p.opmerkingen||p.opdrachtgever||"Geen omschrijving"}</p>
+        {q.trim()&&<div className="mt-2 border border-[rgba(21,36,74,0.1)] rounded-xl divide-y divide-[rgba(21,36,74,0.06)] max-h-64 overflow-y-auto">
+          {results.length===0&&<p className="p-3 text-xs text-[#5F6878]">Geen projecten gevonden.</p>}
+          {results.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className="w-full text-left p-3 hover:bg-[#F7F8F6]">
+            <p className="text-sm font-semibold text-[#15244A]">{p.werknummer} – {p.projectnaam}</p>
+            <p className="text-xs text-[#5F6878] truncate">{p.opmerkingen||p.opdrachtgever||"Geen omschrijving"}</p>
           </button>)}
         </div>}
-      </div>:<div className="border border-[rgba(26,39,68,0.1)] rounded-xl p-4 space-y-2 bg-[#F8F9FC]">
+      </div>:<div className="border border-[rgba(21,36,74,0.1)] rounded-xl p-4 space-y-2 bg-[#F7F8F6]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[#1A2744]">{sel.werknummer} – {sel.projectnaam}</p>
-            <p className="text-xs text-[#6B7A99]">{sel.opmerkingen||sel.opdrachtgever||"Geen omschrijving"}</p>
+            <p className="text-sm font-bold text-[#15244A]">{sel.werknummer} – {sel.projectnaam}</p>
+            <p className="text-xs text-[#5F6878]">{sel.opmerkingen||sel.opdrachtgever||"Geen omschrijving"}</p>
           </div>
-          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");setWn("");}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Wijzigen</button>}
+          {!projectId&&<button type="button" onClick={()=>{setSel(null);setQ("");setWn("");}} className="text-xs text-[#1E3A7B] font-semibold flex-shrink-0">Wijzigen</button>}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-          <div><span className="text-[#6B7A99]">Projectnr.</span><p className="font-semibold text-[#1A2744]">{sel.projectnr||"—"}</p></div>
-          <div><span className="text-[#6B7A99]">Afdeling</span><p className="font-semibold text-[#1A2744]">{getAllAfds(sel).join(", ")}</p></div>
-          <div><span className="text-[#6B7A99]">Calculator</span><p className="font-semibold text-[#1A2744]">{plName(sel,employees)||"—"}</p></div>
-          <div><span className="text-[#6B7A99]">Opdrachtgever</span><p className="font-semibold text-[#1A2744]">{sel.opdrachtgever||"—"}</p></div>
-          <div><span className="text-[#6B7A99]">Status</span><p className="font-semibold text-[#1A2744]">{sel.status}</p></div>
+          <div><span className="text-[#5F6878]">Projectnr.</span><p className="font-semibold text-[#15244A]">{sel.projectnr||"—"}</p></div>
+          <div><span className="text-[#5F6878]">Afdeling</span><p className="font-semibold text-[#15244A]">{getAllAfds(sel).join(", ")}</p></div>
+          <div><span className="text-[#5F6878]">Calculator</span><p className="font-semibold text-[#15244A]">{plName(sel,employees)||"—"}</p></div>
+          <div><span className="text-[#5F6878]">Opdrachtgever</span><p className="font-semibold text-[#15244A]">{sel.opdrachtgever||"—"}</p></div>
+          <div><span className="text-[#5F6878]">Status</span><p className="font-semibold text-[#15244A]">{sel.status}</p></div>
         </div>
       </div>}
-      {sel&&dupCount>0&&<p className="text-xs text-[#6B7A99] rounded-lg bg-[#F0F3F8] px-3 py-2">
+      {sel&&dupCount>0&&<p className="text-xs text-[#5F6878] rounded-lg bg-[#EFF1EE] px-3 py-2">
         {nietDubbel.length===0?"Deze medewerker(s) staan op alle gekozen dagen al op dit werk ingepland.":`${dupCount} dag${dupCount===1?"":"en"} staan al op dit werk ingepland en worden overgeslagen.`}
       </p>}
-      {sel&&vrijCount>0&&newPairs.length===0&&<p className="text-xs text-[#6B7A99] rounded-lg bg-[#F0F3F8] px-3 py-2">Op de gekozen dagen is de medewerker vrij of afwezig; er valt niets in te plannen.</p>}
+      {sel&&vrijCount>0&&newPairs.length===0&&<p className="text-xs text-[#5F6878] rounded-lg bg-[#EFF1EE] px-3 py-2">Op de gekozen dagen is de medewerker vrij of afwezig; er valt niets in te plannen.</p>}
       {blockers.length>0&&<div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
         <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
         {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{conflictLine(c)}</p>)}
@@ -2847,17 +2842,17 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
   const move=(i:number,dir:number)=>setList(prev=>{const n=[...prev];const j=i+dir;if(j<0||j>=n.length)return prev;[n[i],n[j]]=[n[j],n[i]];return n;});
   return <Modal title="Filters beheren" onClose={onClose} width="max-w-xl">
     <div className="p-4 md:p-6 space-y-3">
-      {list.map((f,i)=><div key={f.id} className="flex items-center gap-2 border border-[rgba(26,39,68,0.1)] rounded-xl p-2">
+      {list.map((f,i)=><div key={f.id} className="flex items-center gap-2 border border-[rgba(21,36,74,0.1)] rounded-xl p-2">
         <input type="color" value={f.kleur} onChange={e=>upd(f.id,{kleur:e.target.value})} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Filterkleur"/>
-        <input value={f.naam} onChange={e=>upd(f.id,{naam:e.target.value})} className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744]"/>
-        <select value={f.afdeling} onChange={e=>upd(f.id,{afdeling:e.target.value})} className="px-2 py-1.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#6B7A99]">
+        <input value={f.naam} onChange={e=>upd(f.id,{naam:e.target.value})} className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-[rgba(21,36,74,0.12)] rounded-lg text-[#15244A]"/>
+        <select value={f.afdeling} onChange={e=>upd(f.id,{afdeling:e.target.value})} className="px-2 py-1.5 text-xs border border-[rgba(21,36,74,0.12)] rounded-lg text-[#5F6878]">
           <option value="">Alle afdelingen</option>
           {AFDS.map(a=><option key={a} value={a}>{a}</option>)}
         </select>
-        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-lg text-xs font-semibold ${f.actief?"bg-[#E0F7F6] text-[#0ABFB8]":"bg-[#F0F3F8] text-[#B8C3D9]"}`}>{f.actief?"Actief":"Uit"}</button>
-        <button onClick={()=>move(i,-1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omhoog">↑</button>
-        <button onClick={()=>move(i,1)} className="p-1 text-[#6B7A99] hover:text-[#1A2744]" title="Omlaag">↓</button>
-        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#B8C3D9] hover:text-[#FF6B5B]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
+        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-lg text-xs font-semibold ${f.actief?"bg-[#E4E9F4] text-[#1E3A7B]":"bg-[#EFF1EE] text-[#A7AEB8]"}`}>{f.actief?"Actief":"Uit"}</button>
+        <button onClick={()=>move(i,-1)} className="p-1 text-[#5F6878] hover:text-[#15244A]" title="Omhoog">↑</button>
+        <button onClick={()=>move(i,1)} className="p-1 text-[#5F6878] hover:text-[#15244A]" title="Omlaag">↓</button>
+        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#A7AEB8] hover:text-[#FF6B5B]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
       </div>)}
       <Btn variant="secondary" size="sm" onClick={()=>setList(prev=>[...prev,{id:"pf"+nid(),naam:"Nieuw filter",kleur:"#0ABFB8",afdeling:"",actief:true}])}><Plus className="w-3.5 h-3.5"/>Filter toevoegen</Btn>
       <div className="flex justify-end gap-2 pt-2">
@@ -2890,7 +2885,7 @@ function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
         <Input label="Startdatum" value={f.startDate} onChange={v=>upd({startDate:v})} type="date"/>
         <Input label="Einddatum" value={f.endDate} onChange={v=>upd({endDate:v})} type="date"/>
       </div>
-      <label className="flex items-center gap-2 text-xs text-[#6B7A99]">
+      <label className="flex items-center gap-2 text-xs text-[#5F6878]">
         <input type="checkbox" checked={f.wholeDay} onChange={e=>upd({wholeDay:e.target.checked})}/>
         Hele dagen (geen tijden — de volledige geselecteerde periode geldt)
       </label>
@@ -2900,7 +2895,7 @@ function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
       </div>}
       <Input label={f.status==="Bezet"?"Omschrijving (waarmee bezet?)":f.status==="Gereserveerd"?"Omschrijving (waarvoor gereserveerd?)":"Omschrijving"} value={f.note} onChange={v=>upd({note:v})}
         placeholder={f.status==="Bezet"?"Bijv. cursus, keuring, ander werk…":f.status==="Gereserveerd"?"Bijv. werk in afwachting van opdracht…":"Optioneel"}/>
-      <p className="text-xs text-[#6B7A99]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
+      <p className="text-xs text-[#5F6878]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
       {conflicts.length>0&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
         <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
         {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
@@ -2936,13 +2931,13 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
   const badgeColors=s.badgeColors||{};
   const filters=s.planFilters?.length?s.planFilters:DEFAULT_PLAN_FILTERS;
   const row=(key:string,naam:string,kleur:string,onChange:(c:string)=>void,onReset:()=>void)=>
-    <div key={key} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-2 py-1.5">
+    <div key={key} className="flex items-center gap-2 border border-[rgba(21,36,74,0.08)] rounded-xl px-2 py-1.5">
       <input type="color" value={kleur} onChange={e=>onChange(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0"/>
-      <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744] font-medium">{naam}</span>
+      <span className="flex-1 min-w-0 truncate text-xs text-[#15244A] font-medium">{naam}</span>
       <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{backgroundColor:kleur}}>Voorbeeld</span>
-      <button onClick={onReset} className="text-[10px] text-[#6B7A99] hover:text-[#1A2744] font-semibold">Standaard</button>
+      <button onClick={onReset} className="text-[10px] text-[#5F6878] hover:text-[#15244A] font-semibold">Standaard</button>
     </div>;
-  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold uppercase tracking-wide text-[#6B7A99]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
+  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold uppercase tracking-wide text-[#5F6878]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
   return <Modal title="Kleuren beheren" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
       {section("Statussen",AVAIL_STATS.map(st=>row("st-"+st,st,statusColorOf(st,statusColors),
@@ -2970,13 +2965,13 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
         c=>setS(p=>({...p,holidayColor:c})),
         ()=>setS(p=>{const n={...p};delete n.holidayColor;return n;}))])}
       {false&&section("Werken",<><input value={projZoek} onChange={e=>setProjZoek(e.target.value)} placeholder="Zoek werk…"
-        className="w-full py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
-        {projZoek.trim()&&projectHits.length===0&&<p className="text-xs text-[#B8C3D9]">Geen werken gevonden.</p>}
+        className="w-full py-1.5 px-2.5 text-xs border border-[rgba(21,36,74,0.12)] rounded-lg text-[#15244A] bg-white focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50"/>
+        {projZoek.trim()&&projectHits.length===0&&<p className="text-xs text-[#A7AEB8]">Geen werken gevonden.</p>}
         {projectHits.map(pr=>row("pr-"+pr.id,`${pr.werknummer} – ${pr.projectnaam}`,projectColors[pr.id]||DEFAULT_DC[primaryAfd(pr)].bg,
         c=>setS(p=>({...p,projectColors:{...(p.projectColors||{}),[pr.id]:c}})),
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};})))}</>)}
     </div>
-    <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(26,39,68,0.08)]">
+    <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(21,36,74,0.08)]">
       <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},projectleiderColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
@@ -3002,22 +2997,22 @@ function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
     <div className="p-4 md:p-6 space-y-4">
       <Select label="Medewerker" value={f.employeeId} onChange={v=>setF(p=>({...p,employeeId:v,periodeId:undefined}))} options={employees.map(e=>({value:e.id,label:e.naam}))}/>
       <div>
-        <p className="text-xs font-semibold text-[#6B7A99] mb-1.5">Vaste vrije weekdagen</p>
+        <p className="text-xs font-semibold text-[#5F6878] mb-1.5">Vaste vrije weekdagen</p>
         <div className="flex flex-wrap gap-1.5">
           {WD_LABELS.map((l,i)=><button key={l} type="button" onClick={()=>toggleWd(i)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${f.weekdays.includes(i)?"bg-[#1A2744] text-white border-transparent":"bg-white text-[#6B7A99] border-[rgba(26,39,68,0.12)]"}`}>{l}</button>)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${f.weekdays.includes(i)?"bg-[#15244A] text-white border-transparent":"bg-white text-[#5F6878] border-[rgba(21,36,74,0.12)]"}`}>{l}</button>)}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Vanaf datum" type="date" value={f.startDate} onChange={v=>setF(p=>({...p,startDate:v}))}/>
         <Input label="Tot en met datum" type="date" value={f.endDate} onChange={v=>setF(p=>({...p,endDate:v}))}/>
       </div>
-      <p className="text-xs text-[#6B7A99]">Op deze dagen wordt de medewerker automatisch als hele dag <b>Vrij</b> gezet. Bestaande projectplanning en losse uitzonderingen blijven altijd staan.</p>
+      <p className="text-xs text-[#5F6878]">Op deze dagen wordt de medewerker automatisch als hele dag <b>Vrij</b> gezet. Bestaande projectplanning en losse uitzonderingen blijven altijd staan.</p>
       {own.length>0&&<div className="space-y-1.5">
-        <p className="text-xs font-semibold text-[#6B7A99]">Bestaande reeksen</p>
-        {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(26,39,68,0.08)] rounded-xl px-3 py-2">
-          <span className="flex-1 min-w-0 truncate text-xs text-[#1A2744]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
-          <button className="text-[11px] font-semibold text-[#0ABFB8]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
+        <p className="text-xs font-semibold text-[#5F6878]">Bestaande reeksen</p>
+        {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(21,36,74,0.08)] rounded-xl px-3 py-2">
+          <span className="flex-1 min-w-0 truncate text-xs text-[#15244A]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
+          <button className="text-[11px] font-semibold text-[#1E3A7B]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
           <button className="text-[11px] font-semibold text-red-600" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
         </div>)}
       </div>}
@@ -3041,7 +3036,7 @@ function PeriodResizeModal({block,start,end,onClose,onSave}:{block:AvailEntry;st
   const [endTime,setEndTime]=useState(block.endTime);
   return <Modal title="Periode aanpassen" onClose={onClose} width="max-w-md">
     <div className="p-4 md:p-6 space-y-4">
-      <p className="text-sm text-[#6B7A99]">Startdatum <b>{fmtDate(start)}</b> · begintijd <b>{block.startTime}</b></p>
+      <p className="text-sm text-[#5F6878]">Startdatum <b>{fmtDate(start)}</b> · begintijd <b>{block.startTime}</b></p>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Einddatum" type="date" value={endDate} onChange={v=>setEndDate(v)}/>
         <Input label="Eindtijd" type="time" value={endTime} onChange={v=>setEndTime(v)}/>
@@ -3064,9 +3059,9 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
       onPointerDown={ev=>{if(small)return;onStart(ev);}}
       onClick={ev=>{ev.stopPropagation();if(small)onOpen();}}
       className={`absolute right-0 top-0 h-full flex items-center justify-center touch-none ${small?"w-3 cursor-pointer":"w-2.5 cursor-ew-resize"} opacity-100 md:opacity-0 md:group-hover:opacity-100`}>
-      <span className="w-1 h-3/4 rounded-full bg-white/90 ring-1 ring-[#0ABFB8]"/>
+      <span className="w-1 h-3/4 rounded-full bg-white/90 ring-1 ring-[#1E3A7B]"/>
     </span>
-    {active&&label&&<span className="absolute -top-4 right-0 z-20 whitespace-nowrap rounded bg-[#1A2744] px-1 text-[9px] text-white">{label}</span>}
+    {active&&label&&<span className="absolute -top-4 right-0 z-20 whitespace-nowrap rounded bg-[#15244A] px-1 text-[9px] text-white">{label}</span>}
   </>;
 }
 
@@ -3200,14 +3195,14 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     return <span className="flex items-center gap-0.5 flex-shrink-0">
       <span draggable onDragStart={ev=>{ev.stopPropagation();setDragEmp(empId);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/employee-reorder",empId);}}
         onDragEnd={()=>{setDragEmp(null);setDropEmp(null);}} onClick={ev=>ev.stopPropagation()}
-        title="Sleep om de volgorde te wijzigen" className="cursor-grab active:cursor-grabbing text-[#B8C3D9] hover:text-[#6B7A99]">
+        title="Sleep om de volgorde te wijzigen" className="cursor-grab active:cursor-grabbing text-[#A7AEB8] hover:text-[#5F6878]">
         <GripVertical className="w-3.5 h-3.5"/>
       </span>
       <span className="flex flex-col">
         <button disabled={i<=0} onClick={ev=>{ev.stopPropagation();moveEmp(empId,-1);}} title="Omhoog"
-          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronUp className="w-3 h-3"/></button>
+          className="text-[#A7AEB8] hover:text-[#1E3A7B] disabled:opacity-30 leading-none"><ChevronUp className="w-3 h-3"/></button>
         <button disabled={i<0||i>=ids.length-1} onClick={ev=>{ev.stopPropagation();moveEmp(empId,1);}} title="Omlaag"
-          className="text-[#B8C3D9] hover:text-[#0ABFB8] disabled:opacity-30 leading-none"><ChevronDown className="w-3 h-3"/></button>
+          className="text-[#A7AEB8] hover:text-[#1E3A7B] disabled:opacity-30 leading-none"><ChevronDown className="w-3 h-3"/></button>
       </span>
     </span>;
   };
@@ -3722,7 +3717,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Personeelsplanning</h1><p className="text-[#6B7A99] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
+      <div><h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Personeelsplanning</h1><p className="text-[#5F6878] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
       <div className="flex gap-2 flex-wrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
@@ -3731,28 +3726,28 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       </div>
     </div>
     <div className="flex gap-2 items-center flex-wrap">
-      <div className="flex items-center gap-1 border border-[rgba(26,39,68,0.12)] rounded-lg overflow-hidden">
-        <button onClick={()=>navigate(-1)} className="p-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]"><ChevronLeft className="w-4 h-4"/></button>
-        <span className="text-xs md:text-sm px-2 md:px-3 text-[#1A2744] font-medium min-w-36 md:min-w-52 text-center">{titleStr}</span>
-        <button onClick={()=>navigate(1)} className="p-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]"><ChevronRight className="w-4 h-4"/></button>
+      <div className="flex items-center gap-1 border border-[rgba(21,36,74,0.12)] rounded-lg overflow-hidden">
+        <button onClick={()=>navigate(-1)} className="p-1.5 hover:bg-[#EFF1EE] text-[#5F6878]"><ChevronLeft className="w-4 h-4"/></button>
+        <span className="text-xs md:text-sm px-2 md:px-3 text-[#15244A] font-medium min-w-36 md:min-w-52 text-center">{titleStr}</span>
+        <button onClick={()=>navigate(1)} className="p-1.5 hover:bg-[#EFF1EE] text-[#5F6878]"><ChevronRight className="w-4 h-4"/></button>
       </div>
-      <div className="flex rounded-lg border border-[rgba(26,39,68,0.12)] overflow-hidden">
-        {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1A2744] text-white":"text-[#6B7A99] hover:bg-[#F0F3F8]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
+      <div className="flex rounded-lg border border-[rgba(21,36,74,0.12)] overflow-hidden">
+        {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#15244A] text-white":"text-[#5F6878] hover:bg-[#EFF1EE]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
       </div>
       <div className="flex gap-1.5 items-center flex-wrap">
-        {filters.map(f=><button key={f.id} onClick={()=>toggleFilter(f.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-opacity ${f.actief?"border-transparent text-white":"border-[rgba(26,39,68,0.12)] text-[#B8C3D9] bg-white"}`} style={f.actief?{backgroundColor:f.kleur}:undefined}>
+        {filters.map(f=><button key={f.id} onClick={()=>toggleFilter(f.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-opacity ${f.actief?"border-transparent text-white":"border-[rgba(21,36,74,0.12)] text-[#A7AEB8] bg-white"}`} style={f.actief?{backgroundColor:f.kleur}:undefined}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:f.actief?"rgba(255,255,255,0.9)":f.kleur}}/>{f.naam}
         </button>)}
         <Btn variant="secondary" size="sm" onClick={()=>setShowFilters(true)}><Settings className="w-3.5 h-3.5"/>Filters</Btn>
         <select value={plFilter} onChange={ev=>setPlFilter(ev.target.value)} title="Filter op projectleider"
-          className={`py-1.5 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50 ${plFilter?"border-[#0ABFB8] text-[#1A2744] font-semibold bg-[#E0F7F6]":"border-[rgba(26,39,68,0.12)] text-[#6B7A99] bg-white"}`}>
+          className={`py-1.5 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 ${plFilter?"border-[#1E3A7B] text-[#15244A] font-semibold bg-[#E4E9F4]":"border-[rgba(21,36,74,0.12)] text-[#5F6878] bg-white"}`}>
           <option value="">Alle projectleiders</option>
           {plOptions.map(n=><option key={n} value={n}>{n}</option>)}
         </select>
-        {plFilter&&<button onClick={()=>setPlFilter("")} className="text-xs text-[#0ABFB8] font-semibold">Wis</button>}
+        {plFilter&&<button onClick={()=>setPlFilter("")} className="text-xs text-[#1E3A7B] font-semibold">Wis</button>}
       </div>
     </div>
-    {plFilter&&shownEmp.length===0&&<p className="text-xs text-[#6B7A99]">Geen medewerkers ingepland op werken van {plFilter} in deze periode.</p>}
+    {plFilter&&shownEmp.length===0&&<p className="text-xs text-[#5F6878]">Geen medewerkers ingepland op werken van {plFilter} in deze periode.</p>}
 
     {view==="dag"&&<div className="space-y-3">
       {getDHol(toDateStr(refDate))&&<div className="rounded-2xl px-4 py-2.5 text-sm font-semibold" style={{backgroundColor:withAlpha(holColor,0.1),borderLeft:`4px solid ${holColor}`,color:holColor}}>
@@ -3761,35 +3756,35 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       {shownEmp.map(e=>{
         const blocks=getDayBlocks(e.id,refDate);
         const ds=toDateStr(refDate);
-        return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(26,39,68,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
+        return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(21,36,74,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
             <EmpOrderControls empId={e.id}/>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-            <div className="flex-1"><p className="font-semibold text-[#1A2744] text-sm">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <div className="flex-1"><p className="font-semibold text-[#15244A] text-sm">{e.naam}</p><p className="text-xs text-[#5F6878]">{e.functie}</p></div>
             <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
           </div>
           {blocks.length===0
-            ?<button onClick={()=>openPlan(e.id,ds)} onContextMenu={ev=>openCellMenu(ev,e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#B8C3D9] hover:bg-[#F8F9FC]">Geen tijdblokken — klik om in te plannen</button>
-            :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
+            ?<button onClick={()=>openPlan(e.id,ds)} onContextMenu={ev=>openCellMenu(ev,e.id,ds)} className="w-full text-left px-4 py-3 text-xs text-[#A7AEB8] hover:bg-[#F7F8F6]">Geen tijdblokken — klik om in te plannen</button>
+            :<div className="divide-y divide-[rgba(21,36,74,0.05)]">
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
-                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FC]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
+                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F7F8F6]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
-                  <span className="text-xs font-mono text-[#6B7A99] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
+                  <span className="text-xs font-mono text-[#5F6878] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}} title="Kleur van het werk"/>}
                   {proj&&plColorFor(proj)&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-2 ring-2 ring-white" style={{backgroundColor:plColorFor(proj)||undefined}} title={`Projectleider: ${projectleiderKey(proj,employees)}`}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#1A2744] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
-                  {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#0ABFB8] flex-shrink-0">tot {resizePv.label}</span>}
-                  {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#0ABFB8] font-semibold flex-shrink-0">Project</button>}
+                  <span className="text-xs text-[#15244A] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
+                  {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#1E3A7B] flex-shrink-0">tot {resizePv.label}</span>}
+                  {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#1E3A7B] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
                   <span onPointerDown={ev=>startResize(ev,b,"time")} onClick={ev=>ev.stopPropagation()} title="Sleep om de eindtijd aan te passen"
                     className="absolute left-0 right-0 bottom-0 h-3 md:h-2 flex items-center justify-center cursor-ns-resize touch-none opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                    <span className="w-14 h-1 rounded-full bg-[#0ABFB8]"/>
+                    <span className="w-14 h-1 rounded-full bg-[#1E3A7B]"/>
                   </span>
                 </div>
               ))}
@@ -3801,31 +3796,31 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
     {(view==="week"||view==="maand")&&(
     // Eigen scrolgebied: zo blijft de kopregel met de dagen bovenaan staan bij naar beneden scrollen
-    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto" style={{maxHeight:"calc(100vh - 210px)"}}>
+    <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-auto" style={{maxHeight:"calc(100vh - 210px)"}}>
       {/* Vaste tabelindeling: elke dag is even breed, lange teksten lopen nooit een kolom op */}
       <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${176+dates.length*(view==="week"?90:MONTH_COL_W)}px`,...(view==="maand"?{width:`${176+dates.length*MONTH_COL_W}px`}:null)}}>
-        <thead className="bg-[#F0F3F8] sticky top-0 z-10">
+        <thead className="bg-[#EFF1EE] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20" style={{width:176}}>Medewerker</th>
+            <th className="px-4 py-3 text-left text-[#5F6878] font-semibold uppercase tracking-wide sticky left-0 bg-[#EFF1EE] z-20" style={{width:176}}>Medewerker</th>
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
               style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
-              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#0ABFB8]":isWE?"text-[#B8C3D9]":"text-[#6B7A99]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
+              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#A7AEB8]":"text-[#5F6878]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
               {/* Weeknummer boven elke maandag (en boven de eerste dag in beeld) */}
-              <div className="text-[9px] leading-none h-3 text-[#0ABFB8] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
+              <div className="text-[9px] leading-none h-3 text-[#1E3A7B] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
-              <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1A2744] text-white":""}`}>{d.getDate()}</div>
+              <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#15244A] text-white":""}`}>{d.getDate()}</div>
               {hol&&view!=="maand"&&<div className="text-[8px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
               {hol&&view==="maand"&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
-            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
+        <tbody className="divide-y divide-[rgba(21,36,74,0.05)]">
+          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F7F8F6]">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(21,36,74,0.06)]">
               <div className="flex items-center gap-1.5">
                 <EmpOrderControls empId={e.id}/>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div className="min-w-0"><p className="font-semibold text-[#1A2744] truncate">{e.naam}</p><p className="text-[#6B7A99] truncate">{e.functie}</p></div>
+                <div className="min-w-0"><p className="font-semibold text-[#15244A] truncate">{e.naam}</p><p className="text-[#5F6878] truncate">{e.functie}</p></div>
               </div>
             </td>
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
@@ -3837,7 +3832,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
               style={{...(blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:null),
                 ...(cellHol?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${withAlpha(holColor,0.7)}`}:null)}}
-              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#0ABFB8]":""} ${dragProject||dragBlock?"hover:bg-[#E0F7F6]":"hover:bg-[#F0F3F8]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
+              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#1E3A7B]":""} ${dragProject||dragBlock?"hover:bg-[#E4E9F4]":"hover:bg-[#EFF1EE]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
@@ -3878,36 +3873,36 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     )}
 
     {view==="kwartaal"&&(
-    <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-auto" style={{maxHeight:"calc(100vh - 210px)"}}>
+    <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-auto" style={{maxHeight:"calc(100vh - 210px)"}}>
       <table className="text-xs" style={{tableLayout:"fixed",width:`${176+weeks.length*QUARTER_COL_W}px`}}>
-        <thead className="bg-[#F0F3F8] sticky top-0 z-10">
+        <thead className="bg-[#EFF1EE] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#6B7A99] font-semibold uppercase tracking-wide sticky left-0 bg-[#F0F3F8] z-20" style={{width:176}}>Medewerker</th>
+            <th className="px-4 py-3 text-left text-[#5F6878] font-semibold uppercase tracking-wide sticky left-0 bg-[#EFF1EE] z-20" style={{width:176}}>Medewerker</th>
             {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
               const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
-              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#6B7A99]" title={hols.join(", ")||undefined}
+              return<th key={i} className="py-2 px-1 text-center font-semibold text-[#5F6878]" title={hols.join(", ")||undefined}
                 style={{width:QUARTER_COL_W,...(hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:null)}}>
-              <div className="text-[9px] text-[#B8C3D9] mb-0.5">Wk{wn}</div>
+              <div className="text-[9px] text-[#A7AEB8] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
               {!!hols.length&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[rgba(26,39,68,0.05)]">
-          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FC]">
-            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(26,39,68,0.06)]">
+        <tbody className="divide-y divide-[rgba(21,36,74,0.05)]">
+          {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F7F8F6]">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(21,36,74,0.06)]">
               <div className="flex items-center gap-1.5">
                 <EmpOrderControls empId={e.id}/>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div className="min-w-0"><p className="font-semibold text-[#1A2744] truncate">{e.naam}</p><p className="text-[#6B7A99] truncate">{e.functie}</p></div>
+                <div className="min-w-0"><p className="font-semibold text-[#15244A] truncate">{e.naam}</p><p className="text-[#5F6878] truncate">{e.functie}</p></div>
               </div>
             </td>
-            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F0F3F8]">
+            {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#EFF1EE]">
               {ps.length>0?<div className="space-y-0.5">
                 {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(werkAfdKleur(p,dc),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
                   <span style={TWO_LINES}>{p.projectnaam||p.werknummer}</span>
                 </button>)}
-                {ps.length>2&&<div className="text-[9px] text-[#6B7A99]">+{ps.length-2}</div>}
+                {ps.length>2&&<div className="text-[9px] text-[#5F6878]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
@@ -3923,19 +3918,19 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       onDragStartProject={id=>setDragProject(id)} onDragEndProject={()=>setDragProject(null)}/>
 
     <div className="flex items-center gap-4 flex-wrap">
-      {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#6B7A99]">{f.naam}</span></div>)}
-      {AVAIL_STATS.filter(s=>s!=="Vrij").map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#6B7A99]">{s}</span></div>)}
+      {filters.map(f=><div key={f.id} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:f.kleur}}/><span className="text-xs text-[#5F6878]">{f.naam}</span></div>)}
+      {AVAIL_STATS.filter(s=>s!=="Vrij").map(s=><div key={s} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/><span className="text-xs text-[#5F6878]">{s}</span></div>)}
     </div>
     {plSchilder.length>0&&<div className="flex items-center gap-3 flex-wrap">
-      <span className="text-xs font-semibold text-[#6B7A99]">Projectleiders Schilderwerk (rechterdeel van het blok):</span>
-      {plSchilder.map(n=><div key={n} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:projectleiderColorOf(n,plColors)}}/><span className="text-xs text-[#6B7A99]">{n}</span></div>)}
+      <span className="text-xs font-semibold text-[#5F6878]">Projectleiders Schilderwerk (rechterdeel van het blok):</span>
+      {plSchilder.map(n=><div key={n} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:projectleiderColorOf(n,plColors)}}/><span className="text-xs text-[#5F6878]">{n}</span></div>)}
     </div>}
-    {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4">
-      <h3 className="text-xs font-bold text-[#1A2744] uppercase tracking-wide mb-2">Teams in deze periode</h3>
+    {teams.length>0&&<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4">
+      <h3 className="text-xs font-bold text-[#15244A] uppercase tracking-wide mb-2">Teams in deze periode</h3>
       <div className="flex flex-wrap gap-3">
         {teams.map(t=><div key={t.key} className="flex items-center gap-1.5">
           <input type="color" value={t.kleur} onChange={ev=>setTeamColor(t.key,ev.target.value)} className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0" title="Teamkleur aanpassen"/>
-          <span className="text-xs text-[#6B7A99]">{t.label}</span>
+          <span className="text-xs text-[#5F6878]">{t.label}</span>
         </div>)}
       </div>
     </div>}
@@ -3967,7 +3962,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       onSave={saveFixedFree} onDelete={async pid=>{await deleteFixedFree(pid);setFfModal(null);}} onClose={()=>setFfModal(null)}/>}
     {ffAsk&&<Modal title="Er staat al werk gepland" onClose={()=>setFfAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
+        <p className="text-sm text-[#5F6878]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1 max-h-40 overflow-y-auto">
           {ffAsk.dates.map(d=><p key={d} className="text-xs text-amber-800">{fmtDate(d)}</p>)}
         </div>
@@ -3979,7 +3974,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     </Modal>}
     {dayOrSeries&&<Modal title="Vaste vrije dag" onClose={()=>setDayOrSeries(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">{fmtDate(dayOrSeries.date)} hoort bij een vaste vrije reeks. Wil je alleen deze dag wijzigen of de hele reeks?</p>
+        <p className="text-sm text-[#5F6878]">{fmtDate(dayOrSeries.date)} hoort bij een vaste vrije reeks. Wil je alleen deze dag wijzigen of de hele reeks?</p>
         <div className="flex flex-col gap-2">
           {(["Beschikbaar","Bezet","Ziek","Vakantie"] as AvailStatus[]).map(s=>
             <Btn key={s} variant="secondary" onClick={async()=>{const b=dayOrSeries;setDayOrSeries(null);await exceptionStatus(b,s);}}>Alleen deze dag: {s}</Btn>)}
@@ -3991,7 +3986,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     </Modal>}
     {vrijAsk&&<Modal title="Project inplannen op een vrije dag" onClose={()=>setVrijAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?</p>
+        <p className="text-sm text-[#5F6878]">Deze medewerker is normaal op deze dag Vrij. Alleen deze datum beschikbaar maken en een project inplannen?</p>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setVrijAsk(null)}>Annuleren</Btn>
           <Btn onClick={async()=>{const v=vrijAsk;setVrijAsk(null);await startVrijException(v);}}>Ja, inplannen</Btn>
@@ -4004,7 +3999,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       onClose={()=>setAbsModal(null)}/>}
     {showColors&&<ColorManagerModal settings={settings} teams={teams.map(t=>({key:t.key,label:t.label}))} projectleiders={plSchilder}
       onSave={s=>onSaveSettings(s)} onClose={()=>setShowColors(false)}/>}
-    {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#1A2744] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
+    {rangeStart&&<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#15244A] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
       Kies de einddag voor de afwezigheid
       <button className="underline" onClick={()=>setRangeStart(null)}>Annuleren</button>
     </div>}
@@ -4012,37 +4007,37 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {/* Snelmenu op een cel */}
     {cellMenu&&<>
       <div className="fixed inset-0 z-40" onClick={()=>setCellMenu(null)} onContextMenu={ev=>{ev.preventDefault();setCellMenu(null);}}/>
-      <div ref={menuRef} className="fixed z-50 bg-white rounded-xl border border-[rgba(26,39,68,0.12)] shadow-lg py-1 text-xs min-w-44"
+      <div ref={menuRef} className="fixed z-50 bg-white rounded-xl border border-[rgba(21,36,74,0.12)] shadow-lg py-1 text-xs min-w-44"
         style={{left:Math.max(8,Math.min(cellMenu.x,window.innerWidth-200)),top:Math.max(8,Math.min(cellMenu.y,window.innerHeight-menuH-8))}}>
-        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#B8C3D9]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
+        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#A7AEB8]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
         {cellMenu.block&&<>
-          {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
+          {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
             <Star className="w-3.5 h-3.5 text-[#F2A65A]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
           </button>}
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
-          {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
-          <div className="my-1 border-t border-[rgba(26,39,68,0.08)]"/>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
+          {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
+          <div className="my-1 border-t border-[rgba(21,36,74,0.08)]"/>
         </>}
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744]" onClick={()=>{
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A]" onClick={()=>{
           const c=cellMenu;setCellMenu(null);
           const vrij=availability.find(a=>a.employeeId===c.empId&&a.date===c.date&&isSeriesVrij(a)&&a.status==="Vrij");
           if(vrij){setVrijAsk(vrij);return;}
           openPlan(c.empId,c.date,c.startTime||WORKDAY_START,c.endTime||WORKDAY_END);
         }}>Project inplannen…</button>
-        {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#1A2744] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
+        {ABSENCE_STATS.map(s=><button key={s} className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#15244A] flex items-center gap-2" onClick={()=>quickStatus(cellMenu.empId,cellMenu.date,s)}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:statusColorOf(s,statusColors)}}/>{s==="Bezet"?"Bezet (met omschrijving)…":s==="Gereserveerd"?"Reserveren (met omschrijving)…":`${s} (hele dag)`}
         </button>)}
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
-        <button className="w-full text-left px-3 py-1.5 hover:bg-[#F0F3F8] text-[#6B7A99]" onClick={()=>{const c=cellMenu;setCellMenu(null);openFixedFree(c.empId);}}>Vaste vrije dagen…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#5F6878]" onClick={()=>{const c=cellMenu;setCellMenu(null);openAbsence(c.empId,c.date,c.date);}}>Afwezigheid met periode…</button>
+        <button className="w-full text-left px-3 py-1.5 hover:bg-[#EFF1EE] text-[#5F6878]" onClick={()=>{const c=cellMenu;setCellMenu(null);openFixedFree(c.empId);}}>Vaste vrije dagen…</button>
       </div>
     </>}
 
     {/* Keuze bij het slepen van een teamblok */}
     {teamChoice&&<Modal title="Planning verplaatsen" onClose={()=>setTeamChoice(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Standaard verplaatst het hele team mee.</p>
+        <p className="text-sm text-[#5F6878]">Deze dag werken {teamChoice.teamRows.length} medewerkers samen aan dit project. Standaard verplaatst het hele team mee.</p>
         <div className="flex flex-col gap-2">
           <Btn onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks(t.teamRows,t.empId,t.date);}}>Hele team verplaatsen</Btn>
           <Btn variant="secondary" onClick={async()=>{const t=teamChoice;setTeamChoice(null);await moveBlocks([t.block],t.empId,t.date);}}>Alleen deze medewerker verplaatsen</Btn>
@@ -4054,7 +4049,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {/* Waarschuwing bij dubbele projectplanning */}
     {overlapAsk&&<Modal title="Let op — dubbele planning" onClose={()=>setOverlapAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Deze medewerker staat in dit tijdvak al op een ander project:</p>
+        <p className="text-sm text-[#5F6878]">Deze medewerker staat in dit tijdvak al op een ander project:</p>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
           {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{conflictLine(c)}</p>)}
         </div>
@@ -4068,10 +4063,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {/* Als eerste uitvoeren: bevestiging */}
     {firstAsk&&<Modal title="Als eerste uitvoeren" onClose={()=>setFirstAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">{firstAsk.kind==="start"
+        <p className="text-sm text-[#5F6878]">{firstAsk.kind==="start"
           ?"Er is nu een werk dat eerder begint. Wilt u dit werk automatisch als eerste uitvoeren markeren?"
           :"Dit project als eerste uitvoeren?"}</p>
-        <div className="rounded-xl border border-[rgba(26,39,68,0.1)] bg-[#F8F9FC] p-3 text-xs text-[#1A2744]">
+        <div className="rounded-xl border border-[rgba(21,36,74,0.1)] bg-[#F7F8F6] p-3 text-xs text-[#15244A]">
           {getIndexedProject(firstAsk.target.projectId)?.projectnaam||firstAsk.target.note||"Werk"} · {firstAsk.target.startTime}–{firstAsk.target.endTime} · {fmtDate(firstAsk.target.date)}
         </div>
         <div className="flex justify-end gap-2">
@@ -4084,7 +4079,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {/* Buiten werktijd doorplannen */}
     {lateAsk&&<Modal title="Buiten werktijd" onClose={()=>setLateAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Je trekt dit blok door tot <b>{lateAsk.endTime}</b>, na de standaard werkdag ({WORKDAY_END}).</p>
+        <p className="text-sm text-[#5F6878]">Je trekt dit blok door tot <b>{lateAsk.endTime}</b>, na de standaard werkdag ({WORKDAY_END}).</p>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const l=lateAsk;setLateAsk(null);if(l.fallback!==l.block.endTime)await applyResize(l.block,{endTime:l.fallback});}}>Stoppen om {lateAsk.fallback}</Btn>
           <Btn onClick={async()=>{const l=lateAsk;setLateAsk(null);await applyResize(l.block,{endTime:l.endTime});}}>Doorplannen tot {lateAsk.endTime}</Btn>
@@ -4095,7 +4090,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {/* Alleen deze medewerker of het hele team verlengen */}
     {resizeTeam&&<Modal title="Hele team aanpassen?" onClose={()=>setResizeTeam(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
-        <p className="text-sm text-[#6B7A99]">Er staan {resizeTeam.teamRows.length} medewerkers op dit project in dit tijdvak.</p>
+        <p className="text-sm text-[#5F6878]">Er staan {resizeTeam.teamRows.length} medewerkers op dit project in dit tijdvak.</p>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={async()=>{const r=resizeTeam;setResizeTeam(null);await commitResize([r.block],r.patch);}}>Alleen deze medewerker</Btn>
           <Btn onClick={async()=>{const r=resizeTeam;setResizeTeam(null);await commitResize(r.teamRows,r.patch);}}>Hele team</Btn>
@@ -4153,37 +4148,37 @@ function NotitiesView(){
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div>
-      <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Persoonlijke notities</h1>
-      <p className="text-[#6B7A99] text-xs md:text-sm">{noteOwnerId&&!realUserId?"Zonder account worden je notities op dit apparaat bewaard.":"Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account."}</p>
+      <h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Persoonlijke notities</h1>
+      <p className="text-[#5F6878] text-xs md:text-sm">{noteOwnerId&&!realUserId?"Zonder account worden je notities op dit apparaat bewaard.":"Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account."}</p>
     </div>
     {!noteOwnerId
-      ?<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-6 text-sm text-[#6B7A99]">
+      ?<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-6 text-sm text-[#5F6878]">
         Persoonlijke notities werken alleen met een echt account. Log in met je Microsoft-account om je eigen notities veilig op te slaan.
       </div>
       :<>
-        <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 space-y-3">
+        <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input label="Datum" value={datum} onChange={setDatum} type="date"/>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[#6B7A99]">Notitie</label>
+            <label className="text-xs font-semibold text-[#5F6878]">Notitie</label>
             <textarea value={tekst} onChange={e=>setTekst(e.target.value)} rows={4} placeholder="Waar wil je aan denken?"
-              className="w-full px-3 py-2 bg-white border border-[rgba(26,39,68,0.1)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/>
+              className="w-full px-3 py-2 bg-white border border-[rgba(21,36,74,0.1)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40"/>
           </div>
           <div className="flex justify-end gap-2">
             {editId&&<Btn variant="secondary" onClick={reset}>Annuleren</Btn>}
             <Btn onClick={save} disabled={busy||!tekst.trim()}>{editId?"Notitie bijwerken":"Notitie opslaan"}</Btn>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-          {loading?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Laden…</p>
-          :notes.length===0?<p className="px-4 py-3 text-xs text-[#B8C3D9]">Nog geen notities.</p>
-          :<div className="divide-y divide-[rgba(26,39,68,0.05)]">
+        <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+          {loading?<p className="px-4 py-3 text-xs text-[#A7AEB8]">Laden…</p>
+          :notes.length===0?<p className="px-4 py-3 text-xs text-[#A7AEB8]">Nog geen notities.</p>
+          :<div className="divide-y divide-[rgba(21,36,74,0.05)]">
             {notes.map(n=><div key={n.id} className="flex items-start gap-3 px-4 py-3">
-              <span className="text-xs font-mono text-[#6B7A99] w-24 flex-shrink-0">{fmtDate(n.datum)}</span>
-              <p className="text-sm text-[#1A2744] flex-1 whitespace-pre-wrap">{n.tekst}</p>
-              <button onClick={()=>{setEditId(n.id);setDatum(n.datum);setTekst(n.tekst);}} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Bewerken</button>
-              <button onClick={()=>remove(n.id)} className="text-[#B8C3D9] hover:text-[#FF6B5B] flex-shrink-0"><Trash2 className="w-3.5 h-3.5"/></button>
+              <span className="text-xs font-mono text-[#5F6878] w-24 flex-shrink-0">{fmtDate(n.datum)}</span>
+              <p className="text-sm text-[#15244A] flex-1 whitespace-pre-wrap">{n.tekst}</p>
+              <button onClick={()=>{setEditId(n.id);setDatum(n.datum);setTekst(n.tekst);}} className="text-xs text-[#1E3A7B] font-semibold flex-shrink-0">Bewerken</button>
+              <button onClick={()=>remove(n.id)} className="text-[#A7AEB8] hover:text-[#FF6B5B] flex-shrink-0"><Trash2 className="w-3.5 h-3.5"/></button>
             </div>)}
           </div>}
         </div>
@@ -4202,36 +4197,36 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
   const filtered=employees.filter(e=>{const q=search.toLowerCase();return(!q||e.naam.toLowerCase().includes(q)||e.functie.toLowerCase().includes(q))&&(!afdFilter||e.afdeling===afdFilter);});
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Medewerkers</h1><p className="text-[#6B7A99] text-xs md:text-sm">{employees.length} medewerkers</p></div>
+      <div><h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Medewerkers</h1><p className="text-[#5F6878] text-xs md:text-sm">{employees.length} medewerkers</p></div>
       <div className="flex gap-2 flex-shrink-0">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn onClick={onAdd}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuwe medewerker</span></Btn>
       </div>
     </div>
     <div className="flex gap-2 flex-wrap">
-      <div className="relative flex-1 min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7A99]"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Zoeken..." className="w-full pl-9 pr-3 py-2 bg-white border border-[rgba(26,39,68,0.1)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ABFB8]/40"/></div>
+      <div className="relative flex-1 min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5F6878]"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Zoeken..." className="w-full pl-9 pr-3 py-2 bg-white border border-[rgba(21,36,74,0.1)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40"/></div>
       <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-36 md:w-40"/>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-      {filtered.map(e=><div key={e.id} className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-5 hover:shadow-md transition-all">
+      {filtered.map(e=><div key={e.id} className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-5 hover:shadow-md transition-all">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-lg font-bold" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-            <div><p className="font-bold text-[#1A2744]">{e.naam}</p><p className="text-xs text-[#6B7A99]">{e.functie}</p></div>
+            <div><p className="font-bold text-[#15244A]">{e.naam}</p><p className="text-xs text-[#5F6878]">{e.functie}</p></div>
           </div>
           <div className="flex gap-1">
-            <button onClick={()=>onEdit(e)} className="p-1.5 rounded-lg hover:bg-[#F0F3F8] text-[#6B7A99]"><Pencil className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>setDel(e.id)} className="p-1.5 rounded-lg hover:bg-[#FFE8E5] text-[#6B7A99] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>onEdit(e)} className="p-1.5 rounded-lg hover:bg-[#EFF1EE] text-[#5F6878]"><Pencil className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>setDel(e.id)} className="p-1.5 rounded-lg hover:bg-[#FFE8E5] text-[#5F6878] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
           </div>
         </div>
         <div className="mb-3"><DeptBadge afd={e.afdeling}/></div>
         <div className="space-y-1.5 text-sm">
-          <div className="flex items-center gap-2 text-[#6B7A99]"><Phone className="w-3.5 h-3.5"/>{e.telefoon||"—"}</div>
-          <div className="flex items-center gap-2 text-[#6B7A99]"><Mail className="w-3.5 h-3.5"/>{e.email||"—"}</div>
+          <div className="flex items-center gap-2 text-[#5F6878]"><Phone className="w-3.5 h-3.5"/>{e.telefoon||"—"}</div>
+          <div className="flex items-center gap-2 text-[#5F6878]"><Mail className="w-3.5 h-3.5"/>{e.email||"—"}</div>
         </div>
         {e.competenties.length>0&&<div className="mt-3 flex flex-wrap gap-1">
-          {e.competenties.slice(0,3).map(c=><span key={c} className="px-2 py-0.5 bg-[#F0F3F8] text-[#6B7A99] rounded-full text-xs">{c}</span>)}
-          {e.competenties.length>3&&<span className="px-2 py-0.5 bg-[#F0F3F8] text-[#6B7A99] rounded-full text-xs">+{e.competenties.length-3}</span>}
+          {e.competenties.slice(0,3).map(c=><span key={c} className="px-2 py-0.5 bg-[#EFF1EE] text-[#5F6878] rounded-full text-xs">{c}</span>)}
+          {e.competenties.length>3&&<span className="px-2 py-0.5 bg-[#EFF1EE] text-[#5F6878] rounded-full text-xs">+{e.competenties.length-3}</span>}
         </div>}
       </div>)}
     </div>
@@ -4265,29 +4260,29 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-2xl">
     <div>
-      <h1 className="text-xl md:text-2xl font-bold text-[#1A2744]">Instellingen</h1>
-      <p className="text-[#6B7A99] text-xs md:text-sm">Bedrijfsinstellingen en voorkeuren</p>
+      <h1 className="mm-titel font-display text-[1.85rem] md:text-[2.3rem] leading-[1.05] font-medium tracking-[-0.015em] text-[#15244A]">Instellingen</h1>
+      <p className="text-[#5F6878] text-xs md:text-sm">Bedrijfsinstellingen en voorkeuren</p>
     </div>
-    <div className="flex gap-1 bg-[#F0F3F8] p-1 rounded-xl w-fit">
-      {(["bedrijf","kleuren","projectleiders"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#1A2744] shadow-sm":"text-[#6B7A99] hover:text-[#1A2744]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":t==="kleuren"?"Kleuren":"Projectleiders"}</button>)}
+    <div className="flex gap-1 bg-[#EFF1EE] p-1 rounded-xl w-fit">
+      {(["bedrijf","kleuren","projectleiders"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#15244A] shadow-sm":"text-[#5F6878] hover:text-[#15244A]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":t==="kleuren"?"Kleuren":"Projectleiders"}</button>)}
     </div>
-    {activeTab==="projectleiders"&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-3">
-      <p className="text-sm text-[#6B7A99]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
+    {activeTab==="projectleiders"&&<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 md:p-6 space-y-3">
+      <p className="text-sm text-[#5F6878]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
       <div className="space-y-2">
         {plRows.map(([code,naam])=><div key={code} className="flex items-center gap-2">
-          <span className="w-20 flex-shrink-0 font-mono text-sm font-semibold text-[#1A2744]">{code}</span>
+          <span className="w-20 flex-shrink-0 font-mono text-sm font-semibold text-[#15244A]">{code}</span>
           <input value={naam} onChange={e=>setPlName(code,e.target.value)} placeholder="Volledige naam"
-            className="flex-1 py-1.5 px-2.5 text-sm border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
+            className="flex-1 py-1.5 px-2.5 text-sm border border-[rgba(21,36,74,0.12)] rounded-lg text-[#15244A] focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50"/>
         </div>)}
       </div>
-      <div className="flex items-end gap-2 pt-2 border-t border-[rgba(26,39,68,0.06)]">
+      <div className="flex items-end gap-2 pt-2 border-t border-[rgba(21,36,74,0.06)]">
         <Input label="Afkorting" value={newCode} onChange={setNewCode} placeholder="Bijv. RSA" className="w-28"/>
         <Input label="Volledige naam" value={newNaam} onChange={setNewNaam} placeholder="Voor- en achternaam" className="flex-1"/>
         <Btn variant="secondary" disabled={!newCode.trim()||!newNaam.trim()} onClick={()=>{setPlName(newCode.trim().toUpperCase(),newNaam.trim());setNewCode("");setNewNaam("");}}><Plus className="w-4 h-4"/>Toevoegen</Btn>
       </div>
-      <p className="text-xs text-[#6B7A99]">Vergeet niet onderaan op <b>Instellingen opslaan</b> te klikken.</p>
+      <p className="text-xs text-[#5F6878]">Vergeet niet onderaan op <b>Instellingen opslaan</b> te klikken.</p>
     </div>}
-    {activeTab==="bedrijf"&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-4">
+    {activeTab==="bedrijf"&&<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 md:p-6 space-y-4">
       <Input label="Bedrijfsnaam" value={form.bedrijfsnaam} onChange={v=>setForm(p=>({...p,bedrijfsnaam:v}))}/>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Adres" value={form.adres} onChange={v=>setForm(p=>({...p,adres:v}))}/>
@@ -4295,12 +4290,12 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
       </div>
       <Input label="Plaats" value={form.plaats} onChange={v=>setForm(p=>({...p,plaats:v}))}/>
       <div>
-        <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Standaard werkdag (nieuwe planning)</p>
+        <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">Standaard werkdag (nieuwe planning)</p>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Begintijd" type="time" value={form.werkdagStart||"07:00"} onChange={v=>setForm(p=>({...p,werkdagStart:v}))}/>
           <Input label="Eindtijd" type="time" value={form.werkdagEind||"17:00"} onChange={v=>setForm(p=>({...p,werkdagEind:v}))}/>
         </div>
-        <p className="text-xs text-[#6B7A99] mt-1">Geldt voor alle afdelingen. Per planning kun je de tijden in het inplanvenster nog aanpassen.</p>
+        <p className="text-xs text-[#5F6878] mt-1">Geldt voor alle afdelingen. Per planning kun je de tijden in het inplanvenster nog aanpassen.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Telefoon" value={form.telefoon} onChange={v=>setForm(p=>({...p,telefoon:v}))}/>
@@ -4308,36 +4303,36 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Primaire kleur</label>
+          <label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">Primaire kleur</label>
           <div className="flex items-center gap-2">
-            <input type="color" value={form.primaryColor} onChange={e=>setForm(p=>({...p,primaryColor:e.target.value}))} className="w-10 h-10 rounded-lg border border-[rgba(26,39,68,0.1)] cursor-pointer p-0.5 bg-[#F0F3F8]"/>
-            <span className="text-sm text-[#1A2744] font-mono">{form.primaryColor}</span>
+            <input type="color" value={form.primaryColor} onChange={e=>setForm(p=>({...p,primaryColor:e.target.value}))} className="w-10 h-10 rounded-lg border border-[rgba(21,36,74,0.1)] cursor-pointer p-0.5 bg-[#EFF1EE]"/>
+            <span className="text-sm text-[#15244A] font-mono">{form.primaryColor}</span>
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-[#6B7A99] uppercase tracking-wide mb-1">Accentkleur</label>
+          <label className="block text-xs font-semibold text-[#5F6878] uppercase tracking-wide mb-1">Accentkleur</label>
           <div className="flex items-center gap-2">
-            <input type="color" value={form.accentColor} onChange={e=>setForm(p=>({...p,accentColor:e.target.value}))} className="w-10 h-10 rounded-lg border border-[rgba(26,39,68,0.1)] cursor-pointer p-0.5 bg-[#F0F3F8]"/>
-            <span className="text-sm text-[#1A2744] font-mono">{form.accentColor}</span>
+            <input type="color" value={form.accentColor} onChange={e=>setForm(p=>({...p,accentColor:e.target.value}))} className="w-10 h-10 rounded-lg border border-[rgba(21,36,74,0.1)] cursor-pointer p-0.5 bg-[#EFF1EE]"/>
+            <span className="text-sm text-[#15244A] font-mono">{form.accentColor}</span>
           </div>
         </div>
       </div>
     </div>}
-    {activeTab==="kleuren"&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-4">
-      <p className="text-sm text-[#6B7A99]">Stel de kleur in voor elke afdeling. Wijzigingen zijn direct zichtbaar na opslaan.</p>
-      {AFDS.map(a=><div key={a} className="flex items-center gap-4 p-3 rounded-xl border border-[rgba(26,39,68,0.08)]">
+    {activeTab==="kleuren"&&<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 md:p-6 space-y-4">
+      <p className="text-sm text-[#5F6878]">Stel de kleur in voor elke afdeling. Wijzigingen zijn direct zichtbaar na opslaan.</p>
+      {AFDS.map(a=><div key={a} className="flex items-center gap-4 p-3 rounded-xl border border-[rgba(21,36,74,0.08)]">
         <input type="color" value={form.deptColors[a].bg} onChange={e=>setDeptColor(a,e.target.value)} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 flex-shrink-0" style={{backgroundColor:form.deptColors[a].bg}}/>
         <div className="flex-1">
-          <p className="font-semibold text-[#1A2744]">{a}</p>
-          <p className="text-xs text-[#6B7A99] font-mono">{form.deptColors[a].bg}</p>
+          <p className="font-semibold text-[#15244A]">{a}</p>
+          <p className="text-xs text-[#5F6878] font-mono">{form.deptColors[a].bg}</p>
         </div>
         <div className="w-8 h-8 rounded-lg" style={{backgroundColor:form.deptColors[a].bg}}/>
       </div>)}
     </div>}
-    {DEMO_MODE&&<div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] p-4 md:p-6 space-y-3">
+    {DEMO_MODE&&<div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] p-4 md:p-6 space-y-3">
       <div>
-        <p className="font-semibold text-[#1A2744]">Demo-omgeving</p>
-        <p className="text-xs text-[#6B7A99]">Alle gegevens staan alleen lokaal in deze browser. Resetten zet de voorbeelddata terug.</p>
+        <p className="font-semibold text-[#15244A]">Demo-omgeving</p>
+        <p className="text-xs text-[#5F6878]">Alle gegevens staan alleen lokaal in deze browser. Resetten zet de voorbeelddata terug.</p>
       </div>
       <button onClick={()=>{if(window.confirm("Weet je zeker dat je alle demo-gegevens wilt terugzetten?")){void resetDemoData().then(()=>window.location.reload());}}}
         className="px-4 py-2 rounded-xl border border-[#FF6B5B] text-[#FF6B5B] text-sm font-semibold hover:bg-[#FFE8E5]">Demo resetten</button>
@@ -4895,23 +4890,23 @@ export default function PlanningApp(){
   };
 
   if(loadError){
-    return <div className="min-h-screen flex items-center justify-center bg-[#F0F3F8] px-4" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
-      <div className="max-w-sm w-full bg-white rounded-2xl border border-[rgba(26,39,68,0.08)] p-6 text-center">
-        <p className="text-base font-semibold text-[#1A2744]">Gegevens konden niet worden geladen.</p>
-        <p className="text-sm text-[#6B7A99] mt-1 break-words">{loadError}</p>
-        <button onClick={()=>setReloadKey(k=>k+1)} className="mt-4 w-full py-2.5 rounded-xl bg-[#1A2744] text-white text-sm font-semibold hover:bg-[#24365c]">Opnieuw proberen</button>
+    return <div className="min-h-screen flex items-center justify-center bg-[#EFF1EE] px-4" style={{fontFamily:"var(--font-ui)"}}>
+      <div className="max-w-sm w-full bg-white rounded-2xl border border-[rgba(21,36,74,0.08)] p-6 text-center">
+        <p className="text-base font-semibold text-[#15244A]">Gegevens konden niet worden geladen.</p>
+        <p className="text-sm text-[#5F6878] mt-1 break-words">{loadError}</p>
+        <button onClick={()=>setReloadKey(k=>k+1)} className="mt-4 w-full py-2.5 rounded-xl bg-[#15244A] text-white text-sm font-semibold hover:bg-[#24365c]">Opnieuw proberen</button>
       </div>
     </div>;
   }
   if(!dbReady){
-    return <div className="min-h-screen flex items-center justify-center bg-[#F0F3F8]" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
-      <p className="text-sm text-[#6B7A99]">Gegevens laden…</p>
+    return <div className="min-h-screen flex items-center justify-center bg-[#EFF1EE]" style={{fontFamily:"var(--font-ui)"}}>
+      <p className="text-sm text-[#5F6878]">Gegevens laden…</p>
     </div>;
   }
 
 
   return <DeptColorCtx.Provider value={settings.deptColors}>
-    <div className="flex h-screen bg-[#F0F3F8] overflow-hidden" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+    <div className="flex h-screen bg-[#EFF1EE] overflow-hidden" style={{fontFamily:"var(--font-ui)"}}>
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
@@ -4925,7 +4920,7 @@ export default function PlanningApp(){
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
-          {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#6B7A99]">Laden…</div>}><GebruikersbeheerView/></Suspense>}
+          {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#5F6878]">Laden…</div>}><GebruikersbeheerView/></Suspense>}
         </div>
       </div>
       {(isNewProject||editProject)&&editProject!==null&&(

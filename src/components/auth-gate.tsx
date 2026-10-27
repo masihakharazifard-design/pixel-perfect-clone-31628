@@ -11,7 +11,7 @@ const SupabaseAuthGate = lazy(() => import("@/components/supabase-auth-gate"));
 export function AuthGate({ children }: { children: ReactNode }) {
   if (DEMO_MODE) return <DemoAuthGate>{children}</DemoAuthGate>;
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F0F3F8]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#EFF1EE]" />}>
       <SupabaseAuthGate>{children}</SupabaseAuthGate>
     </Suspense>
   );

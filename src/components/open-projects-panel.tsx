@@ -69,36 +69,36 @@ function OpenProjectsPanelInner<P extends ProjectRecord>({
     ? `${total} werk${total !== 1 ? "en" : ""} · sleep naar een cel`
     : `${OPEN_PROJECTS_LIMIT}+ werken · sleep naar een cel`;
 
-  return <div className="bg-white rounded-2xl border border-[rgba(26,39,68,0.06)] overflow-hidden">
-    <div className="px-4 py-3 border-b border-[rgba(26,39,68,0.06)] flex items-center justify-between gap-3 flex-wrap">
-      <h2 className="font-bold text-[#1A2744] text-sm">Openstaande werken</h2>
+  return <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-hidden">
+    <div className="px-4 py-3 border-b border-[rgba(21,36,74,0.06)] flex items-center justify-between gap-3 flex-wrap">
+      <h2 className="font-bold text-[#15244A] text-sm">Openstaande werken</h2>
       <div className="flex items-center gap-3">
         <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek werk…"
-          className="py-1.5 px-2.5 text-xs border border-[rgba(26,39,68,0.12)] rounded-lg text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50"/>
-        <span className="text-xs text-[#6B7A99]">{countLabel}</span>
+          className="py-1.5 px-2.5 text-xs border border-[rgba(21,36,74,0.12)] rounded-lg text-[#15244A] bg-white focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50"/>
+        <span className="text-xs text-[#5F6878]">{countLabel}</span>
       </div>
     </div>
     {items.length === 0
-      ? <p className="px-4 py-3 text-xs text-[#B8C3D9]">Geen openstaande werken.</p>
-      : <div className="divide-y divide-[rgba(26,39,68,0.05)] max-h-80 overflow-y-auto">
+      ? <p className="px-4 py-3 text-xs text-[#A7AEB8]">Geen openstaande werken.</p>
+      : <div className="divide-y divide-[rgba(21,36,74,0.05)] max-h-80 overflow-y-auto">
         {items.map(p => {
           const row = getRowData(p);
           return <div key={p.id} draggable
             onDragStart={() => { setDragId(p.id); onDragStartProject(p.id); }}
             onDragEnd={() => { setDragId(null); onDragEndProject(); }}
-            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F8F9FC] ${dragId === p.id ? "opacity-50" : ""}`}>
+            className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing hover:bg-[#F7F8F6] ${dragId === p.id ? "opacity-50" : ""}`}>
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }}/>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#1A2744] truncate">{row.title}</p>
-              <p className="text-xs text-[#6B7A99] truncate">{row.subtitle}</p>
+              <p className="text-sm font-semibold text-[#15244A] truncate">{row.title}</p>
+              <p className="text-xs text-[#5F6878] truncate">{row.subtitle}</p>
             </div>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={row.badgeStyle}>{row.statusLabel}</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" style={row.badgeStyle}>{row.countLabel}</span>
-            <button onClick={() => onOpen(p)} className="text-xs text-[#0ABFB8] font-semibold flex-shrink-0">Openen</button>
-            <button onClick={() => onPlan(p)} className="text-xs text-[#6B7A99] font-semibold flex-shrink-0">Inplannen</button>
+            <button onClick={() => onOpen(p)} className="text-xs text-[#1E3A7B] font-semibold flex-shrink-0">Openen</button>
+            <button onClick={() => onPlan(p)} className="text-xs text-[#5F6878] font-semibold flex-shrink-0">Inplannen</button>
           </div>;
         })}
-        {hasMore && <p className="px-4 py-2 text-xs text-[#6B7A99]">Meer dan {OPEN_PROJECTS_LIMIT} resultaten. Verfijn je zoekopdracht.</p>}
+        {hasMore && <p className="px-4 py-2 text-xs text-[#5F6878]">Meer dan {OPEN_PROJECTS_LIMIT} resultaten. Verfijn je zoekopdracht.</p>}
       </div>}
   </div>;
 }

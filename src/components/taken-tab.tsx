@@ -55,23 +55,23 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
     }
   };
 
-  if (laden) return <p className="text-sm text-[#6B7A99]">Taken laden…</p>;
+  if (laden) return <p className="text-sm text-[#5F6878]">Taken laden…</p>;
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between gap-3">
-      <p className="text-xs font-semibold text-[#6B7A99] uppercase tracking-wide">Taken</p>
+      <p className="text-xs font-semibold text-[#5F6878] uppercase tracking-wide">Taken</p>
       {canEdit && <button onClick={() => setForm(LEEG(projectId))}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0ABFB8] text-white text-xs font-semibold hover:opacity-90">
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1E3A7B] text-white text-xs font-semibold hover:opacity-90">
         <Plus className="w-3.5 h-3.5"/>Taak toevoegen
       </button>}
     </div>
 
-    {lijst.length === 0 && <p className="text-sm text-[#6B7A99]">Nog geen taken voor dit werk.</p>}
+    {lijst.length === 0 && <p className="text-sm text-[#5F6878]">Nog geen taken voor dit werk.</p>}
 
-    {lijst.length > 0 && <div className="border border-[rgba(26,39,68,0.1)] rounded-xl overflow-hidden">
+    {lijst.length > 0 && <div className="border border-[rgba(21,36,74,0.1)] rounded-xl overflow-hidden">
       <table className="w-full text-xs">
-        <thead className="text-[#6B7A99]">
-          <tr className="border-b border-[rgba(26,39,68,0.08)] bg-[#F0F3F8]">
+        <thead className="text-[#5F6878]">
+          <tr className="border-b border-[rgba(21,36,74,0.08)] bg-[#EFF1EE]">
             <th className="px-3 py-2 text-left font-semibold">Taaknaam</th>
             <th className="px-3 py-2 text-left font-semibold">Type</th>
             <th className="px-3 py-2 text-left font-semibold">Start</th>
@@ -81,20 +81,20 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
           </tr>
         </thead>
         <tbody>
-          {lijst.map((t) => <tr key={t.id} className="border-b border-[rgba(26,39,68,0.05)]">
-            <td className="px-3 py-2 text-[#1A2744] font-medium">{t.taaknaam}</td>
+          {lijst.map((t) => <tr key={t.id} className="border-b border-[rgba(21,36,74,0.05)]">
+            <td className="px-3 py-2 text-[#15244A] font-medium">{t.taaknaam}</td>
             <td className="px-3 py-2">
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: taakKleur(t.type) }}/>
-                <span className="text-[#1A2744]">{t.type || "-"}</span>
+                <span className="text-[#15244A]">{t.type || "-"}</span>
               </span>
             </td>
-            <td className="px-3 py-2 text-[#1A2744]">{fmtDay(t.start)}</td>
-            <td className="px-3 py-2 text-[#1A2744]">{t.duur} d</td>
-            <td className="px-3 py-2 text-[#1A2744]">{fmtDay(taakEind(t))}</td>
+            <td className="px-3 py-2 text-[#15244A]">{fmtDay(t.start)}</td>
+            <td className="px-3 py-2 text-[#15244A]">{t.duur} d</td>
+            <td className="px-3 py-2 text-[#15244A]">{fmtDay(taakEind(t))}</td>
             <td className="px-3 py-2 text-right whitespace-nowrap">
               {canEdit && <>
-                <button onClick={() => setForm(t)} className="text-[#6B7A99] hover:text-[#1A2744] p-1"><Pencil className="w-3.5 h-3.5"/></button>
+                <button onClick={() => setForm(t)} className="text-[#5F6878] hover:text-[#15244A] p-1"><Pencil className="w-3.5 h-3.5"/></button>
                 <button onClick={() => void verwijder(t)} className="text-[#E2725B] p-1"><Trash2 className="w-3.5 h-3.5"/></button>
               </>}
             </td>
@@ -103,8 +103,8 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
       </table>
     </div>}
 
-    {form && <div className="border border-[#0ABFB8]/40 rounded-xl p-4 space-y-3 bg-[#F8F9FC]">
-      <p className="text-sm font-bold text-[#1A2744]">{form.id ? "Taak bewerken" : "Nieuwe taak"}</p>
+    {form && <div className="border border-[#1E3A7B]/40 rounded-xl p-4 space-y-3 bg-[#F7F8F6]">
+      <p className="text-sm font-bold text-[#15244A]">{form.id ? "Taak bewerken" : "Nieuwe taak"}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Veld label="Taaknaam">
           <input value={form.taaknaam} onChange={(e) => set("taaknaam", e.target.value)} className={INPUT}/>
@@ -121,22 +121,22 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
           <input type="number" min={1} value={form.duur} onChange={(e) => set("duur", Number(e.target.value) || 1)} className={INPUT}/>
         </Veld>
         <Veld label="Eind (automatisch)">
-          <p className="py-2 text-sm text-[#1A2744] font-semibold">{fmtDay(taakEind(form))}</p>
+          <p className="py-2 text-sm text-[#15244A] font-semibold">{fmtDay(taakEind(form))}</p>
         </Veld>
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={() => setForm(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#6B7A99] bg-white border border-[rgba(26,39,68,0.12)]">Annuleren</button>
-        <button onClick={() => void opslaan()} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0ABFB8]">Opslaan</button>
+        <button onClick={() => setForm(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#5F6878] bg-white border border-[rgba(21,36,74,0.12)]">Annuleren</button>
+        <button onClick={() => void opslaan()} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#1E3A7B]">Opslaan</button>
       </div>
     </div>}
   </div>;
 }
 
-const INPUT = "w-full px-3 py-2 rounded-lg border border-[rgba(26,39,68,0.12)] text-sm text-[#1A2744] bg-white focus:outline-none focus:ring-1 focus:ring-[#0ABFB8]/50";
+const INPUT = "w-full px-3 py-2 rounded-lg border border-[rgba(21,36,74,0.12)] text-sm text-[#15244A] bg-white focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50";
 
 function Veld({ label, children }: { label: string; children: React.ReactNode }) {
   return <div>
-    <p className="text-xs text-[#6B7A99] mb-1">{label}</p>
+    <p className="text-xs text-[#5F6878] mb-1">{label}</p>
     {children}
   </div>;
 }

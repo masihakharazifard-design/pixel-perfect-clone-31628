@@ -47,20 +47,20 @@ export function FacturatieTermijnen({ projectId, meta }: { projectId: string; me
         return (
           <div
             key={i}
-            className="flex items-center gap-4 p-4 border border-[rgba(26,39,68,0.08)] rounded-xl bg-white"
+            className="flex items-center gap-4 p-4 border border-[rgba(21,36,74,0.08)] rounded-xl bg-white"
           >
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${verstuurd ? "bg-[#0ABFB8] text-white" : "bg-[#E8EDF5] text-[#1A2744]"}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${verstuurd ? "bg-[#1E3A7B] text-white" : "bg-[#E6E9E4] text-[#15244A]"}`}
             >
               {i + 1}
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-[#1A2744]">{t}</p>
-              <p className="text-xs text-[#6B7A99] mt-0.5">{verstuurd ? "Factuur verstuurd" : "Nog niet gefactureerd"}</p>
+              <p className="font-semibold text-[#15244A]">{t}</p>
+              <p className="text-xs text-[#5F6878] mt-0.5">{verstuurd ? "Factuur verstuurd" : "Nog niet gefactureerd"}</p>
             </div>
             <button
               onClick={() => toggle(key)}
-              className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all border ${verstuurd ? "bg-[#E6F9F8] text-[#0ABFB8] border-[#0ABFB8]" : "bg-[#E8EDF5] text-[#6B7A99] border-transparent hover:border-[#6B7A99]"}`}
+              className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all border ${verstuurd ? "bg-[#E4E9F4] text-[#1E3A7B] border-[#1E3A7B]" : "bg-[#E6E9E4] text-[#5F6878] border-transparent hover:border-[#5F6878]"}`}
             >
               {verstuurd ? "✓ Verstuurd" : "Open"}
             </button>
