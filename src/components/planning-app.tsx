@@ -1884,6 +1884,62 @@ function StatusCell({project,onStatusChange}:{project:Project;onStatusChange:(p:
 }
 
 // Melding + knop om dubbel ingelezen werken samen te voegen (met bevestiging)
+// ===== Notitie na verslepen =====
+// Na het verslepen van planning krijgt de gebruiker direct de kans een notitie bij dat werk te zetten
+// (bijv. de reden van de verschuiving). De notitie komt onderaan in het tabblad Notities van het werk.
+const NOTITIE_EVENT="mm-notitie-na-verslepen";
+const vraagNotitie=(projectId:string|undefined|null,wat:string)=>{
+  if(projectId)window.dispatchEvent(new CustomEvent(NOTITIE_EVENT,{detail:{projectId,wat}}));
+};
+function NotitieNaVerslepen(){
+  const {user}=useAuth();
+  const [vraag,setVraag]=useState<{projectId:string;wat:string}|null>(null);
+  const [tekst,setTekst]=useState("");
+  const [bezig,setBezig]=useState(false);
+  useEffect(()=>{
+    const op=(e:Event)=>{setVraag((e as CustomEvent<{projectId:string;wat:string}>).detail);setTekst("");};
+    window.addEventListener(NOTITIE_EVENT,op);
+    return()=>window.removeEventListener(NOTITIE_EVENT,op);
+  },[]);
+  if(!vraag)return null;
+  const p=getIndexedProject(vraag.projectId);
+  const sluit=()=>{setVraag(null);setTekst("");};
+  const opslaan=async()=>{
+    const t=tekst.trim();if(!t){sluit();return;}
+    setBezig(true);
+    try{
+      const prev=await loadProjectMeta(vraag.projectId);
+      const oud=(prev?.notities||p?.notities||"").trimEnd();
+      const wie=(user?.email||"").split("@")[0];
+      const regel=`[${new Date().toLocaleString("nl-NL",{dateStyle:"short",timeStyle:"short"})}${wie?" – "+wie:""}] ${vraag.wat}: ${t}`;
+      await saveProjectMeta(vraag.projectId,{...EMPTY_META,...(prev||{}),notities:oud?`${oud}\n${regel}`:regel});
+      toast.success("Notitie opgeslagen bij het werk");
+      sluit();
+    }catch{
+      toast.error("De notitie kon niet worden opgeslagen. Probeer het opnieuw.");
+    }finally{setBezig(false);}
+  };
+  return <div role="dialog" aria-label="Notitie bij werk" className="fixed z-50 bottom-4 right-4 left-4 sm:bottom-auto sm:top-4 sm:left-auto sm:w-96 bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-4"
+    onKeyDown={e=>{if(e.key==="Escape")sluit();}}>
+    <div className="flex items-start justify-between gap-3 mb-2">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-[#242424]">Notitie bij dit werk?</p>
+        <p className="text-xs text-[#616161] truncate">{p?`${p.werknummer} – ${p.projectnaam}`:"Werk"}</p>
+        <p className="text-xs text-[#616161]">{vraag.wat}</p>
+      </div>
+      <button onClick={sluit} aria-label="Sluiten" className="p-1 rounded-md text-[#616161] hover:text-[#242424]"><X className="w-4 h-4"/></button>
+    </div>
+    <textarea autoFocus value={tekst} onChange={e=>setTekst(e.target.value)} rows={3}
+      onKeyDown={e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan();}}}
+      placeholder="Bijv. waarom de planning is verschoven" aria-label="Notitie"
+      className="w-full px-3 py-2 text-sm text-[#242424] border border-[rgba(0,0,0,0.15)] outline-none focus:border-[#1E3A7B] resize-none"/>
+    <div className="flex justify-end gap-2 mt-3">
+      <button onClick={sluit} className="px-3 py-2 text-sm text-[#616161] hover:text-[#242424]">Overslaan</button>
+      <button onClick={()=>void opslaan()} disabled={bezig||!tekst.trim()} className="px-4 py-2 rounded-md bg-[#1E3A7B] text-white text-sm font-semibold disabled:opacity-50">Notitie opslaan</button>
+    </div>
+  </div>;
+}
+
 function DubbeleWerkenMelding({aantal,onOpruimen}:{aantal:number;onOpruimen:()=>Promise<void>}){
   const [vraag,setVraag]=useState(false);
   const [bezig,setBezig]=useState(false);
@@ -2533,10 +2589,11 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   const handleDropProject=(id:string,newStart:Date)=>{
     if(isPlanBlock(id)){
       const moved=shiftPlanRows(blockRows(id),toDateStr(newStart));
-      if(moved.length)void onSaveManyPlanning(moved);
+      if(moved.length){void onSaveManyPlanning(moved);vraagNotitie(realId(id),`Verschoven naar ${fmtDate(toDateStr(newStart))}`);}
       return;
     }
     const p=projects.find(x=>x.id===realId(id));if(!p)return;
+    vraagNotitie(p.id,`Verschoven naar ${fmtDate(toDateStr(newStart))}`);
     // Versleept deel van een werk (zonder planning): verschuif het hele werk met hetzelfde aantal dagen
     const seg=id.includes("~")?agendaProjects.find(x=>x.id===id):undefined;
     if(seg){
@@ -2556,6 +2613,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       const rows=blockRows(id);
       if(!rows.length)return;
       const newDate=toDateStr(newStart);
+      vraagNotitie(realId(id),`Verschoven naar ${fmtDate(newDate)}`);
       if(new Set(rows.map(r=>r.date)).size>1){const moved=shiftPlanRows(rows,newDate);if(moved.length)void onSaveManyPlanning(moved);return;}
       const newStartMin=newStart.getHours()*60+newStart.getMinutes();
       void onSaveManyPlanning(rows.map(r=>{
@@ -2565,6 +2623,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       return;
     }
     const p=projects.find(x=>x.id===realId(id));if(!p)return;id=p.id;
+    vraagNotitie(p.id,`Verschoven naar ${fmtDate(toDateStr(newStart))}`);
     const dur=new Date(p.afloopdatum).getTime()-new Date(p.startdatum).getTime();
     updateProject(id,{startdatum:newStart.toISOString(),afloopdatum:new Date(newStart.getTime()+dur).toISOString()});
   };
@@ -2576,10 +2635,11 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       if(!rows.length||new Set(rows.map(r=>r.date)).size>1)return;
       const et=fromMin(newEnd.getHours()*60+newEnd.getMinutes());
       const ok=rows.filter(r=>toMin(et)>toMin(r.startTime));
-      if(ok.length)void onSaveManyPlanning(ok.map(r=>({...r,endTime:et})));
+      if(ok.length){void onSaveManyPlanning(ok.map(r=>({...r,endTime:et})));vraagNotitie(realId(id),"Eindtijd aangepast");}
       return;
     }
     updateProject(realId(id),{afloopdatum:newEnd.toISOString()});
+    vraagNotitie(realId(id),"Einddatum aangepast");
   };
   const handleClickDate=(d:Date)=>{const s=new Date(d);s.setHours(7,0,0,0);const e=new Date(d);e.setHours(17,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
   const handleClickDateTime=(d:Date,h:number)=>{const s=new Date(d);s.setHours(h,0,0,0);const e=new Date(d);e.setHours(h+2,0,0,0);onCreateProject({startdatum:s.toISOString(),afloopdatum:e.toISOString()});};
@@ -3292,17 +3352,18 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     return ok;
   };
   const tryCommit=async(alle:AvailEntry[],removeIds:string[]=[],checkFirst=false)=>{
-    if(!rowsAllowed(alle)){toast.error(FILTER_MSG);return;}
+    if(!rowsAllowed(alle)){toast.error(FILTER_MSG);return false;}
     // Dagen waarop de medewerker vrij/afwezig is, worden zonder foutmelding overgeslagen
     const eigen=[...alle.map(e=>e.id),...removeIds];
     const entries=alle.filter(e=>!e.projectId||!isGeblokkeerd(availability,e.employeeId,e.date,e.startTime,e.endTime,eigen));
-    if(!entries.length&&!removeIds.length)return;
+    if(!entries.length&&!removeIds.length)return false;
     const c=evaluate(entries,removeIds);
     const b=blockingOnly(c);
-    if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return;}
+    if(b.length){toast.error(`Conflict: ${conflictLine(b[0])}`);return false;}
     const w=warningsOnly(c);
-    if(w.length){setOverlapAsk({entries,warnings:w,removeIds,checkFirst});return;}
+    if(w.length){setOverlapAsk({entries,warnings:w,removeIds,checkFirst});return true;}
     await commitPlanning(entries,removeIds,checkFirst);
+    return true;
   };
   // "Als eerste uitvoeren" markeren of juist weghalen
   const [firstAsk,setFirstAsk]=useState<{kind:"start"|"reorder";rows:AvailEntry[];target:AvailEntry;fallback?:AvailEntry[]}|null>(null);
@@ -3353,7 +3414,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   };
   const commitResize=async(baseRows:AvailEntry[],patch:{endTime?:string;endDate?:string})=>{
     const {ups,rem}=buildResize(baseRows,patch);
-    await tryCommit(ups,rem,true);
+    if(await tryCommit(ups,rem,true))vraagNotitie(baseRows[0]?.projectId,"Planning verlengd of ingekort");
   };
   const applyResize=async(block:AvailEntry,patch:{endTime?:string;endDate?:string})=>{
     if(!block.projectId){
@@ -3435,7 +3496,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
     if(!visEmpIds.has(empId)||rows.some(r=>!canActSilent(r.projectId,r.employeeId))){toast.error(FILTER_MSG);return;}
     // Bij verplaatsen naar een andere dag/medewerker vervalt de markering; de nieuwe dag wordt genormaliseerd.
-    await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true);
+    if(await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true))
+      vraagNotitie(rows[0]?.projectId,`Verschoven naar ${fmtDate(ds)}`);
   };
 
 
@@ -3447,7 +3509,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       if(!canAct(block.projectId,block.employeeId)||!visEmpIds.has(empId)){if(block.projectId)toast.error(FILTER_MSG);return;}
       const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
       if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
-      await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true);
+      if(await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true))
+        vraagNotitie(block.projectId,`Verschoven naar ${fmtDate(ds)}`);
       return;
     }
     if(!pid)return;
@@ -4909,6 +4972,7 @@ export default function PlanningApp(){
   return <DeptColorCtx.Provider value={settings.deptColors}>
     <div className="relative isolate flex h-screen mm-achtergrond overflow-hidden" style={{fontFamily:"var(--font-ui)"}}>
       <MaasmondScene variant="app"/>
+      <NotitieNaVerslepen/>
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
