@@ -51,18 +51,18 @@ export default function GebruikersbeheerView() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#15244A]">Gebruikersbeheer</h1>
-        <p className="text-sm text-[#5F6878]">Beheer welke rol iedere gebruiker heeft.</p>
+        <h1 className="text-xl md:text-2xl font-bold text-[#242424]">Gebruikersbeheer</h1>
+        <p className="text-sm text-[#616161]">Beheer welke rol iedere gebruiker heeft.</p>
       </div>
 
       {fout && (
-        <div className="bg-[#FFE8E5] text-[#B03A2E] text-sm rounded-xl px-4 py-3">{fout}</div>
+        <div className="bg-[#FFE8E5] text-[#B03A2E] text-sm rounded-md px-4 py-3">{fout}</div>
       )}
 
-      <div className="bg-white rounded-2xl border border-[rgba(21,36,74,0.06)] overflow-auto">
+      <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#EFF1EE] text-left text-[#15244A]">
+            <tr className="bg-[#F5F5F5] text-left text-[#242424]">
               <th className="px-4 py-2.5 font-semibold">E-mailadres</th>
               <th className="px-4 py-2.5 font-semibold">Huidige rol</th>
               <th className="px-4 py-2.5 font-semibold">Rol wijzigen</th>
@@ -71,22 +71,22 @@ export default function GebruikersbeheerView() {
           <tbody>
             {laden && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-[#5F6878]">Laden…</td>
+                <td colSpan={3} className="px-4 py-6 text-center text-[#616161]">Laden…</td>
               </tr>
             )}
             {!laden && users.length === 0 && !fout && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-[#5F6878]">Geen gebruikers gevonden.</td>
+                <td colSpan={3} className="px-4 py-6 text-center text-[#616161]">Geen gebruikers gevonden.</td>
               </tr>
             )}
             {users.map((u) => {
               const r = roleOf(u);
               return (
-                <tr key={u.user_id} className="border-t border-[rgba(21,36,74,0.06)]">
-                  <td className="px-4 py-2.5 text-[#15244A]">{u.email || "—"}</td>
+                <tr key={u.user_id} className="border-t border-[rgba(0,0,0,0.06)]">
+                  <td className="px-4 py-2.5 text-[#242424]">{u.email || "—"}</td>
                   <td className="px-4 py-2.5">
                     {r ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#E4E9F4] text-[#0A7E79]">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#EBEFF7] text-[#0A7E79]">
                         {ROLE_LABELS[r]}
                       </span>
                     ) : (
@@ -100,7 +100,7 @@ export default function GebruikersbeheerView() {
                       value={r}
                       disabled={bezig === u.user_id}
                       onChange={(e) => void wijzig(u, e.target.value as AppRole)}
-                      className="border border-[rgba(21,36,74,0.15)] rounded-lg px-2 py-1.5 text-sm bg-white text-[#15244A] disabled:opacity-60"
+                      className="border border-[rgba(0,0,0,0.15)] rounded-[4px] px-2 py-1.5 text-sm bg-white text-[#242424] disabled:opacity-60"
                     >
                       {!r && <option value="">Geen rol</option>}
                       {ROLES.map((role) => (

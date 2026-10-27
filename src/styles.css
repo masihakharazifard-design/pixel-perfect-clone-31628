@@ -5,32 +5,33 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system "werkboek van Maasmond": kalk #EFF1EE, inkt #15244A, Maasmond-blauw #1E3A7B,
- * grafiet #5F6878, logo-rood #E0402F (alleen markering). Newsreader (koppen) + Schibsted Grotesk (tekst).
+ * Design system: Fluent 2 (Microsoft) met Maasmond-kleuren. Neutraal #F5F5F5 / #FFFFFF, tekst #242424 / #616161,
+ * merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus), logo-rood #E0402F (alleen markering actief menu-item).
+ * Segoe UI, afronding 4px (bediening) / 8px (kaarten), subtiele schaduw, zichtbare focus.
  */
 
 :root {
   --font-size: 15px;
-  --background: #eff1ee;
-  --foreground: #15244a;
+  --background: #f5f5f5;
+  --foreground: #242424;
   --card: #ffffff;
-  --card-foreground: #15244a;
+  --card-foreground: #242424;
   --popover: #ffffff;
-  --popover-foreground: #15244a;
-  --primary: #15244a;
+  --popover-foreground: #242424;
+  --primary: #1e3a7b;
   --primary-foreground: #ffffff;
-  --secondary: #e6e9e4;
-  --secondary-foreground: #15244a;
-  --muted: #e6e9e4;
-  --muted-foreground: #5f6878;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #242424;
+  --muted: #f0f0f0;
+  --muted-foreground: #616161;
   --accent: #1e3a7b;
   --accent-foreground: #ffffff;
   --destructive: #ff6b5b;
   --destructive-foreground: #ffffff;
-  --border: rgba(21, 36, 74, 0.1);
+  --border: rgba(0, 0, 0, 0.1);
   --input: transparent;
-  --input-background: #eff1ee;
-  --switch-background: #a7aeb8;
+  --input-background: #f5f5f5;
+  --switch-background: #c7c7c7;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #1e3a7b;
@@ -40,7 +41,7 @@
   --chart-4: #6366f1;
   --chart-5: #10b981;
   --radius: 0.5rem;
-  --sidebar: #15244a;
+  --sidebar: #242424;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #1e3a7b;
   --sidebar-primary-foreground: #ffffff;
@@ -88,8 +89,8 @@
 }
 
 @theme inline {
-  --font-sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-display: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -191,10 +192,18 @@
   }
 }
 
-/* Werkboek van Maasmond: rode markeerbalk (uit het logo) en serif-koppen */
-:root { --mm-rood: #E0402F; --font-ui: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif; }
-body { font-family: var(--font-ui); font-feature-settings: "tnum" 1; }
-.font-display { font-optical-sizing: auto; font-feature-settings: normal; }
-.mm-titel { position: relative; padding-left: 14px; }
-.mm-titel::before { content: ""; position: absolute; left: 0; top: 0.18em; bottom: 0.14em; width: 4px; background: var(--mm-rood); }
+/* Fluent 2 met Maasmond-kleuren */
+:root {
+  --mm-rood: #E0402F;
+  --mm-blauw: #1E3A7B;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --fluent-shadow-2: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
+}
+body { font-family: var(--font-ui); font-size: 14px; line-height: 20px; color: #242424; -webkit-font-smoothing: antialiased; }
+/* Kaarten krijgen de subtiele Fluent-schaduw */
+.bg-white.rounded-lg.border { box-shadow: var(--fluent-shadow-2); }
+.fixed .bg-white.rounded-lg { box-shadow: var(--fluent-shadow-8); }
+/* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

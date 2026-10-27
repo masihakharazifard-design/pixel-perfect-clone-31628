@@ -90,21 +90,21 @@ export function LoginScreen({ melding }: { melding?: string }) {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-[#EFF1EE] px-4"
+      className="min-h-screen flex items-center justify-center bg-[#F5F5F5] px-4"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(21,36,74,0.08)] p-7 shadow-sm">
+      <div className="w-full max-w-sm bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
-          <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-xl object-contain mb-3" />
-          <h1 className="text-lg font-bold text-[#15244A]">Maasmond planning</h1>
-          <p className="text-sm text-[#5F6878] mt-1">
+          <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-md object-contain mb-3" />
+          <h1 className="text-lg font-bold text-[#242424]">Maasmond planning</h1>
+          <p className="text-sm text-[#616161] mt-1">
             {stap === "email" ? "Vul je Maasmond e-mailadres in om in te loggen" : "Vul de code uit je e-mail in"}
           </p>
         </div>
 
         {stap === "email" ? (
           <form onSubmit={vraagCode} className="space-y-3">
-            <label className="block text-xs font-semibold text-[#15244A]" htmlFor="login-email">
+            <label className="block text-xs font-semibold text-[#242424]" htmlFor="login-email">
               E-mailadres
             </label>
             <input
@@ -114,12 +114,12 @@ export function LoginScreen({ melding }: { melding?: string }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="naam@maasmond.nl"
-              className="w-full px-3 py-2.5 rounded-xl border border-[rgba(21,36,74,0.15)] text-sm text-[#15244A] outline-none focus:border-[#1E3A7B]"
+              className="w-full px-3 py-2.5 rounded-md border border-[rgba(0,0,0,0.15)] text-sm text-[#242424] outline-none focus:border-[#1E3A7B]"
             />
             <button
               type="submit"
               disabled={bezig}
-              className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#15244A] disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-md bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#1E3A7B] disabled:opacity-60"
             >
               {bezig ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
               Inloggen
@@ -127,7 +127,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
           </form>
         ) : (
           <form onSubmit={bevestigCode} className="space-y-3">
-            <label className="block text-xs font-semibold text-[#15244A]" htmlFor="login-code">
+            <label className="block text-xs font-semibold text-[#242424]" htmlFor="login-code">
               Inlogcode
             </label>
             <input
@@ -137,12 +137,12 @@ export function LoginScreen({ melding }: { melding?: string }) {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="123456"
-              className="w-full px-3 py-2.5 rounded-xl border border-[rgba(21,36,74,0.15)] text-sm tracking-[0.3em] text-[#15244A] outline-none focus:border-[#1E3A7B]"
+              className="w-full px-3 py-2.5 rounded-md border border-[rgba(0,0,0,0.15)] text-sm tracking-[0.3em] text-[#242424] outline-none focus:border-[#1E3A7B]"
             />
             <button
               type="submit"
               disabled={bezig}
-              className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#15244A] disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-md bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#1E3A7B] disabled:opacity-60"
             >
               {bezig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               Bevestigen
@@ -155,7 +155,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
                 setError("");
                 setInfo("");
               }}
-              className="w-full text-xs text-[#5F6878] hover:text-[#15244A]"
+              className="w-full text-xs text-[#616161] hover:text-[#242424]"
             >
               Ander e-mailadres gebruiken
             </button>
@@ -240,23 +240,23 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
     window.location.href = "/";
   };
 
-  if (!ready) return <div className="min-h-screen bg-[#EFF1EE]" />;
+  if (!ready) return <div className="min-h-screen bg-[#F5F5F5]" />;
 
   if (!user) return <LoginScreen />;
 
   if (rolesReady && roles.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#EFF1EE] px-4">
-        <div className="w-full max-w-sm bg-white rounded-2xl border border-[rgba(21,36,74,0.08)] p-7 shadow-sm text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5] px-4">
+        <div className="w-full max-w-sm bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-7 shadow-sm text-center">
           <img
             src={maasmondLogo}
             alt="Maasmond logo"
-            className="w-14 h-14 rounded-xl object-contain mb-3 mx-auto"
+            className="w-14 h-14 rounded-md object-contain mb-3 mx-auto"
           />
-          <p className="text-sm text-[#15244A]">{MSG.geenRol}</p>
+          <p className="text-sm text-[#242424]">{MSG.geenRol}</p>
           <button
             onClick={() => void signOut()}
-            className="mt-4 w-full py-2.5 rounded-xl bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#15244A]"
+            className="mt-4 w-full py-2.5 rounded-md bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#1E3A7B]"
           >
             Uitloggen
           </button>
