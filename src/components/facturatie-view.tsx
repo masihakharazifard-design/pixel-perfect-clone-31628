@@ -51,7 +51,7 @@ const FacturatieRow = memo(function FacturatieRow({
         className="w-full text-left flex items-center gap-2 px-4 md:px-5 py-3 md:py-3.5 border-b border-[rgba(0,0,0,0.06)] hover:bg-[#F7F9FC] transition-colors"
         style={{ borderLeftColor: accent, borderLeftWidth: 4 }}
       >
-        <span className="font-mono text-xs text-[#616161] hidden sm:inline">{item.werknummer}</span>
+        <span className="tabular-nums text-xs text-[#616161] hidden sm:inline">{item.werknummer}</span>
         <span className="font-semibold text-[#242424] text-sm truncate flex-1">{item.projectnaam}</span>
         <span className="text-[#616161] text-xs hidden md:inline">— {item.opdrachtgever}</span>
         <span

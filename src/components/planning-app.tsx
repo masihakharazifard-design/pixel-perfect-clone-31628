@@ -141,9 +141,9 @@ const INIT_SETTINGS:AppSettings = {
 // ===== CONSTANTS =====
 const SB:Record<ProjectStatus,string> = {
   Offerte:"bg-slate-100 text-slate-600",
-  Bevestigd:"bg-blue-100 text-blue-700",
+  Bevestigd:"bg-[#E3E9F5] text-[#1E3A7B]",
   "In uitvoering":"bg-emerald-100 text-emerald-700",
-  Afgerond:"bg-purple-100 text-purple-700",
+  Afgerond:"bg-[#EEF0F3] text-[#4B5563]",
   Gefactureerd:"bg-amber-100 text-amber-700",
 };
 const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
@@ -885,7 +885,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
                 ["Straat object","Adres",""],
                 ["Plaats object","Plaats",""],
                 ["Opmerkingen","Opmerkingen",""],
-              ].map(([col,veld,req])=><tr key={col}><td className="py-1 font-mono">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>)}
+              ].map(([col,veld,req])=><tr key={col}><td className="py-1 tabular-nums">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>)}
             </tbody>
           </table>
           <div className="flex items-start gap-2 bg-amber-50 rounded-[4px] px-3 py-2">
@@ -922,7 +922,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-xs font-semibold text-[#616161] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
             {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-[4px] text-xs flex-wrap">
-              <span className="font-mono text-emerald-700 flex-shrink-0 min-w-12">{r.werknummer}</span>
+              <span className="tabular-nums text-emerald-700 flex-shrink-0 min-w-12">{r.werknummer}</span>
               <span className="font-medium text-[#242424] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#616161] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#616161] italic truncate max-w-20">{r.projectleider}</span>}
@@ -938,7 +938,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-xs font-semibold text-[#616161] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-[4px] text-xs">
-              <span className="font-mono text-amber-700 flex-shrink-0">{r.werknummer}</span>
+              <span className="tabular-nums text-amber-700 flex-shrink-0">{r.werknummer}</span>
               <span className="text-[#616161] truncate">{r.projectnaam}</span>
             </div>)}
             {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#616161] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
@@ -948,7 +948,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-xs font-semibold text-[#616161] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-[4px] text-xs">
-              <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
+              <span className="text-red-500 tabular-nums flex-shrink-0">R{r.rowIndex}</span>
               <span className="text-red-700">{r.invalidReason}</span>
             </div>)}
             {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#616161] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
@@ -1121,7 +1121,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <table className="w-full text-left text-[#616161]">
           <tbody className="divide-y divide-[rgba(0,0,0,0.06)]">
             {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Eerste dag","✓"],["Einddatum","Laatste dag",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Status / Type","Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
-              <tr key={col}><td className="py-1 font-mono pr-2">{col}</td><td className="py-1 text-[#8A8A8A]">{desc}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>
+              <tr key={col}><td className="py-1 tabular-nums pr-2">{col}</td><td className="py-1 text-[#8A8A8A]">{desc}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>
             )}
           </tbody>
         </table>
@@ -1175,7 +1175,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
             <span className="font-semibold text-[#242424] flex-shrink-0">{r.matchedEmployee!.naam}</span>
             <span className="text-[#616161]">·</span>
             <span className="text-[#242424] truncate">{c.project.projectnaam}</span>
-            <span className="text-[#616161] font-mono flex-shrink-0">{c.project.werknummer}</span>
+            <span className="text-[#616161] tabular-nums flex-shrink-0">{c.project.werknummer}</span>
             <span className="text-amber-700 flex-shrink-0">{fmtDate(c.date)}</span>
           </div>))}
           <p className="text-[10px] text-amber-600 pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
@@ -1187,7 +1187,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="text-xs font-semibold text-[#616161] uppercase tracking-wide mb-2">Niet gevonden ({unmatchedRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
           {unmatchedRows.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded-[4px] text-xs">
-            <span className="font-mono text-[#616161]">R{r.rowIndex}</span>
+            <span className="tabular-nums text-[#616161]">R{r.rowIndex}</span>
             <span className="font-medium text-[#242424]">"{r.rawName}"</span>
             <span className="text-[#616161]">{r.ambiguous?"Meerdere medewerkers gevonden — specificeer in Excel":"Medewerker niet gevonden"}</span>
           </div>)}
@@ -1199,7 +1199,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <p className="text-xs font-semibold text-[#616161] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
           {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-[4px] text-xs">
-            <span className="text-red-500 font-mono flex-shrink-0">R{r.rowIndex}</span>
+            <span className="text-red-500 tabular-nums flex-shrink-0">R{r.rowIndex}</span>
             <span className="text-red-700">{r.invalidReason}</span>
           </div>)}
         </div>
@@ -1575,7 +1575,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
               <p className="font-semibold text-[#242424] text-sm">{e.naam}</p>
               <p className="text-xs text-[#616161]">{e.functie}</p>
               {rows.length>0&&<div className="mt-1 space-y-0.5">
-                {rows.map(r=><p key={r.id} className="text-xs text-[#616161] font-mono flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
+                {rows.map(r=><p key={r.id} className="text-xs text-[#616161] tabular-nums flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
               </div>}
             </div>
             <DeptBadge afd={e.afdeling}/>
@@ -2003,7 +2003,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     <div className="md:hidden space-y-3">
       {paged.map(p=>{const pl=plName(p,employees);const afds=getAllAfds(p);return<div key={p.id} className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(0,0,0,0.06)]" style={{borderLeftColor:dc[afds[0]].bg,borderLeftWidth:4}}>
-          <span className="font-mono text-xs text-[#616161] flex-shrink-0">{p.werknummer}</span>
+          <span className="tabular-nums text-xs text-[#616161] flex-shrink-0">{p.werknummer}</span>
           <span className="font-semibold text-[#242424] flex-1 truncate">{p.projectnaam}</span>
           <StatusCell project={p} onStatusChange={onStatusChange}/>
           <span className="text-sm font-medium text-[#242424]">{p.statusExcel||"-"}</span>
@@ -2029,7 +2029,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
     {/* Desktop table view */}
     <div className="hidden md:block bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto clay-dicht">
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
-        <thead className="bg-[#FFFF00]">
+        <thead className="bg-[#E3E9F5]">
           <tr>
             <ColHeader label="S" active={filters.status.length>0}><ColMulti values={filters.status} onChange={setMulti("status")} options={statusOptions}/></ColHeader>
             <ColHeader label="Status" active={filters.projStatus.length>0}><ColMulti values={filters.projStatus} onChange={setMulti("projStatus")} options={STATS}/></ColHeader>
@@ -2054,7 +2054,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
               <td className="px-3 py-3 whitespace-nowrap"><StatusCell project={p} onStatusChange={onStatusChange}/></td>
               <td className="px-3 py-3 text-[#616161]">{p.ar||"-"}</td>
               <td className="px-3 py-3 text-[#616161] whitespace-nowrap">{typeLabel(p)||"-"}</td>
-              <td className="px-3 py-3 font-mono text-xs text-[#616161]">
+              <td className="px-3 py-3 tabular-nums text-xs text-[#616161]">
                 <div className="flex items-center gap-2">
                   {afds.length===1
                     ?<div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:dc[afds[0]].bg}}/>
@@ -2145,7 +2145,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
               onClick={()=>onClickDate(day)}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#242424]"}`}>{day.getDate()}</div>
               {hol&&<div className="text-[9px] text-red-500 leading-tight truncate mt-0.5">{hol}</div>}
-              {shols.length>0&&<div className="text-[9px] text-purple-500 leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
+              {shols.length>0&&<div className="text-[9px] text-[#C2362A] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
             </div>;
           })}
         </div>
@@ -2409,7 +2409,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                     onClick={()=>onClickDate(day)}>
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#242424]"}`}>{day.getDate()}</div>
                     {hol&&<div className="text-[7px] text-red-500 leading-tight truncate">{hol.split(" ")[0]}</div>}
-                    {shols.length>0&&!hol&&<div className="text-[7px] text-purple-400 leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
+                    {shols.length>0&&!hol&&<div className="text-[7px] text-[#E0402F] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
                   </div>;
                 })}
               </div>
@@ -3771,7 +3771,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
                   className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#FAFAFA]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
-                  <span className="text-xs font-mono text-[#616161] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
+                  <span className="text-xs tabular-nums text-[#616161] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}} title="Kleur van het werk"/>}
                   {proj&&plColorFor(proj)&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-2 ring-2 ring-white" style={{backgroundColor:plColorFor(proj)||undefined}} title={`Projectleider: ${projectleiderKey(proj,employees)}`}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
@@ -4175,7 +4175,7 @@ function NotitiesView(){
           :notes.length===0?<p className="px-4 py-3 text-xs text-[#8A8A8A]">Nog geen notities.</p>
           :<div className="divide-y divide-[rgba(0,0,0,0.05)]">
             {notes.map(n=><div key={n.id} className="flex items-start gap-3 px-4 py-3">
-              <span className="text-xs font-mono text-[#616161] w-24 flex-shrink-0">{fmtDate(n.datum)}</span>
+              <span className="text-xs tabular-nums text-[#616161] w-24 flex-shrink-0">{fmtDate(n.datum)}</span>
               <p className="text-sm text-[#242424] flex-1 whitespace-pre-wrap">{n.tekst}</p>
               <button onClick={()=>{setEditId(n.id);setDatum(n.datum);setTekst(n.tekst);}} className="text-xs text-[#1E3A7B] font-semibold flex-shrink-0">Bewerken</button>
               <button onClick={()=>remove(n.id)} className="text-[#8A8A8A] hover:text-[#FF6B5B] flex-shrink-0"><Trash2 className="w-3.5 h-3.5"/></button>
@@ -4270,7 +4270,7 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
       <p className="text-sm text-[#616161]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
       <div className="space-y-2">
         {plRows.map(([code,naam])=><div key={code} className="flex items-center gap-2">
-          <span className="w-20 flex-shrink-0 font-mono text-sm font-semibold text-[#242424]">{code}</span>
+          <span className="w-20 flex-shrink-0 tabular-nums text-sm font-semibold text-[#242424]">{code}</span>
           <input value={naam} onChange={e=>setPlName(code,e.target.value)} placeholder="Volledige naam"
             className="flex-1 py-1.5 px-2.5 text-sm border border-[rgba(0,0,0,0.12)] rounded-[4px] text-[#242424] focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50"/>
         </div>)}
@@ -4306,14 +4306,14 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
           <label className="block text-xs font-semibold text-[#616161] uppercase tracking-wide mb-1">Primaire kleur</label>
           <div className="flex items-center gap-2">
             <input type="color" value={form.primaryColor} onChange={e=>setForm(p=>({...p,primaryColor:e.target.value}))} className="w-10 h-10 rounded-[4px] border border-[rgba(0,0,0,0.1)] cursor-pointer p-0.5 bg-[#F5F5F5]"/>
-            <span className="text-sm text-[#242424] font-mono">{form.primaryColor}</span>
+            <span className="text-sm text-[#242424] tabular-nums">{form.primaryColor}</span>
           </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-[#616161] uppercase tracking-wide mb-1">Accentkleur</label>
           <div className="flex items-center gap-2">
             <input type="color" value={form.accentColor} onChange={e=>setForm(p=>({...p,accentColor:e.target.value}))} className="w-10 h-10 rounded-[4px] border border-[rgba(0,0,0,0.1)] cursor-pointer p-0.5 bg-[#F5F5F5]"/>
-            <span className="text-sm text-[#242424] font-mono">{form.accentColor}</span>
+            <span className="text-sm text-[#242424] tabular-nums">{form.accentColor}</span>
           </div>
         </div>
       </div>
@@ -4324,7 +4324,7 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
         <input type="color" value={form.deptColors[a].bg} onChange={e=>setDeptColor(a,e.target.value)} className="w-12 h-12 rounded-md border-0 cursor-pointer p-0.5 flex-shrink-0" style={{backgroundColor:form.deptColors[a].bg}}/>
         <div className="flex-1">
           <p className="font-semibold text-[#242424]">{a}</p>
-          <p className="text-xs text-[#616161] font-mono">{form.deptColors[a].bg}</p>
+          <p className="text-xs text-[#616161] tabular-nums">{form.deptColors[a].bg}</p>
         </div>
         <div className="w-8 h-8 rounded-[4px]" style={{backgroundColor:form.deptColors[a].bg}}/>
       </div>)}

@@ -140,7 +140,7 @@ export function buildGanttHtml(opts: GanttOptions): string {
 <title>Planning ${esc(opts.opdrachtgever)}</title>
 <style>
   @page { size: A3 landscape; margin: 10mm; }
-  body { font-family: Arial, Helvetica, sans-serif; color:#1A2744; margin:0; padding:12px; }
+  body { font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif; color:#1A2744; margin:0; padding:12px; }
   header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; }
   header img { height:44px; }
   .klant { font-size:26px; font-weight:bold; }
