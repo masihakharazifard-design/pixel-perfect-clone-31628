@@ -309,6 +309,19 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_member: { Args: never; Returns: boolean }
+      lees_geschiedenis: {
+        Args: { _limit?: number; _record_id?: string; _voor?: string }
+        Returns: {
+          actie: string
+          created_at: string
+          id: string
+          nieuwe_waarde: Json
+          oude_waarde: Json
+          record_id: string
+          tabel: string
+          wie: string
+        }[]
+      }
       patch_app_settings: {
         Args: { _changes?: Json; _expected_updated_at?: string; _paths?: Json }
         Returns: Json
