@@ -740,7 +740,7 @@ function Textarea({label,value,onChange,rows=3,placeholder="",className=""}:{lab
 function Modal({title,children,onClose,width="max-w-2xl"}:{title:string;children:React.ReactNode;onClose:()=>void;width?:string}){
   return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
-    <div className={`relative glas glas-sterk border rounded-t-2xl sm:rounded-2xl w-full ${width} max-h-[92vh] sm:max-h-[90vh] flex flex-col`}>
+    <div className={`relative clay clay-sterk border rounded-t-2xl sm:rounded-2xl w-full ${width} max-h-[92vh] sm:max-h-[90vh] flex flex-col`}>
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[rgba(0,0,0,0.08)]">
         <h2 className="font-bold text-base md:text-lg text-[#242424] truncate pr-2">{title}</h2>
         <button onClick={onClose} className="p-1.5 rounded-[4px] hover:bg-[#F5F5F5] text-[#616161] transition-colors flex-shrink-0"><X className="w-4 h-4"/></button>
@@ -752,7 +752,7 @@ function Modal({title,children,onClose,width="max-w-2xl"}:{title:string;children
 function ConfirmModal({message,onConfirm,onCancel,confirmLabel="Verwijderen",confirmVariant="danger"}:{message:string;onConfirm:()=>void;onCancel:()=>void;confirmLabel?:string;confirmVariant?:"primary"|"danger"}){
   return <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={e=>{if(e.target===e.currentTarget)onCancel();}}>
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
-    <div className="relative glas glas-sterk border rounded-2xl w-full max-w-sm p-6">
+    <div className="relative clay clay-sterk border rounded-2xl w-full max-w-sm p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-[#FF6B5B]"/></div>
         <div><h3 className="font-semibold text-[#242424]">Bevestigen</h3><p className="text-sm text-[#616161]">{message}</p></div>
@@ -1649,7 +1649,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       </div>
     </div>
     <div className="py-3 space-y-0.5 flex-1">
-      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`relative w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm transition-colors ${active===id?"text-[#242424] font-semibold bg-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,1)] before:absolute before:left-1 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-full before:bg-[#E0402F]":"text-[#616161] hover:text-[#242424] hover:bg-[#F0F0F0]"}`}>
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`relative w-full flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm transition-colors ${active===id?"text-[#242424] font-semibold clay-pil before:absolute before:left-1 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-full before:bg-[#E0402F]":"text-[#616161] hover:text-[#242424] hover:bg-[#F0F0F0]"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
@@ -1680,12 +1680,12 @@ function SidebarUser(){
 function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Nav)=>void;mobileOpen:boolean;onMobileClose:()=>void}){
   const handleNav=(n:Nav)=>{onNav(n);onMobileClose();};
   return <>
-    <div className="hidden md:flex w-56 min-h-screen glas border-r flex-col flex-shrink-0">
+    <div className="hidden md:flex w-56 min-h-screen clay-paneel border-r flex-col flex-shrink-0">
       <SidebarContent active={active} onNav={onNav}/>
     </div>
     {mobileOpen&&<div className="fixed inset-0 z-50 md:hidden" onClick={onMobileClose}>
       <div className="absolute inset-0 bg-black/50"/>
-      <div className="absolute left-0 top-0 bottom-0 w-64 glas glas-sterk flex flex-col" onClick={e=>e.stopPropagation()}>
+      <div className="absolute left-0 top-0 bottom-0 w-64 clay-paneel flex flex-col" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-end px-3 pt-3">
           <button onClick={onMobileClose} aria-label="Menu sluiten" className="p-1.5 rounded-[4px] text-[#616161] hover:text-[#242424] hover:bg-[#F5F5F5]"><X className="w-4 h-4"/></button>
         </div>
@@ -1696,7 +1696,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
   const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",gebruikers:"Gebruikersbeheer"};
-  return <div className="md:hidden flex items-center gap-3 px-4 py-3 glas border-b flex-shrink-0 z-10">
+  return <div className="md:hidden flex items-center gap-3 px-4 py-3 clay-paneel border-b flex-shrink-0 z-10">
     <button onClick={onOpenMenu} aria-label="Menu openen" className="p-1.5 rounded-[4px] text-[#616161] hover:text-[#242424] hover:bg-[#F5F5F5] flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
       <img src={maasmondLogo} alt="Maasmond" className="h-6 w-auto"/>
@@ -2027,7 +2027,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       <Pager/>
     </div>
     {/* Desktop table view */}
-    <div className="hidden md:block bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto glas-dicht">
+    <div className="hidden md:block bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto clay-dicht">
       <table className="w-full text-sm" style={{minWidth:"1100px"}}>
         <thead className="bg-[#FFFF00]">
           <tr>
@@ -3796,7 +3796,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
     {(view==="week"||view==="maand")&&(
     // Eigen scrolgebied: zo blijft de kopregel met de dagen bovenaan staan bij naar beneden scrollen
-    <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto glas-dicht" style={{maxHeight:"calc(100vh - 210px)"}}>
+    <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto clay-dicht" style={{maxHeight:"calc(100vh - 210px)"}}>
       {/* Vaste tabelindeling: elke dag is even breed, lange teksten lopen nooit een kolom op */}
       <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${176+dates.length*(view==="week"?90:MONTH_COL_W)}px`,...(view==="maand"?{width:`${176+dates.length*MONTH_COL_W}px`}:null)}}>
         <thead className="bg-[#F5F5F5] sticky top-0 z-10">
@@ -3873,7 +3873,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     )}
 
     {view==="kwartaal"&&(
-    <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto glas-dicht" style={{maxHeight:"calc(100vh - 210px)"}}>
+    <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-auto clay-dicht" style={{maxHeight:"calc(100vh - 210px)"}}>
       <table className="text-xs" style={{tableLayout:"fixed",width:`${176+weeks.length*QUARTER_COL_W}px`}}>
         <thead className="bg-[#F5F5F5] sticky top-0 z-10">
           <tr>

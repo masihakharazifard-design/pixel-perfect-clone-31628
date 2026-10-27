@@ -201,42 +201,69 @@
   --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
 body { font-family: var(--font-ui); font-size: 14px; line-height: 20px; color: #242424; -webkit-font-smoothing: antialiased; }
-/* ===== Liquid Glass (Maasmond) =====
- * Achtergrond: zachte kleurvlakken in Maasmond-blauw en logo-rood, zodat het glas iets heeft om te breken.
- * Glas: doorschijnend wit met vervaging, glansrand bovenaan en zachte schaduw.
- * Drukke tabellen krijgen bijna dekkend glas (.glas-dicht) voor leesbaarheid. */
+/* ===== Claymorphism (Maasmond) =====
+ * Zachte, opgeblazen vlakken van "klei": ronde hoeken, dikke witte rand, lichte binnenglans linksboven,
+ * schaduw rechtsonder. Kleuren: pastel van Maasmond-blauw en logo-rood. Tekst blijft donker op wit (leesbaar).
+ * Drukke tabellen (.clay-dicht) krijgen een rustigere schaduw, zodat de inhoud voorop staat. */
+:root {
+  --clay-bg: #eaeef7;
+  --clay-diepte: rgba(30, 58, 123, 0.16);
+  --clay-schaduw:
+    10px 12px 28px var(--clay-diepte),
+    -8px -8px 22px rgba(255, 255, 255, 0.9),
+    inset -4px -5px 10px rgba(30, 58, 123, 0.07),
+    inset 4px 5px 10px rgba(255, 255, 255, 0.95);
+  --clay-in: inset 3px 3px 7px rgba(30, 58, 123, 0.13), inset -3px -3px 7px rgba(255, 255, 255, 0.95);
+}
 .mm-achtergrond {
   background:
-    radial-gradient(60rem 42rem at 8% -12%, rgba(30, 58, 123, 0.24), transparent 62%),
-    radial-gradient(48rem 34rem at 102% 2%, rgba(224, 64, 47, 0.15), transparent 60%),
-    radial-gradient(64rem 46rem at 78% 112%, rgba(30, 58, 123, 0.18), transparent 62%),
-    #edf0f5;
+    radial-gradient(52rem 38rem at 4% -10%, #dce5f6, transparent 65%),
+    radial-gradient(40rem 30rem at 100% 0%, #f9e2de, transparent 62%),
+    radial-gradient(56rem 40rem at 80% 110%, #dfe6f5, transparent 64%),
+    var(--clay-bg);
 }
-.glas, .bg-white.rounded-lg.border {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.56));
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.7) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
-    0 10px 30px rgba(21, 36, 74, 0.08),
-    0 1px 2px rgba(21, 36, 74, 0.06);
+/* Kaarten en tegels */
+.clay, .bg-white.rounded-lg.border {
+  background: linear-gradient(145deg, #ffffff, #f6f8fc);
+  border: 2px solid rgba(255, 255, 255, 0.95) !important;
+  border-radius: 22px;
+  box-shadow: var(--clay-schaduw);
 }
-.glas-sterk {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.78)) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
-  backdrop-filter: blur(36px) saturate(190%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 24px 64px rgba(21, 36, 74, 0.22) !important;
+/* Vensters (pop-ups) */
+.clay-sterk {
+  background: linear-gradient(145deg, #ffffff, #f4f7fc) !important;
+  border: 3px solid #ffffff !important;
+  box-shadow: 18px 22px 48px rgba(30, 58, 123, 0.28), inset -5px -6px 12px rgba(30, 58, 123, 0.07), inset 5px 6px 12px #ffffff !important;
 }
-.glas-dicht { background: rgba(255, 255, 255, 0.93) !important; }
-/* Geen transparantie gewenst (Windows/macOS-instelling) of geen ondersteuning: gewone dichte vlakken */
-@media (prefers-reduced-transparency: reduce) {
-  .glas, .glas-sterk, .bg-white.rounded-lg.border { background: #ffffff !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .mm-achtergrond { background: #f5f5f5; }
+@media (min-width: 640px) { .clay-sterk.border { border-radius: 28px; } }
+/* Drukke tabellen: wel klei-vorm, maar rustige schaduw */
+.clay-dicht { box-shadow: 8px 10px 24px rgba(30, 58, 123, 0.12), inset 0 2px 0 #ffffff !important; border-radius: 18px !important; }
+/* Menu en kopbalk: zacht kussen langs de rand */
+.clay-paneel {
+  background: linear-gradient(180deg, #f8faff, #eff3fb);
+  border-color: transparent !important;
+  box-shadow: 6px 0 24px rgba(30, 58, 123, 0.08), inset -2px 0 0 #ffffff;
 }
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glas, .glas-sterk, .bg-white.rounded-lg.border { background: #ffffff !important; }
+.clay-pil {
+  background: linear-gradient(145deg, #ffffff, #f1f4fb);
+  border-radius: 14px !important;
+  box-shadow: 4px 5px 12px rgba(30, 58, 123, 0.14), -3px -3px 8px #ffffff, inset 2px 2px 3px #ffffff;
+}
+/* Hoofdknoppen in Maasmond-blauw: opgeblazen, zakken in bij klikken */
+button[class*="bg-[#1E3A7B]"] {
+  background: linear-gradient(145deg, #3a5ba6, #1e3a7b) !important;
+  border-radius: 14px;
+  box-shadow: 5px 6px 14px rgba(30, 58, 123, 0.32), inset 2px 2px 4px rgba(255, 255, 255, 0.28), inset -2px -3px 5px rgba(0, 0, 0, 0.18);
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease-out;
+}
+button[class*="bg-[#1E3A7B]"]:hover { transform: translateY(-1px); }
+button[class*="bg-[#1E3A7B]"]:active { transform: scale(0.96); box-shadow: 2px 3px 6px rgba(30, 58, 123, 0.3), inset 3px 3px 6px rgba(0, 0, 0, 0.22); }
+/* Invoervelden: ingedrukt in de klei */
+.mm-achtergrond input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .mm-achtergrond select, .mm-achtergrond textarea {
+  background-color: #f2f5fb;
+  border-color: rgba(30, 58, 123, 0.1);
+  border-radius: 12px;
+  box-shadow: var(--clay-in);
 }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
