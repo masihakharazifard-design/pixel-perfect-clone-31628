@@ -3,6 +3,7 @@
 // kleine demo-data staat in localStorage. Geen enkel netwerkverzoek.
 import { sorteerTaken, type Taak } from "./taken";
 import { makeDemoSeed, DEMO_DATA_VERSION, type DemoData } from "./demo-seed";
+import { verschil, hoortBijWerk, type GeschiedenisOpties, type GeschiedenisRegel } from "./geschiedenis";
 import {
   deleteDemoProjects,
   getDemoProject,
@@ -22,6 +23,23 @@ import {
 } from "./store-types";
 
 type Rec = { id: string } & Record<string, unknown>;
+
+// Geschiedenis in de demo: zelfde vorm als het echte log, max. 500 regels
+const DEMO_WIE = "demo@maasmond.nl";
+function logDemo(d: DemoData, r: Omit<GeschiedenisRegel, "id" | "tijd" | "wie">): void {
+  (d.audit as unknown[]).unshift({ ...r, id: "log-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), tijd: new Date().toISOString(), wie: DEMO_WIE });
+  d.audit = (d.audit as unknown[]).slice(0, 500);
+}
+const context = (x: Rec | null | undefined) => ({ werknummer: x?.werknummer, projectnaam: x?.projectnaam, naam: x?.naam });
+function logWijziging(d: DemoData, tabel: string, oud: Rec | null | undefined, nieuw: Rec | null | undefined): void {
+  const id = String(nieuw?.id ?? oud?.id ?? "");
+  if (!oud && nieuw) { logDemo(d, { actie: "aangemaakt", tabel, recordId: id, oud: null, nieuw: { ...nieuw, _context: context(nieuw) } }); return; }
+  if (oud && !nieuw) { logDemo(d, { actie: "verwijderd", tabel, recordId: id, oud, nieuw: null }); return; }
+  const v = verschil(oud, nieuw);
+  const keys = Object.keys(v.nieuw);
+  if (!keys.length || (tabel === "projects" && keys.length === 1 && keys[0] === "status")) return;
+  logDemo(d, { actie: "gewijzigd", tabel, recordId: id, oud: v.oud, nieuw: { ...v.nieuw, _context: context(nieuw) } });
+}
 type DemoDataV2 = DemoData & { projectsInIdb?: boolean };
 
 
@@ -128,11 +146,14 @@ export async function upsertRows<T extends WithId>(table: SyncTable, items: T[])
   if (items.length === 0) return [];
   if (table === "projects") {
     await ensureProjectsInIdb();
+    const oud = items.length <= 50 ? await Promise.all(items.map((i) => getDemoProject<Rec>(i.id))) : [];
     await putDemoProjects(items.map((i) => ({ ...(i as unknown as Record<string, unknown>), id: i.id })));
+    if (oud.length) mutate((d) => items.forEach((i, k) => logWijziging(d, "projects", oud[k], i as unknown as Rec)));
     return items;
   }
   mutate((d) => {
     const list = listOf(d, table);
+    if (table === "employees") items.forEach((i) => logWijziging(d, "employees", list.find((r) => r.id === i.id) as Rec | undefined, i as unknown as Rec));
     // Index vooraf opbouwen: O(1) per rij i.p.v. de hele lijst doorzoeken.
     const idxById = new Map<string, number>();
     list.forEach((r, i) => idxById.set(r.id, i));
@@ -158,10 +179,13 @@ export async function deleteRows(table: SyncTable, ids: string[]): Promise<void>
   if (ids.length === 0) return;
   if (table === "projects") {
     await ensureProjectsInIdb();
+    const oud = ids.length <= 50 ? await Promise.all(ids.map((id) => getDemoProject<Rec>(id))) : [];
     await deleteDemoProjects(ids);
+    if (oud.length) mutate((d) => oud.forEach((p) => p && logWijziging(d, "projects", p, null)));
     return;
   }
   mutate((d) => {
+    if (table === "employees") listOf(d, table).filter((r) => ids.includes(r.id)).forEach((r) => logWijziging(d, "employees", r as Rec, null));
     const keep = listOf(d, table).filter((r) => !ids.includes(r.id));
     if (table === "employees") d.employees = keep as DemoData["employees"];
     else d.availability = keep as DemoData["availability"];
@@ -179,6 +203,7 @@ export async function savePlanningRows<A extends WithId>(
   actie = "planning_gewijzigd",
 ): Promise<void> {
   mutate((d) => {
+    const weg = deleteIds.length ? d.availability.filter((r) => deleteIds.includes(r.id)).map((r) => ({ id: r.id, data: r })) : null;
     if (deleteIds.length) {
       d.availability = d.availability.filter((r) => !deleteIds.includes(r.id)) as DemoData["availability"];
     }
@@ -188,8 +213,7 @@ export async function savePlanningRows<A extends WithId>(
       if (i >= 0) d.availability[i] = row;
       else d.availability.push(row);
     });
-    d.audit.unshift({ actie, tijd: new Date().toISOString(), aantal: upserts.length + deleteIds.length });
-    d.audit = d.audit.slice(0, 200);
+    logDemo(d, { actie, tabel: "availability", recordId: null, oud: weg, nieuw: upserts.map((u) => ({ id: u.id, data: u })) });
   });
 }
 
@@ -198,7 +222,7 @@ export async function setProjectStatusDb(projectId: string, status: string): Pro
   const p = await getDemoProject<Rec>(projectId);
   if (p) await putDemoProjects([{ ...p, status }]);
   mutate((d) => {
-    d.audit.unshift({ actie: "status_gewijzigd", tijd: new Date().toISOString(), projectId, status });
+    logDemo(d, { actie: "status_gewijzigd", tabel: "projects", recordId: projectId, oud: { status: p?.status }, nieuw: { status } });
   });
 }
 
@@ -276,8 +300,22 @@ export async function loadProjectMetaBatch(projectIds: string[]): Promise<Map<st
 
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
   mutate((d) => {
-    (d.projectMeta as Record<string, ProjectMeta>)[projectId] = { ...EMPTY_META, ...meta };
+    const all = d.projectMeta as Record<string, ProjectMeta>;
+    const oud = all[projectId];
+    const nieuw = { ...EMPTY_META, ...meta };
+    if (oud || nieuw.notities || nieuw.docs.length || Object.keys(nieuw.termijnen).length) {
+      logWijziging(d, "project_meta", oud ? { ...oud, id: projectId } : null, { ...nieuw, id: projectId });
+    }
+    all[projectId] = nieuw;
   });
+}
+
+export async function loadGeschiedenis(opties: GeschiedenisOpties = {}): Promise<GeschiedenisRegel[]> {
+  // Oude demo-regels (zonder tabel) overslaan
+  let regels = (read().audit as GeschiedenisRegel[]).filter((r) => r && typeof r.tabel === "string");
+  if (opties.voor) regels = regels.filter((r) => r.tijd < opties.voor!);
+  if (opties.recordId) regels = regels.filter((r) => hoortBijWerk(r, opties.recordId!));
+  return regels.slice(0, opties.limit ?? 300);
 }
 
 const DEMO_DOC_MSG = "Documentupload is niet beschikbaar in de demo-omgeving.";

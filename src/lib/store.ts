@@ -13,6 +13,8 @@ import type {
 } from "./store-types";
 
 export { EMPTY_META } from "./store-types";
+export type { GeschiedenisRegel } from "./geschiedenis";
+import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
 export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable };
 
 type Impl = typeof import("./planning-store");
@@ -92,6 +94,11 @@ export async function loadProjectMetaBatch(projectIds: string[]): Promise<Map<st
 
 export async function saveProjectMeta(projectId: string, meta: ProjectMeta): Promise<void> {
   return (await impl()).saveProjectMeta(projectId, meta);
+}
+
+/** Geschiedenis van alle veranderingen (nieuwste eerst). */
+export async function loadGeschiedenis(opties?: GeschiedenisOpties): Promise<GeschiedenisRegel[]> {
+  return (await impl()).loadGeschiedenis(opties);
 }
 
 export async function listProjectDocuments(projectId: string): Promise<ProjectDocument[]> {

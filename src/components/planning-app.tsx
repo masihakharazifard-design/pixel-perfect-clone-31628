@@ -6,8 +6,9 @@ import {
   FileText, MessageSquare, CreditCard, Check, Upload,
   ChevronDown, UserCircle, Filter, MoreVertical,
   Calendar, Grid3X3, UserCheck, AlertTriangle, Building2,
-  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown
+  Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown, History
 } from "lucide-react";
+import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
 
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
@@ -30,7 +31,7 @@ const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.Tak
 
 
 // ===== TYPES =====
-type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"gebruikers";
+type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"geschiedenis"|"gebruikers";
 type Afdeling = "Stoffering"|"Schilderwerk"|"Zonwering";
 type ProjectStatus = "Offerte"|"Bevestigd"|"In uitvoering"|"Afgerond"|"Gefactureerd";
 type AvailStatus = "Beschikbaar"|"Ingepland"|"Bezet"|"Gereserveerd"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
@@ -1404,7 +1405,7 @@ async function printKlantPlanning(project:Project,allProjects:Project[],employee
   }
 }
 
-type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities";
+type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities"|"geschiedenis";
 function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose,onAddEmployees}:{
   project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;onAddEmployees?:(rows:AvailEntry[])=>Promise<boolean>;
@@ -1483,8 +1484,9 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   const assigned=getProjectAssignedEmployees(werkIdsVan(project),availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities"];
-  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities"};
+  const {roles}=useAuth();
+  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities",...(magGeschiedenis(roles)?["geschiedenis" as ProjTab]:[])];
+  const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities",geschiedenis:"Geschiedenis"};
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];
   return <Modal title={project.projectnaam} onClose={onClose} width="max-w-3xl">
@@ -1598,6 +1600,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
       </div>}
       {tab==="facturatie"&&<FacturatieTermijnen projectId={project.id}/>}
       {tab==="notities"&&<Textarea value={notities} onChange={setNotities} rows={8} placeholder="Voeg notities toe..." label="Notities"/>}
+      {tab==="geschiedenis"&&<GeschiedenisLijst projects={allProjects.length?allProjects:[project]} employees={employees} recordId={project.id}/>}
     </div>
     {confirmDel&&<ConfirmModal message="Weet je zeker dat je dit project wilt verwijderen? Dit kan niet ongedaan worden gemaakt." onConfirm={()=>{onDelete(project.id);onClose();}} onCancel={()=>setConfirmDel(false)}/>}
   </Modal>;
@@ -1635,10 +1638,13 @@ const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
+// Geschiedenis: alleen voor wie mag plannen (beheerder en planner)
+const PLANNER_NAV_ITEMS:[Nav,React.ElementType,string][]=[["geschiedenis",History,"Geschiedenis"]];
 const ADMIN_NAV_ITEMS:[Nav,React.ElementType,string][]=[["gebruikers",UserCog,"Gebruikersbeheer"]];
+const magGeschiedenis=(roles:string[])=>roles.includes("beheerder")||roles.includes("planner");
 function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
   const {roles}=useAuth();
-  const items=roles.includes("beheerder")?[...NAV_ITEMS,...ADMIN_NAV_ITEMS]:NAV_ITEMS;
+  const items=[...NAV_ITEMS,...(magGeschiedenis(roles)?PLANNER_NAV_ITEMS:[]),...(roles.includes("beheerder")?ADMIN_NAV_ITEMS:[])];
   return <>
     <div className="px-5 pt-6 pb-5 border-b border-[rgba(0,0,0,0.08)]">
       <div className="flex items-center gap-3">
@@ -1696,7 +1702,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",gebruikers:"Gebruikersbeheer"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",geschiedenis:"Geschiedenis",gebruikers:"Gebruikersbeheer"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 clay-paneel border-b flex-shrink-0 z-10">
     <button onClick={onOpenMenu} aria-label="Menu openen" className="p-1.5 rounded-[4px] text-[#616161] hover:text-[#242424] hover:bg-[#F5F5F5] flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -4986,6 +4992,7 @@ export default function PlanningApp(){
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
+          {nav==="geschiedenis"&&<GeschiedenisView projects={projects} employees={employees} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#616161]">Laden…</div>}><GebruikersbeheerView/></Suspense>}
         </div>
       </div>

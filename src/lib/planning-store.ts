@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { Taak } from "@/lib/taken";
+import type { GeschiedenisOpties, GeschiedenisRegel } from "@/lib/geschiedenis";
 import { EMPTY_META, type PersonalNote, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
@@ -152,6 +153,29 @@ export async function patchSettings(
   });
   if (error) throw error;
   return (data as Record<string, unknown> | null) ?? null;
+}
+
+// ===== Geschiedenis (auditlog) =====
+type AuditRij = { id: string; created_at: string; wie?: string | null; actor_id?: string | null; actie: string; tabel: string; record_id: string | null; oude_waarde: unknown; nieuwe_waarde: unknown };
+const naarRegel = (r: AuditRij): GeschiedenisRegel => ({
+  id: r.id, tijd: r.created_at, wie: r.wie ?? null, actie: r.actie, tabel: r.tabel,
+  recordId: r.record_id, oud: r.oude_waarde, nieuw: r.nieuwe_waarde,
+});
+/** Leest de geschiedenis via de RPC (met e-mailadressen). Bestaat die nog niet, dan rechtstreeks uit het log. */
+export async function loadGeschiedenis(opties: GeschiedenisOpties = {}): Promise<GeschiedenisRegel[]> {
+  const limit = opties.limit ?? 300;
+  const rpc = (supabase as unknown as { rpc: (fn: string, args: object) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }> }).rpc;
+  const { data, error } = await rpc.call(supabase, "lees_geschiedenis", {
+    _limit: limit, _voor: opties.voor ?? null, _record_id: opties.recordId ?? null,
+  });
+  if (!error) return ((data ?? []) as AuditRij[]).map(naarRegel);
+  if (error.code !== "PGRST202" && !/lees_geschiedenis/.test(error.message)) throw error;
+  let q = supabase.from("audit_log").select("id, created_at, actor_id, actie, tabel, record_id, oude_waarde, nieuwe_waarde")
+    .order("created_at", { ascending: false }).limit(limit);
+  if (opties.voor) q = q.lt("created_at", opties.voor);
+  const res = await q;
+  if (res.error) throw res.error;
+  return ((res.data ?? []) as AuditRij[]).map(naarRegel);
 }
 
 // ===== Projectgegevens (facturatietermijnen, notities) =====
