@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
-import { MaasmondScene } from "@/components/maasmond-scene";
+import { Maasmond3D } from "@/components/maasmond-3d";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 
 const TOEGESTAAN_DOMEIN = "@maasmond.nl";
@@ -103,10 +103,10 @@ export function LoginScreen({ melding }: { melding?: string }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-[#F3EEE6] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center lg:justify-start lg:pl-[7vw] bg-[#FDFBF7] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <MaasmondScene variant="login" />
+      <Maasmond3D />
       <div className="relative w-full max-w-sm bg-white rounded-lg border border-[rgba(60,42,20,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
           <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-md object-contain mb-3" />

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { LogIn } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
-import { MaasmondScene } from "@/components/maasmond-scene";
+import { Maasmond3D } from "@/components/maasmond-3d";
 import { Ctx, ROLE_LABELS } from "@/components/auth-context";
 
 // DEMO MODE: geen Supabase, geen OTP, geen e-mail. Alles wat wordt ingevuld wordt geaccepteerd.
@@ -31,10 +31,10 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-[#F3EEE6] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center lg:justify-start lg:pl-[7vw] bg-[#FDFBF7] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <MaasmondScene variant="login" />
+      <Maasmond3D />
       <form
         onSubmit={(e) => {
           e.preventDefault();
