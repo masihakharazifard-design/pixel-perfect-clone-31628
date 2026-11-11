@@ -124,14 +124,14 @@ function sortEmployeesByPlanningOrder<T extends {id:string}>(list:T[],order:stri
 
 // ===== DEPT COLOR CONTEXT =====
 const DEFAULT_DC:Record<Afdeling,{bg:string;light:string;border:string}> = {
-  Stoffering:  {bg:"#4E8C80",light:"#E3EFEA",border:"#4E8C80"},
-  Schilderwerk:{bg:"#C2604D",light:"#F5E1DC",border:"#C2604D"},
-  Zonwering:   {bg:"#B07A2A",light:"#F6EAD3",border:"#B07A2A"},
+  Stoffering:  {bg:"#67AC9F",light:"#E6F2EE",border:"#67AC9F"},
+  Schilderwerk:{bg:"#DA7B63",light:"#F8E6E0",border:"#DA7B63"},
+  Zonwering:   {bg:"#D9A04A",light:"#F8EDD8",border:"#D9A04A"},
 };
 const DC = DEFAULT_DC;
 // Oude felle standaardkleuren (in eerder opgeslagen instellingen) omzetten naar de zachte tinten.
 // Zelf gekozen kleuren blijven ongemoeid.
-const OUDE_AFD_KLEUR:Record<string,string>={"#0ABFB8":"#4E8C80","#E0F7F6":"#E3EFEA","#FF6B5B":"#C2604D","#FFE8E5":"#F5E1DC","#F5A623":"#B07A2A","#FEF0D3":"#F6EAD3"};
+const OUDE_AFD_KLEUR:Record<string,string>={"#0ABFB8":"#67AC9F","#E0F7F6":"#E6F2EE","#FF6B5B":"#DA7B63","#FFE8E5":"#F8E6E0","#F5A623":"#D9A04A","#FEF0D3":"#F8EDD8","#4E8C80":"#67AC9F","#E3EFEA":"#E6F2EE","#C2604D":"#DA7B63","#F5E1DC":"#F8E6E0","#B07A2A":"#D9A04A","#F6EAD3":"#F8EDD8"};
 const zacht=(k?:string)=>k?OUDE_AFD_KLEUR[k.toUpperCase()]??k:k;
 function verzachtOudeKleuren(s:AppSettings):AppSettings{
   const dc={...s.deptColors};
@@ -937,7 +937,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               {r.opdrachtgever&&<span className="text-[#6F675C] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#6F675C] italic truncate max-w-20">{r.projectleider}</span>}
               {r.turnkey
-                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#4E8C80 33%,#C2604D 33% 66%,#B07A2A 66%)"}}>Turnkey</span>
+                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#67AC9F 33%,#DA7B63 33% 66%,#D9A04A 66%)"}}>Turnkey</span>
                 :<span className="flex gap-0.5 flex-shrink-0">{r.afdelingen.map(a=><span key={a} className="w-2 h-2 rounded-full" style={{backgroundColor:DEFAULT_DC[a].bg}} title={a}/>)}</span>
               }
             </div>)}
@@ -1658,17 +1658,17 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       <div className="flex items-center gap-3">
         <div className="bg-white rounded-2xl p-1.5 flex-shrink-0"><img src={maasmondLogo} alt="Maasmond" className="h-8 w-auto"/></div>
         <div className="leading-tight">
-          <p className="text-base font-bold text-white">Maasmond</p>
-          <p className="text-white/60 text-xs">Planning</p>
+          <p className="text-base font-bold text-[#2B2620]">Maasmond</p>
+          <p className="text-[#6F675C] text-xs">Planning</p>
         </div>
       </div>
     </div>
     <div className="px-3 py-2 space-y-1 flex-1">
-      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#C24A3B] text-white font-semibold":"text-white/75 hover:text-white hover:bg-white/10"}`}>
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#D35A48] text-white font-semibold":"text-[#4A443C] hover:text-[#2B2620] hover:bg-[#EDE6DB]"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
-    <div className="p-4 mx-3 mb-3 rounded-[20px] bg-white/[0.06]">
+    <div className="p-4 mx-3 mb-3 rounded-[20px] bg-[#EFE9DF]">
       <SidebarUser/>
     </div>
   </>;
@@ -1680,13 +1680,13 @@ function SidebarUser(){
   const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
   return <div className="space-y-2">
     <div className="flex items-center gap-2.5 min-w-0">
-      <div className="w-9 h-9 rounded-full bg-[#C24A3B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="w-9 h-9 rounded-full bg-[#D35A48] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
       <div className="min-w-0">
-        <p className="text-white text-xs font-semibold truncate">{naam}</p>
-        <p className="text-white/60 text-xs truncate">{roleLabel}</p>
+        <p className="text-[#2B2620] text-xs font-semibold truncate">{naam}</p>
+        <p className="text-[#6F675C] text-xs truncate">{roleLabel}</p>
       </div>
     </div>
-    {user && <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-full text-xs text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+    {user && <button onClick={()=>void signOut()} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-full text-xs text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB] transition-colors">
       <LogOut className="w-3.5 h-3.5"/>Uitloggen
     </button>}
   </div>;
@@ -1702,7 +1702,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
       <div className="absolute inset-0 bg-black/50"/>
       <div className="absolute left-0 top-0 bottom-0 w-64 mm-rail rounded-r-[28px] flex flex-col overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-end px-3 pt-3">
-          <button onClick={onMobileClose} aria-label="Menu sluiten" className="p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10"><X className="w-4 h-4"/></button>
+          <button onClick={onMobileClose} aria-label="Menu sluiten" className="p-1.5 rounded-full text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB]"><X className="w-4 h-4"/></button>
         </div>
         <SidebarContent active={active} onNav={handleNav}/>
       </div>

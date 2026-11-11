@@ -6,8 +6,8 @@
 
 /*
  * Design system "Warme werkplaats": zandkleurige achtergrond #EAE4DA, licht werkvlak #FBF8F3, zachte kaarten #F3EEE6,
- * inkt #2B2620 / #6F675C, menubalk in diep Maasmond-blauw #1C2A4A, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
- * logo-rood #D2382A (actief menu-item), uitgelichte kaart in Maasmond-blauw met witte tekst.
+ * inkt #2B2620 / #6F675C, lichte menubalk #F6F2EC, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
+ * logo-rood #D35A48 (actief menu-item), uitgelichte kaart lichtblauw met Maasmond-blauwe tekst.
  * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
  */
 
@@ -212,12 +212,12 @@ body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #
   --mm-kaart-hover: #ede6db;
   --mm-lijn: #e7dfd2;
   --mm-inkt: #2b2620;
-  --mm-rail: #1c2a4a;
+  --mm-rail: #f6f2ec;
 }
 .mm-achtergrond { background: var(--mm-zand); }
 .mm-werkvlak { background: var(--mm-werkvlak); }
-.mm-rail { background: var(--mm-rail); color: #ffffff; }
-.mm-rail { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.mm-rail { background: var(--mm-rail); color: #2b2620; border: 1px solid var(--mm-lijn); }
+.mm-rail { scrollbar-width: thin; scrollbar-color: rgba(60, 42, 20, 0.18) transparent; }
 .mm-topbalk { background: var(--mm-werkvlak); border-bottom: 1px solid var(--mm-lijn); }
 /* Kaarten en tegels: zacht en warm, zonder rand of schaduw */
 .mm-kaart, .bg-white.rounded-lg.border {
@@ -227,10 +227,10 @@ body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #
   box-shadow: none;
 }
 .mm-kaart:hover { background: var(--mm-kaart-hover); }
-.mm-accent { background: #1e3a7b; border-radius: 24px; }
-.mm-accent:hover { background: #18306a; }
-.mm-accent p, .mm-accent svg { color: #ffffff !important; }
-.mm-accent p + p { color: rgba(255, 255, 255, 0.8) !important; }
+.mm-accent { background: #e3e9f5; border-radius: 24px; }
+.mm-accent:hover { background: #d8e0f0; }
+.mm-accent p, .mm-accent svg { color: #1e3a7b !important; }
+.mm-accent p + p { color: #3d5590 !important; }
 /* Drukke tabellen: wit met dunne warme rand, voor maximale leesbaarheid */
 .mm-tabel { background: #fffdf9 !important; border: 1px solid var(--mm-lijn) !important; border-radius: 20px !important; }
 /* Vensters (pop-ups) */
