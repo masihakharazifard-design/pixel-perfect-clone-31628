@@ -1176,14 +1176,14 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
             <span className="px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 text-[10px]" style={{backgroundColor:AS[r.status].bg,color:AS[r.status].text}}>{r.status}</span>
             {r.entriesToCreate.length>0&&<span className="text-[#3E6E49] font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
             {r.duplicateDates.length>0&&<span className="text-[#8A6428] flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
-            {r.conflicts.length>0&&<span className="text-[#7A5520] font-semibold flex-shrink-0">⚠ {r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
+            {r.conflicts.length>0&&<span className="text-[#7A5520] font-semibold flex-shrink-0 inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true"/>{r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
           </div>)}
         </div>
       </div>}
 
       {/* Conflicts */}
       {conflictRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#7A5520] uppercase tracking-wide mb-2">⚠ Conflicten — projectplanning overlapt</p>
+        <p className="text-xs font-semibold text-[#7A5520] uppercase tracking-wide mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>Conflicten — projectplanning overlapt</p>
         <div className="max-h-40 overflow-y-auto space-y-1.5 bg-[#F8F0DF] rounded-md p-3">
           {conflictRows.flatMap(r=>r.conflicts.map((c,ci)=><div key={`${r.rowIndex}-${ci}`} className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-[#2B2620] flex-shrink-0">{r.matchedEmployee!.naam}</span>
@@ -2376,7 +2376,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl ${isT?"bg-[#1E3A7B] text-white":"bg-[#F3EEE6] text-[#2B2620]"}`}>{date.getDate()}</div>
       <div>
         <p className="font-bold text-lg text-[#2B2620]">{DAYS_FULL[(date.getDay()+6)%7]} {date.getDate()} {MONTHS_NL[date.getMonth()]}</p>
-        <p className="text-xs text-[#6F675C]">Week {wn}{hol&&<span className="text-[#B5503F] ml-2">🎉 {hol}</span>}</p>
+        <p className="text-xs text-[#6F675C]">Week {wn}{hol&&<span className="text-[#B5503F] ml-2">{hol}</span>}</p>
       </div>
       <div className="flex flex-wrap gap-1 ml-2">
         {allDay.map(p=><button key={p.id} title={agendaLabel(p,employees)} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}{agendaEmpNames(p,employees)?` · ${agendaEmpNames(p,employees)}`:""}</button>)}
@@ -2404,7 +2404,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
             <div className="p-3 h-full">
               <p className="font-bold text-sm truncate">{projLabel(p,employees)}</p>
               <p className="opacity-80 text-xs">{fmtTime(s)} – {fmtTime(e)}</p>
-              {agendaEmpNames(p,employees)&&<p className="text-xs mt-1 truncate">👷 {agendaEmpNames(p,employees)}</p>}
+              {agendaEmpNames(p,employees)&&<p className="text-xs mt-1 truncate flex items-center gap-1"><Users className="w-3 h-3 flex-shrink-0" aria-hidden="true"/>{agendaEmpNames(p,employees)}</p>}
               <p className="opacity-70 text-xs mt-1">{p.opdrachtgever} · {p.plaats}</p>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-4 flex items-center justify-center cursor-s-resize group"
