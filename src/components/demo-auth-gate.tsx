@@ -31,7 +31,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-[#FDFBF7] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center bg-[#F5F7FA] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       <LoginAchtergrond>
@@ -40,15 +40,15 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
           e.preventDefault();
           onLogin(email.trim() || "demo@maasmond.nl");
         }}
-        className="relative w-full max-w-sm bg-white rounded-lg border border-[rgba(60,42,20,0.08)] p-7 shadow-sm space-y-3"
+        className="relative w-full max-w-sm bg-white rounded-lg border border-[rgba(15,23,42,0.08)] p-7 shadow-sm space-y-3"
       >
         <div className="flex flex-col items-center text-center mb-3">
           <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-md object-contain mb-3" />
-          <h1 className="text-lg font-bold text-[#2B2620]">Maasmond planning</h1>
-          <p className="text-sm text-[#6F675C] mt-1">Demo-omgeving — vul iets in en log in</p>
+          <h1 className="text-lg font-bold text-[#23272F]">Maasmond planning</h1>
+          <p className="text-sm text-[#5F6673] mt-1">Demo-omgeving — vul iets in en log in</p>
         </div>
 
-        <label className="block text-xs font-semibold text-[#2B2620]" htmlFor="demo-email">
+        <label className="block text-xs font-semibold text-[#23272F]" htmlFor="demo-email">
           E-mailadres
         </label>
         <input
@@ -56,10 +56,10 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="naam@maasmond.nl"
-          className="w-full px-3 py-2.5 rounded-md border border-[rgba(60,42,20,0.15)] text-sm text-[#2B2620] outline-none focus:border-[#1E3A7B]"
+          className="w-full px-3 py-2.5 rounded-md border border-[rgba(15,23,42,0.15)] text-sm text-[#23272F] outline-none focus:border-[#1E3A7B]"
         />
 
-        <label className="block text-xs font-semibold text-[#2B2620]" htmlFor="demo-code">
+        <label className="block text-xs font-semibold text-[#23272F]" htmlFor="demo-code">
           Code
         </label>
         <input
@@ -67,7 +67,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="123456"
-          className="w-full px-3 py-2.5 rounded-md border border-[rgba(60,42,20,0.15)] text-sm tracking-[0.2em] text-[#2B2620] outline-none focus:border-[#1E3A7B]"
+          className="w-full px-3 py-2.5 rounded-md border border-[rgba(15,23,42,0.15)] text-sm tracking-[0.2em] text-[#23272F] outline-none focus:border-[#1E3A7B]"
         />
 
         <button
@@ -77,7 +77,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
           <LogIn className="w-4 h-4" />
           Inloggen
         </button>
-        <p className="text-[11px] text-[#6F675C] text-center">
+        <p className="text-[11px] text-[#5F6673] text-center">
           Demo-modus: er worden geen echte gegevens of e-mails verstuurd.
         </p>
       </form>
@@ -120,7 +120,7 @@ export default function DemoAuthGate({ children }: { children: ReactNode }) {
     setSessie(null);
   };
 
-  if (!ready) return <div className="min-h-screen bg-[#F3EEE6]" />;
+  if (!ready) return <div className="min-h-screen bg-[#F2F4F7]" />;
   if (!sessie) return <DemoLoginScreen onLogin={login} />;
 
   // Alleen frontend-demostatus; wordt nooit in user_roles opgeslagen.

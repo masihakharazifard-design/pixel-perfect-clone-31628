@@ -103,22 +103,22 @@ export function LoginScreen({ melding }: { melding?: string }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-[#FDFBF7] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center bg-[#F5F7FA] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       <LoginAchtergrond>
-      <div className="relative w-full max-w-sm bg-white rounded-lg border border-[rgba(60,42,20,0.08)] p-7 shadow-sm">
+      <div className="relative w-full max-w-sm bg-white rounded-lg border border-[rgba(15,23,42,0.08)] p-7 shadow-sm">
         <div className="flex flex-col items-center text-center mb-6">
           <img src={maasmondLogo} alt="Maasmond logo" className="w-14 h-14 rounded-md object-contain mb-3" />
-          <h1 className="text-lg font-bold text-[#2B2620]">Maasmond planning</h1>
-          <p className="text-sm text-[#6F675C] mt-1">
+          <h1 className="text-lg font-bold text-[#23272F]">Maasmond planning</h1>
+          <p className="text-sm text-[#5F6673] mt-1">
             {stap === "email" ? "Vul je Maasmond e-mailadres in om in te loggen" : "Vul de code uit je e-mail in"}
           </p>
         </div>
 
         {stap === "email" ? (
           <form onSubmit={vraagCode} className="space-y-3">
-            <label className="block text-xs font-semibold text-[#2B2620]" htmlFor="login-email">
+            <label className="block text-xs font-semibold text-[#23272F]" htmlFor="login-email">
               E-mailadres
             </label>
             <input
@@ -128,7 +128,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="naam@maasmond.nl"
-              className="w-full px-3 py-2.5 rounded-md border border-[rgba(60,42,20,0.15)] text-sm text-[#2B2620] outline-none focus:border-[#1E3A7B]"
+              className="w-full px-3 py-2.5 rounded-md border border-[rgba(15,23,42,0.15)] text-sm text-[#23272F] outline-none focus:border-[#1E3A7B]"
             />
             <button
               type="submit"
@@ -141,7 +141,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
           </form>
         ) : (
           <form onSubmit={bevestigCode} className="space-y-3">
-            <label className="block text-xs font-semibold text-[#2B2620]" htmlFor="login-code">
+            <label className="block text-xs font-semibold text-[#23272F]" htmlFor="login-code">
               Inlogcode
             </label>
             <input
@@ -151,7 +151,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
               placeholder="Code uit de e-mail"
-              className="w-full px-3 py-2.5 rounded-md border border-[rgba(60,42,20,0.15)] text-sm tracking-[0.3em] text-[#2B2620] outline-none focus:border-[#1E3A7B]"
+              className="w-full px-3 py-2.5 rounded-md border border-[rgba(15,23,42,0.15)] text-sm tracking-[0.3em] text-[#23272F] outline-none focus:border-[#1E3A7B]"
             />
             <button
               type="submit"
@@ -169,7 +169,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
                 setError("");
                 setInfo("");
               }}
-              className="w-full text-xs text-[#6F675C] hover:text-[#2B2620]"
+              className="w-full text-xs text-[#5F6673] hover:text-[#23272F]"
             >
               Ander e-mailadres gebruiken
             </button>
@@ -263,20 +263,20 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
     window.location.href = "/";
   };
 
-  if (!ready) return <div className="min-h-screen bg-[#F3EEE6]" />;
+  if (!ready) return <div className="min-h-screen bg-[#F2F4F7]" />;
 
   if (!user) return <LoginScreen />;
 
   if (rolesReady && roles.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F3EEE6] px-4">
-        <div className="w-full max-w-sm bg-white rounded-lg border border-[rgba(60,42,20,0.08)] p-7 shadow-sm text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F2F4F7] px-4">
+        <div className="w-full max-w-sm bg-white rounded-lg border border-[rgba(15,23,42,0.08)] p-7 shadow-sm text-center">
           <img
             src={maasmondLogo}
             alt="Maasmond logo"
             className="w-14 h-14 rounded-md object-contain mb-3 mx-auto"
           />
-          <p className="text-sm text-[#2B2620]">{MSG.geenRol}</p>
+          <p className="text-sm text-[#23272F]">{MSG.geenRol}</p>
           <button
             onClick={() => void signOut()}
             className="mt-4 w-full py-2.5 rounded-md bg-[#1E3A7B] text-white text-sm font-semibold hover:bg-[#1E3A7B]"

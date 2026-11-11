@@ -5,33 +5,33 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system "Warme werkplaats": zandkleurige achtergrond #EAE4DA, licht werkvlak #FBF8F3, zachte kaarten #F3EEE6,
- * inkt #2B2620 / #6F675C, lichte menubalk #F6F2EC, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
+ * Design system "Lichte werkplaats" (was warm; nu licht neutraal): lichtgrijze achtergrond #EEF1F5, licht werkvlak #FCFCFD, zachte kaarten #F2F4F7,
+ * inkt #23272F / #5F6673, lichte menubalk #F7F8FA, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
  * logo-rood #D35A48 (actief menu-item), uitgelichte kaart lichtblauw met Maasmond-blauwe tekst.
  * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
  */
 
 :root {
   --font-size: 15px;
-  --background: #eae4da;
-  --foreground: #2b2620;
+  --background: #eef1f5;
+  --foreground: #23272f;
   --card: #ffffff;
-  --card-foreground: #2b2620;
+  --card-foreground: #23272f;
   --popover: #ffffff;
-  --popover-foreground: #2b2620;
+  --popover-foreground: #23272f;
   --primary: #1e3a7b;
   --primary-foreground: #ffffff;
-  --secondary: #ede6db;
-  --secondary-foreground: #2b2620;
-  --muted: #ede6db;
-  --muted-foreground: #6f675c;
+  --secondary: #e9edf2;
+  --secondary-foreground: #23272f;
+  --muted: #e9edf2;
+  --muted-foreground: #5f6673;
   --accent: #1e3a7b;
   --accent-foreground: #ffffff;
   --destructive: #ff6b5b;
   --destructive-foreground: #ffffff;
-  --border: rgba(60, 42, 20, 0.12);
+  --border: rgba(15, 23, 42, 0.12);
   --input: transparent;
-  --input-background: #f6f2eb;
+  --input-background: #f5f7fa;
   --switch-background: #c7c7c7;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -201,23 +201,23 @@
   --fluent-shadow-2: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
   --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
-body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #2b2620; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #23272f; -webkit-font-smoothing: antialiased; }
 /* ===== Warme werkplaats =====
- * Opbouw zoals het voorbeeld: zandkleurige achtergrond, donkere afgeronde menubalk, één groot licht werkvlak
- * met zachte kaarten erin. Warmte komt uit de zandtinten, karakter uit de logokleuren blauw en rood; geen zware schaduwen of effecten. */
+ * Opbouw zoals het voorbeeld: lichtgrijze achtergrond, lichte afgeronde menubalk, één groot licht werkvlak
+ * met zachte kaarten erin. Rustige neutrale tinten, karakter uit de logokleuren blauw en rood; geen zware schaduwen of effecten. */
 :root {
-  --mm-zand: #ece8e1;
-  --mm-werkvlak: #fbf8f3;
-  --mm-kaart: #f5f2ec;
-  --mm-kaart-hover: #ede6db;
-  --mm-lijn: #e7dfd2;
-  --mm-inkt: #2b2620;
+  --mm-zand: #eef1f5;
+  --mm-werkvlak: #fcfcfd;
+  --mm-kaart: #f4f6f9;
+  --mm-kaart-hover: #e9edf2;
+  --mm-lijn: #e3e7ed;
+  --mm-inkt: #23272f;
   --mm-rail: #ffffff;
 }
 .mm-achtergrond { background: var(--mm-zand); }
 .mm-werkvlak { background: var(--mm-werkvlak); }
-.mm-rail { background: var(--mm-rail); color: #2b2620; border: 1px solid var(--mm-lijn); }
-.mm-rail { scrollbar-width: thin; scrollbar-color: rgba(60, 42, 20, 0.18) transparent; }
+.mm-rail { background: var(--mm-rail); color: #23272f; border: 1px solid var(--mm-lijn); }
+.mm-rail { scrollbar-width: thin; scrollbar-color: rgba(15, 23, 42, 0.18) transparent; }
 .mm-topbalk { background: var(--mm-werkvlak); border-bottom: 1px solid var(--mm-lijn); }
 /* Kaarten en tegels: zacht en warm, zonder rand of schaduw */
 .mm-kaart, .bg-white.rounded-lg.border {
@@ -232,19 +232,19 @@ body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #
 .mm-accent p { color: #ffffff !important; }
 .mm-accent p + p { color: rgba(255, 255, 255, 0.82) !important; }
 /* Drukke tabellen: wit met dunne warme rand, voor maximale leesbaarheid */
-.mm-tabel { background: #fffdf9 !important; border: 1px solid var(--mm-lijn) !important; border-radius: 20px !important; }
+.mm-tabel { background: #ffffff !important; border: 1px solid var(--mm-lijn) !important; border-radius: 20px !important; }
 /* Vensters (pop-ups) */
 .mm-venster {
   background: var(--mm-werkvlak);
   border: 1px solid var(--mm-lijn);
-  box-shadow: 0 24px 60px rgba(43, 38, 32, 0.22);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
 }
 /* Hoofdknoppen in Maasmond-blauw: rond, zoals in het voorbeeld */
 button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 /* Invoervelden: zacht zandvlak, duidelijke focus */
 .mm-achtergrond input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .mm-achtergrond select, .mm-achtergrond textarea {
-  background-color: #f6f2eb;
-  border-color: rgba(60, 42, 20, 0.14);
+  background-color: #f5f7fa;
+  border-color: rgba(15, 23, 42, 0.14);
   border-radius: 12px;
 }
 .mm-achtergrond input:focus, .mm-achtergrond select:focus, .mm-achtergrond textarea:focus { border-color: #1e3a7b; background-color: #ffffff; }
@@ -292,11 +292,11 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 .mm-poster { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: auto; z-index: 2; }
 .mm-poster > .bg-white.rounded-lg.border {
   max-width: none;
-  background: #fbfaf6;
+  background: #fdfdfd;
   border: none !important;
   border-radius: 3px;
   rotate: -0.6deg;
-  box-shadow: 0 1px 1px rgba(20, 16, 12, 0.18), 0 10px 22px rgba(20, 16, 12, 0.22), 0 2px 6px rgba(20, 16, 12, 0.08);
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.18), 0 10px 22px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 /* plakband op de bovenhoeken */
 .mm-poster::before, .mm-poster::after {
@@ -312,7 +312,7 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 .mm-poster::before { left: -14px; rotate: -32deg; }
 .mm-poster::after { right: -14px; rotate: 30deg; }
 /* Smal scherm: gewoon inlogvak in het midden over de foto */
-.mm-login-los > .bg-white.rounded-lg.border { background: #fffdf9; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
+.mm-login-los > .bg-white.rounded-lg.border { background: #ffffff; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
