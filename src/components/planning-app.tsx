@@ -3146,6 +3146,108 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
 
 // Krijgt bewust NIET de volledige projectenlijst als prop: alle projectdata komt
 // uit de centrale projectindex met O(1) lookups.
+// ===== Weekweergave op de telefoon, zoals Google Agenda =====
+// Kolommen per dag, uren onder elkaar, werken als blokken op hun tijd (één blok per werk en tijd, met de namen),
+// afwezigheid als balkje bovenaan de dag. Vegen = vorige/volgende week, tik op een blok = details.
+type WeekBlok={sleutel:string;proj:Project;start:string;eind:string;kleur:string;namen:string[]};
+type WeekChip={sleutel:string;tekst:string;status:AvailStatus};
+const UUR_H=44;
+const minuten=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
+function MobieleWeek({dagen,medewerkers,blokkenVan,kleurVan,feestdag,onOpenProject,onVorige,onVolgende,onDag}:{
+  dagen:Date[];medewerkers:Employee[];
+  blokkenVan:(empId:string,d:Date)=>{av:AvailEntry;proj?:Project}[];
+  kleurVan:(a:AvailEntry)=>string;feestdag:(ds:string)=>string|null|undefined;
+  onOpenProject:(p:Project)=>void;onVorige:()=>void;onVolgende:()=>void;onDag:(d:Date)=>void;
+}){
+  const [wie,setWie]=useState("");
+  const [detail,setDetail]=useState<WeekBlok|null>(null);
+  const veegStart=useRef<{x:number;y:number}|null>(null);
+  const mensen=wie?medewerkers.filter(e=>e.id===wie):medewerkers;
+  const perDag=dagen.map(d=>{
+    const blokken=new Map<string,WeekBlok>();const chips:WeekChip[]=[];
+    for(const e of mensen)for(const {av,proj} of blokkenVan(e.id,d)){
+      if(proj){
+        const k=`${proj.id}|${av.startTime}|${av.endTime}`;
+        const b=blokken.get(k)||{sleutel:k,proj,start:av.startTime,eind:av.endTime,kleur:kleurVan(av),namen:[]};
+        b.namen.push(e.naam);blokken.set(k,b);
+      }else if(av.status!=="Beschikbaar")chips.push({sleutel:av.id,status:av.status,tekst:`${av.status} · ${e.naam.split(" ")[0]}`});
+    }
+    // overlappende blokken naast elkaar (zoals Google Agenda)
+    const lijst=[...blokken.values()].sort((a,b)=>a.start.localeCompare(b.start));
+    const kol:number[]=[];const plek=new Map<string,{k:number;n:number}>();
+    let groep:WeekBlok[]=[];let groepEind=0;
+    const sluit=()=>{const n=Math.max(1,...groep.map(b=>plek.get(b.sleutel)!.k+1));groep.forEach(b=>plek.get(b.sleutel)!.n=n);groep=[];kol.length=0;};
+    for(const b of lijst){
+      if(groep.length&&minuten(b.start)>=groepEind)sluit();
+      let k=kol.findIndex(eind=>eind<=minuten(b.start));if(k<0){k=kol.length;kol.push(0);}
+      kol[k]=minuten(b.eind);plek.set(b.sleutel,{k,n:1});groep.push(b);groepEind=Math.max(groepEind,minuten(b.eind));
+    }
+    if(groep.length)sluit();
+    return {d,ds:toDateStr(d),lijst,plek,chips};
+  });
+  const alle=perDag.flatMap(x=>x.lijst);
+  const vanUur=Math.min(7,...alle.map(b=>Math.floor(minuten(b.start)/60)));
+  const totUur=Math.max(17,...alle.map(b=>Math.ceil(minuten(b.eind)/60)));
+  const uren=Array.from({length:totUur-vanUur},(_,i)=>vanUur+i);
+  const nu=new Date();const nuMin=nu.getHours()*60+nu.getMinutes();
+  const raster="36px repeat(7, minmax(0, 1fr))";
+  return <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] mm-tabel overflow-hidden"
+    onTouchStart={ev=>{const t=ev.touches[0];veegStart.current={x:t.clientX,y:t.clientY};}}
+    onTouchEnd={ev=>{const s=veegStart.current;veegStart.current=null;if(!s)return;const t=ev.changedTouches[0];const dx=t.clientX-s.x,dy=t.clientY-s.y;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0)onVolgende();else onVorige();}}}>
+    <div className="px-2 py-2 border-b border-[rgba(15,23,42,0.06)]">
+      <select value={wie} onChange={ev=>setWie(ev.target.value)} aria-label="Medewerker kiezen" className="w-full py-2 px-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F]">
+        <option value="">Iedereen ({medewerkers.length})</option>
+        {medewerkers.map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
+      </select>
+    </div>
+    <div className="sticky top-0 z-10 bg-white border-b border-[rgba(15,23,42,0.08)]">
+      <div className="grid" style={{gridTemplateColumns:raster}}>
+        <div className="text-[9px] text-[#1E3A7B] font-bold flex items-end justify-center pb-1">wk {getWeekNumber(dagen[0])}</div>
+        {perDag.map(({d,ds})=>{const vandaag=ds===TODAY_STR;const we=d.getDay()===0||d.getDay()===6;return <button key={ds} onClick={()=>onDag(d)} className="py-1.5 flex flex-col items-center" aria-label={`Dag ${d.getDate()} openen`}>
+          <span className={`text-[10px] font-semibold ${vandaag?"text-[#1E3A7B]":we?"text-[#9AA1AD]":"text-[#5F6673]"}`}>{DAYS_NL[(d.getDay()+6)%7]}</span>
+          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold ${vandaag?"bg-[#1E3A7B] text-white":"text-[#23272F]"}`}>{d.getDate()}</span>
+        </button>;})}
+      </div>
+      {/* Hele dag: feestdagen en afwezigheid */}
+      {perDag.some(x=>x.chips.length||feestdag(x.ds))&&<div className="grid pb-1" style={{gridTemplateColumns:raster}}>
+        <div/>
+        {perDag.map(({ds,chips})=>{const hol=feestdag(ds);return <div key={ds} className="px-0.5 space-y-0.5 min-w-0">
+          {hol&&<div className="text-[9px] leading-tight px-1 py-0.5 rounded bg-[#FDE4E0] text-[#A42A1E] truncate" title={hol}>{hol}</div>}
+          {chips.slice(0,2).map(ch=><div key={ch.sleutel} className="text-[9px] leading-tight px-1 py-0.5 rounded truncate" style={{backgroundColor:AS[ch.status].bg,color:AS[ch.status].text}} title={ch.tekst}>{ch.tekst}</div>)}
+          {chips.length>2&&<div className="text-[9px] text-[#5F6673] px-1">+{chips.length-2}</div>}
+        </div>;})}
+      </div>}
+    </div>
+    <div className="grid" style={{gridTemplateColumns:raster}}>
+      <div className="relative" style={{height:uren.length*UUR_H}}>
+        {uren.map((u,i)=><span key={u} className="absolute right-1 text-[9px] text-[#9AA1AD] -translate-y-1/2" style={{top:i*UUR_H}}>{i===0?"":`${String(u).padStart(2,"0")}:00`}</span>)}
+      </div>
+      {perDag.map(({d,ds,lijst,plek})=>{const we=d.getDay()===0||d.getDay()===6;return <div key={ds} className={`relative border-l border-[rgba(15,23,42,0.06)] ${we?"bg-[#F6F8FA]":""}`}
+        style={{height:uren.length*UUR_H,backgroundImage:`repeating-linear-gradient(to bottom, rgba(15,23,42,0.07) 0 1px, transparent 1px ${UUR_H}px)`}}>
+        {lijst.map(b=>{const p=plek.get(b.sleutel)!;const top=(minuten(b.start)-vanUur*60)/60*UUR_H;const h=Math.max(22,(minuten(b.eind)-minuten(b.start))/60*UUR_H-2);
+          return <button key={b.sleutel} onClick={()=>setDetail(b)} className="absolute rounded-[5px] px-1 py-0.5 text-left text-white overflow-hidden shadow-sm"
+            style={{top,height:h,left:`calc(${(p.k/p.n)*100}% + 1px)`,width:`calc(${100/p.n}% - 2px)`,backgroundColor:b.kleur}}>
+            <span className="block text-[9px] font-semibold leading-tight overflow-hidden" style={{overflowWrap:"normal",wordBreak:"normal",hyphens:"auto"}} lang="nl">{b.proj.projectnaam||b.proj.werknummer}</span>
+            {h>48&&<span className="block text-[8px] leading-tight opacity-90 mt-0.5">{b.namen.length===1?b.namen[0].split(" ")[0]:`${b.namen.length} mensen`}</span>}
+          </button>;})}
+        {ds===TODAY_STR&&nuMin>=vanUur*60&&nuMin<=totUur*60&&<div className="absolute left-0 right-0 h-0.5 bg-[#E0402F] z-[1]" style={{top:(nuMin-vanUur*60)/60*UUR_H}}><span className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-[#E0402F]"/></div>}
+      </div>;})}
+    </div>
+    {detail&&<Modal title={detail.proj.projectnaam||detail.proj.werknummer} onClose={()=>setDetail(null)} width="max-w-md">
+      <div className="p-5 space-y-3 text-sm">
+        <p className="text-[#5F6673]">{detail.proj.werknummer}{detail.proj.plaats?` · ${detail.proj.plaats}`:""}</p>
+        <p><span className="font-semibold text-[#23272F]">Tijd:</span> {detail.start}–{detail.eind}</p>
+        <div><p className="font-semibold text-[#23272F] mb-1">Ingepland ({detail.namen.length})</p>
+          <ul className="space-y-0.5">{detail.namen.map(n=><li key={n} className="text-[#23272F]">{n}</li>)}</ul></div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Btn variant="secondary" onClick={()=>setDetail(null)}>Sluiten</Btn>
+          <Btn onClick={()=>{const p=detail.proj;setDetail(null);onOpenProject(p);}}>Werk openen</Btn>
+        </div>
+      </div>
+    </Modal>}
+  </div>;
+}
+
 // Telefoon (staand): compactere personeelsplanning
 function useSmal(){
   const q="(max-width: 639px)";
@@ -3886,7 +3988,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       })}
     </div>}
 
-    {(view==="week"||view==="maand")&&(
+    {smal&&view==="week"&&<MobieleWeek dagen={dates} medewerkers={shownEmp} blokkenVan={getDayBlocks} kleurVan={rowColor} feestdag={getDHol}
+      onOpenProject={onOpenProject} onVorige={()=>navigate(-1)} onVolgende={()=>navigate(1)} onDag={d=>{setRefDate(new Date(d));setView("dag");}}/>}
+    {((view==="week"&&!smal)||view==="maand")&&(
     // Eigen scrolgebied: zo blijft de kopregel met de dagen bovenaan staan bij naar beneden scrollen
     <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-auto mm-tabel" style={{maxHeight:"calc(100vh - 210px)"}}>
       {/* Vaste tabelindeling: elke dag is even breed, lange teksten lopen nooit een kolom op */}
