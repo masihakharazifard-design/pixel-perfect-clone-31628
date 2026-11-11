@@ -13,6 +13,8 @@ import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-v
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { feestdagenTussen, feestdagOp } from "@/lib/feestdagen";
+import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows } from "@/lib/werkdagen";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -90,7 +92,6 @@ function setWerkdag(start?:string,end?:string){
 function defaultStartFor(_p?:Project|null):string{return WORKDAY_START;}
 const toMin=(t:string)=>{const [h,m]=t.split(":").map(Number);return (h||0)*60+(m||0);};
 const fromMin=(v:number)=>`${String(Math.floor(v/60)).padStart(2,"0")}:${String(v%60).padStart(2,"0")}`;
-const shiftDate=(ds:string,days:number)=>{const d=new Date(ds+"T12:00");d.setDate(d.getDate()+days);return toDateStr(d);};
 interface AppSettings {
   bedrijfsnaam:string; adres:string; postcode:string; plaats:string;
   telefoon:string; email:string; primaryColor:string; accentColor:string;
@@ -171,25 +172,8 @@ const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
   Ziek:               {bg:"#ECEFF4",text:"#3F4A5A",dot:"#7A8699"},
   Vrij:               {bg:"#F1F3F6",text:"#3F4A5A",dot:"#A3ACBA"},
 };
-const DUTCH_HOL = [
-  {date:"2025-01-01",name:"Nieuwjaarsdag"},{date:"2025-04-18",name:"Goede Vrijdag"},
-  {date:"2025-04-20",name:"Eerste Paasdag"},{date:"2025-04-21",name:"Tweede Paasdag"},
-  {date:"2025-04-27",name:"Koningsdag"},{date:"2025-05-05",name:"Bevrijdingsdag"},
-  {date:"2025-05-29",name:"Hemelvaartsdag"},{date:"2025-06-08",name:"Eerste Pinksterdag"},
-  {date:"2025-06-09",name:"Tweede Pinksterdag"},{date:"2025-12-25",name:"Eerste Kerstdag"},
-  {date:"2025-12-26",name:"Tweede Kerstdag"},{date:"2026-01-01",name:"Nieuwjaarsdag"},
-  {date:"2026-04-03",name:"Goede Vrijdag"},{date:"2026-04-05",name:"Eerste Paasdag"},
-  {date:"2026-04-06",name:"Tweede Paasdag"},{date:"2026-04-27",name:"Koningsdag"},
-  {date:"2026-05-05",name:"Bevrijdingsdag"},{date:"2026-05-14",name:"Hemelvaartsdag"},
-  {date:"2026-05-24",name:"Eerste Pinksterdag"},{date:"2026-05-25",name:"Tweede Pinksterdag"},
-  {date:"2026-12-25",name:"Eerste Kerstdag"},{date:"2026-12-26",name:"Tweede Kerstdag"},
-  {date:"2027-01-01",name:"Nieuwjaarsdag"},{date:"2027-03-26",name:"Goede Vrijdag"},
-  {date:"2027-03-28",name:"Eerste Paasdag"},{date:"2027-03-29",name:"Tweede Paasdag"},
-  {date:"2027-04-27",name:"Koningsdag"},{date:"2027-05-05",name:"Bevrijdingsdag"},
-  {date:"2027-05-06",name:"Hemelvaartsdag"},{date:"2027-05-16",name:"Eerste Pinksterdag"},
-  {date:"2027-05-17",name:"Tweede Pinksterdag"},{date:"2027-12-25",name:"Eerste Kerstdag"},
-  {date:"2027-12-26",name:"Tweede Kerstdag"},
-];
+// Feestdagen worden per jaar berekend (src/lib/feestdagen.ts); deze lijst dekt een ruime periode rond vandaag.
+const DUTCH_HOL = feestdagenTussen(new Date().getFullYear()-3,new Date().getFullYear()+15);
 interface SHol {start:string;end:string;name:string;regions:string[];}
 const SCHOOL_HOL:SHol[] = [
   {start:"2025-10-18",end:"2025-10-26",name:"Herfstvakantie",regions:["Noord","Midden","Zuid"]},
@@ -213,7 +197,8 @@ const SCHOOL_HOL:SHol[] = [
 ];
 // Laatst bekende vakantie-/feestdagdatum + waarschuwing als die bijna verlopen is.
 function holidayDataUntil():string{
-  const all=[...DUTCH_HOL.map(h=>h.date),...SCHOOL_HOL.map(h=>h.end)];
+  // Feestdagen worden automatisch berekend; alleen de schoolvakanties moeten jaarlijks worden bijgewerkt.
+  const all=SCHOOL_HOL.map(h=>h.end);
   return all.sort().pop()||"";
 }
 function holidayDataExpiringSoon(months=3):boolean{
@@ -240,7 +225,6 @@ const TODAY_STR = new Date().toISOString().split("T")[0];
 function validDate(d:string|Date|null|undefined):boolean{if(!d)return false;const dt=typeof d==="string"?new Date(d):d;return !isNaN(dt.getTime());}
 function fmtDate(d:string|Date){if(!validDate(d))return "—";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function fmtTime(d:string|Date){if(!validDate(d))return "";const dt=typeof d==="string"?new Date(d):d;return dt.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});}
-function toDateStr(d:Date){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function toDTLocal(iso:string){const d=new Date(iso);if(isNaN(d.getTime()))return "";const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
 // Datum-/tijddelen van een opgeslagen ISO-datum, in lokale (Europe/Amsterdam) tijd.
 function datePart(iso:string){const s=toDTLocal(iso);return s?s.slice(0,10):"";}
@@ -261,7 +245,7 @@ function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):s
   return isNaN(dt.getTime())?"":dt.toISOString();
 }
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
-function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
+function getDHol(s:string){return feestdagOp(s);}
 // ===== Feestdagkleur (instelbaar, standaard fuchsia) =====
 const HOLIDAY_COLOR="#A0668F";
 function holidayColorOf(s?:{holidayColor?:string}){return s?.holidayColor||HOLIDAY_COLOR;}
@@ -274,7 +258,6 @@ function withAlpha(hex:string,alpha:number){
 // Maandag = 0 … zondag = 6
 const WD_LABELS=["Ma","Di","Wo","Do","Vr","Za","Zo"];
 const WD_FULL=["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
-function weekdayIdx(ds:string){return (new Date(ds+"T12:00").getDay()+6)%7;}
 function getSHols(s:string,regions:string[]){const d=new Date(s);return SCHOOL_HOL.filter(h=>{const st=new Date(h.start),en=new Date(h.end);return d>=st&&d<=en&&h.regions.some(r=>regions.includes(r));});}
 function nid(){
   const uuid=globalThis.crypto?.randomUUID?.();
@@ -533,29 +516,7 @@ function planBlockBg(projColor:string,plColor?:string|null):React.CSSProperties{
 // Tekst in een blok: maximaal twee regels, daarna afgekapt (volledige tekst staat in de tooltip).
 const TWO_LINES:React.CSSProperties={display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",overflowWrap:"anywhere",whiteSpace:"normal",lineHeight:1.2};
 // ===== WERKDAGEN (zaterdag/zondag worden nooit automatisch ingepland) =====
-const isWeekendStr=(ds:string)=>weekdayIdx(ds)>=5;
-function addWorkdays(ds:string,n:number):string{
-  let d=ds;let left=Math.abs(n);const step=n<0?-1:1;
-  while(left>0){d=shiftDate(d,step);if(!isWeekendStr(d))left--;}
-  return d;
-}
-function workdayDiff(from:string,to:string):number{
-  if(from===to)return 0;
-  const step=to>from?1:-1;let d=from,n=0;
-  while(d!==to){d=shiftDate(d,step);if(!isWeekendStr(d))n+=step;}
-  return n;
-}
-// Planningregels van één werk verschuiven naar een nieuwe startdag. Doelt de gebruiker op een werkdag,
-// dan schuiven werkdagen over werkdagen (weekend blijft leeg); expliciet op een weekenddag = kalenderdagen.
-function shiftPlanRows(rows:AvailEntry[],newStart:string):AvailEntry[]{
-  if(!rows.length)return [];
-  const oldStart=rows.map(r=>r.date).sort()[0];
-  if(oldStart===newStart)return [];
-  const cal=Math.round((new Date(newStart+"T12:00").getTime()-new Date(oldStart+"T12:00").getTime())/86400000);
-  const useWork=!isWeekendStr(newStart)&&!isWeekendStr(oldStart);
-  const wd=useWork?workdayDiff(oldStart,newStart):0;
-  return rows.map(r=>({...r,date:useWork&&!isWeekendStr(r.date)?addWorkdays(r.date,wd):shiftDate(r.date,cal),isFirstOfDay:false,volgorde:undefined}));
-}
+// isWeekendStr, addWorkdays, workdayDiff en shiftPlanRows staan in src/lib/werkdagen.ts (met tests).
 
 // Ingeplande medewerkers van een project, altijd afgeleid uit de planningregels (availability)
 function getProjectAssignedEmployees<E extends {id:string}>(projectIds:string|string[],av:AvailEntry[],employees:E[]):{employee:E;rows:AvailEntry[]}[]{
