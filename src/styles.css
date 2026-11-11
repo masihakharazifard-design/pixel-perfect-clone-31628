@@ -8,7 +8,7 @@
  * Design system "Warme werkplaats": zandkleurige achtergrond #EAE4DA, licht werkvlak #FBF8F3, zachte kaarten #F3EEE6,
  * inkt #2B2620 / #6F675C, menubalk in diep Maasmond-blauw #1C2A4A, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
  * warm accent honinggeel #F2D27A (actief menu, uitgelichte kaart), logo-rood #E0402F spaarzaam.
- * Plus Jakarta Sans, ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
+ * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
  */
 
 :root {
@@ -90,8 +90,8 @@
 }
 
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -197,11 +197,11 @@
 :root {
   --mm-rood: #E0402F;
   --mm-blauw: #1E3A7B;
-  --font-ui: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --fluent-shadow-2: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
   --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
-body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #2b2620; -webkit-font-smoothing: antialiased; font-feature-settings: "ss01", "cv11"; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #2b2620; -webkit-font-smoothing: antialiased; }
 /* ===== Warme werkplaats =====
  * Opbouw zoals het voorbeeld: zandkleurige achtergrond, donkere afgeronde menubalk, één groot licht werkvlak
  * met zachte kaarten erin. Warmte komt uit de zandtinten en het honinggele accent; geen zware schaduwen of effecten. */
