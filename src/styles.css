@@ -248,9 +248,9 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
   border-radius: 12px;
 }
 .mm-achtergrond input:focus, .mm-achtergrond select:focus, .mm-achtergrond textarea:focus { border-color: #1e3a7b; background-color: #ffffff; }
-/* Inlogscherm: foto van de vakmensen aan het werk.
- * De foto vult het scherm (cover) en schuift licht mee met de muis. Drie zachte werkbewegingen
- * (vloer leggen, schilderen, screen ophangen) bewegen alleen het stukje foto rond die persoon. */
+/* Inlogscherm: video van de vakmensen aan het werk (stoffeerder, schilderes, monteur).
+ * Eén beeld dat het scherm vult (cover) en als geheel subtiel meeschuift met de muis.
+ * De foto staat eronder: als stilstaand beeld bij minder beweging en zolang de video laadt of ontbreekt. */
 .mm-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: #293547; }
 .mm-bg__waas { position: absolute; inset: 0; background: rgba(13, 23, 38, 0.18); }
 .mm-bg__foto {
@@ -264,28 +264,18 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 }
 .mm-bg__scene {
   position: absolute;
-  width: max(100cqw, 177.68cqh);
-  aspect-ratio: 1672 / 941;
+  width: max(100cqw, 177.78cqh);
+  aspect-ratio: 16 / 9;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
+  background: var(--scene) center / cover no-repeat;
 }
-.mm-bg__scene, .mm-gebaar { background: var(--scene) center / 100% 100% no-repeat; }
-.mm-gebaar {
-  position: absolute;
-  inset: 0;
-  -webkit-mask-image: radial-gradient(ellipse var(--w) var(--h) at var(--x) var(--y), black 28%, transparent 100%);
-  mask-image: radial-gradient(ellipse var(--w) var(--h) at var(--x) var(--y), black 28%, transparent 100%);
-  transform-origin: var(--x) var(--y);
-  animation: mm-werkgebaar var(--periode) ease-in-out var(--vertraging) infinite alternate;
-}
-.mm-gebaar--vloer { --x: 16%; --y: 73%; --w: 7%; --h: 13%; --dx: .34%; --dy: .42%; --hoek: 1.3deg; --periode: 1.55s; --vertraging: -.3s; }
-.mm-gebaar--schilder { --x: 94%; --y: 23%; --w: 5.5%; --h: 13%; --dx: .14%; --dy: 1.05%; --hoek: 1.7deg; --periode: 1.25s; --vertraging: -.8s; }
-.mm-gebaar--screen { --x: 77%; --y: 20%; --w: 4.5%; --h: 10%; --dx: .23%; --dy: .42%; --hoek: 1.1deg; --periode: 1.9s; --vertraging: -.6s; }
-@keyframes mm-werkgebaar { from { transform: none; } to { transform: translate(var(--dx), var(--dy)) rotate(var(--hoek)); } }
+.mm-bg__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 600ms ease; }
+.mm-bg__video.is-playing { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .mm-bg__foto { transform: none; transition: none; }
-  .mm-gebaar { animation: none; }
+  .mm-bg__video { display: none; }
 }
 /* Inlogformulier als poster op de witte achtermuur van de foto */
 .mm-poster-plek { position: absolute; }
