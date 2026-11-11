@@ -250,7 +250,8 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 .mm-achtergrond input:focus, .mm-achtergrond select:focus, .mm-achtergrond textarea:focus { border-color: #1e3a7b; background-color: #ffffff; }
 /* Parallax-scène (inlogscherm): lucht en laag-voor-laag opkomen */
 .mm-scene-login { background: linear-gradient(180deg, #fbf6ee 0%, #fdfaf5 60%, #f6f0e6 100%); }
-.mm-scene-login ~ .bg-white.rounded-lg.border { background: #fffdf9; box-shadow: 0 18px 50px rgba(43, 38, 32, 0.12); }
+/* Inlogvak als bord in een houten lijst, midden op de achterwand van de 3D-ruimte */
+.mm-scene-login ~ .bg-white.rounded-lg.border { background: #fffdf9; border: 9px solid #B88A5E !important; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(90, 60, 30, 0.18), 0 2px 0 #8F6646, 0 24px 50px rgba(60, 35, 15, 0.35); }
 /* Huis-scène: zonnescherm op en neer, verfroller, wuivende gordijnen, drijvende wolken */
 .mm-scene-login svg * { transform-box: fill-box; }
 .mm-zonnescherm { transform-origin: top; animation: mm-zonnescherm 9s ease-in-out infinite; }

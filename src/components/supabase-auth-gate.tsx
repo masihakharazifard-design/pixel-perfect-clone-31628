@@ -103,7 +103,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center lg:justify-start lg:pl-[7vw] bg-[#FDFBF7] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center bg-[#FDFBF7] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       <Maasmond3D />
