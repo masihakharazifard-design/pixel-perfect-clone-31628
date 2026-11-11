@@ -12,7 +12,7 @@ const OUDE_DEMO_KEY = "maasmond-demo-user";
 
 const MSG = {
   domein: "Gebruik je Maasmond e-mailadres om in te loggen.",
-  verzonden: "We hebben een inloglink naar je Maasmond e-mailadres gestuurd.",
+  verzonden: "We hebben een inlogcode naar je Maasmond e-mailadres gestuurd. Gebruik altijd de code uit de nieuwste e-mail.",
   geenRol:
     "Je account is aangemeld, maar heeft nog geen toegang tot Maasmond Planning. Neem contact op met de beheerder.",
   fout: "Inloggen is niet gelukt. Probeer het opnieuw.",
@@ -30,8 +30,8 @@ export function LoginScreen({ melding }: { melding?: string }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
-  const vraagCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const vraagCode = async (e?: { preventDefault(): void }) => {
+    e?.preventDefault();
     const mail = email.trim().toLowerCase();
     setInfo("");
     if (!isMaasmond(mail)) {
@@ -49,8 +49,9 @@ export function LoginScreen({ melding }: { melding?: string }) {
       e.status === 429 || /rate limit|too many|security purposes/i.test(e.message);
     let { error: err } = await vraagAan();
     // Bij de allereerste keer inloggen wordt eerst een account aangemaakt; dat mislukt soms één keer.
-    // Dan direct zelf nog een keer proberen (zoals wanneer iemand het handmatig opnieuw probeert).
-    if (err && !isLimiet(err) && !/maasmond/i.test(err.message)) {
+    // Alleen bij een server- of netwerkfout opnieuw proberen: anders komt er een tweede e-mail
+    // en is de code uit de eerste e-mail niet meer geldig.
+    if (err && !isLimiet(err) && !/maasmond/i.test(err.message) && (!err.status || err.status >= 500)) {
       await new Promise((r) => setTimeout(r, 1500));
       ({ error: err } = await vraagAan());
     }
@@ -67,6 +68,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
       return;
     }
     setInfo(MSG.verzonden);
+    setCode("");
     setStap("code");
   };
 
@@ -75,15 +77,25 @@ export function LoginScreen({ melding }: { melding?: string }) {
     const mail = email.trim().toLowerCase();
     const token = code.trim();
     if (token.length < 6) {
-      setError("Vul de 6-cijferige code uit de e-mail in.");
+      setError("Vul de volledige code uit de e-mail in.");
       return;
     }
     setError("");
     setBezig(true);
-    const { error: err } = await supabase.auth.verifyOtp({ email: mail, token, type: "email" });
+    let { error: err } = await supabase.auth.verifyOtp({ email: mail, token, type: "email" });
+    // Bij de allereerste keer inloggen is het een aanmeldcode; die wordt soms alleen als "signup" geaccepteerd.
+    if (err && !/expired|verlopen/i.test(err.message)) {
+      const tweede = await supabase.auth.verifyOtp({ email: mail, token, type: "signup" });
+      if (!tweede.error) err = null;
+    }
     setBezig(false);
     if (err) {
-      setError(MSG.fout);
+      console.warn("Inlogcode controleren mislukt:", err.status, err.message);
+      setError(
+        /expired|invalid|verlopen/i.test(err.message)
+          ? "Deze code klopt niet of is verlopen. Gebruik de code uit de nieuwste e-mail, of vraag hieronder een nieuwe code aan."
+          : `${MSG.fout} (${err.message})`,
+      );
       return;
     }
     // onAuthStateChange in de gate laat de app zien.
@@ -137,8 +149,8 @@ export function LoginScreen({ melding }: { melding?: string }) {
               inputMode="numeric"
               autoComplete="one-time-code"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="123456"
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="Code uit de e-mail"
               className="w-full px-3 py-2.5 rounded-md border border-[rgba(0,0,0,0.15)] text-sm tracking-[0.3em] text-[#242424] outline-none focus:border-[#1E3A7B]"
             />
             <button
@@ -160,6 +172,14 @@ export function LoginScreen({ melding }: { melding?: string }) {
               className="w-full text-xs text-[#616161] hover:text-[#242424]"
             >
               Ander e-mailadres gebruiken
+            </button>
+            <button
+              type="button"
+              disabled={bezig}
+              onClick={() => void vraagCode()}
+              className="w-full text-xs text-[#1E3A7B] font-semibold hover:underline disabled:opacity-60"
+            >
+              Nieuwe code sturen
             </button>
           </form>
         )}
