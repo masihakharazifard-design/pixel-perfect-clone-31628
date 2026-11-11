@@ -3146,6 +3146,13 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
 
 // Krijgt bewust NIET de volledige projectenlijst als prop: alle projectdata komt
 // uit de centrale projectindex met O(1) lookups.
+// Telefoon (staand): compactere personeelsplanning
+function useSmal(){
+  const q="(max-width: 639px)";
+  const [smal,setSmal]=useState(()=>typeof window!=="undefined"&&window.matchMedia(q).matches);
+  useEffect(()=>{const m=window.matchMedia(q);const op=()=>setSmal(m.matches);m.addEventListener("change",op);return()=>m.removeEventListener("change",op);},[]);
+  return smal;
+}
 function PersoneelsplanningView({employees,availability,settings,onSaveSettings,onSavePlanning,onSaveManyPlanning,onResizePlanning,onDeletePlanning,onSaveAbsence,onDeleteAbsence,onOpenProject,onVacImport}:{
   employees:Employee[];availability:AvailEntry[];
   settings:AppSettings;onSaveSettings:(s:AppSettings)=>void;
@@ -3156,7 +3163,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   onOpenProject:(p:Project)=>void;onVacImport:()=>void;
 }){
   const dc=useDC();
-  const [view,setView]=useState<PlanView>("week");
+  // Op de telefoon start de planning in de dagweergave (per medewerker een kaart, goed leesbaar)
+  const [view,setView]=useState<PlanView>(()=>typeof window!=="undefined"&&window.innerWidth<640?"dag":"week");
+  const smal=useSmal();
+  const NAAM_B=smal?104:176;
   const [refDate,setRefDate]=useState(()=>{const d=new Date();d.setHours(0,0,0,0);return d;});
   const [showFilters,setShowFilters]=useState(false);
   const [showColors,setShowColors]=useState(false);
@@ -3799,8 +3809,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Personeelsplanning</h1><p className="text-[#5F6673] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
-      <div className="flex gap-2 flex-wrap">
+      <div><h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Personeelsplanning</h1><p className="hidden sm:block text-[#5F6673] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
+      <div className="flex gap-2 overflow-x-auto sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openFixedFree()}><CalendarDays className="w-3.5 h-3.5"/>Vaste vrije dagen</Btn>
@@ -3814,9 +3824,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         <button onClick={()=>navigate(1)} className="p-1.5 hover:bg-[#F2F4F7] text-[#5F6673]"><ChevronRight className="w-4 h-4"/></button>
       </div>
       <div className="flex rounded-[10px] border border-[rgba(15,23,42,0.12)] overflow-hidden">
-        {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-2 md:px-3 py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1E3A7B] text-white":"text-[#5F6673] hover:bg-[#F2F4F7]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
+        {(["dag","week","maand","kwartaal"] as PlanView[]).map(v=><button key={v} onClick={()=>setView(v)} className={`px-3 py-2 sm:py-1.5 text-xs font-medium transition-colors ${view===v?"bg-[#1E3A7B] text-white":"text-[#5F6673] hover:bg-[#F2F4F7]"}`}>{v==="kwartaal"?"Kw.":v.charAt(0).toUpperCase()+v.slice(1)}</button>)}
       </div>
-      <div className="flex gap-1.5 items-center flex-wrap">
+      <div className="flex gap-1.5 items-center overflow-x-auto sm:flex-wrap w-full sm:w-auto pb-1 sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
         {filters.map(f=><button key={f.id} onClick={()=>toggleFilter(f.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] text-xs font-medium border transition-opacity ${f.actief?"border-transparent text-white":"border-[rgba(15,23,42,0.12)] text-[#9AA1AD] bg-white"}`} style={f.actief?{backgroundColor:f.kleur}:undefined}>
           <span className="w-2 h-2 rounded-full" style={{backgroundColor:f.actief?"rgba(255,255,255,0.9)":f.kleur}}/>{f.naam}
         </button>)}
@@ -3840,7 +3850,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         const ds=toDateStr(refDate);
         return <div key={e.id} {...empDragProps(e.id)} style={empDropStyle(e.id)} className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden" onContextMenu={ev=>openCellMenu(ev,e.id,ds)}>
           <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(15,23,42,0.06)]" style={{borderLeftColor:dc[e.afdeling].bg,borderLeftWidth:4}}>
-            <EmpOrderControls empId={e.id}/>
+            {!smal&&<EmpOrderControls empId={e.id}/>}
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
             <div className="flex-1"><p className="font-semibold text-[#23272F] text-sm">{e.naam}</p><p className="text-xs text-[#5F6673]">{e.functie}</p></div>
             <Btn variant="secondary" size="sm" onClick={()=>openPlan(e.id,ds)}><Plus className="w-3.5 h-3.5"/>Inplannen</Btn>
@@ -3851,16 +3861,16 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               {blocks.map(({av:b,proj})=>(
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
-                  className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FB]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
+                  className="group relative flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#F8F9FB]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
                   {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#D08A4E] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
-                  <span className="text-xs tabular-nums text-[#5F6673] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
+                  <span className="text-xs tabular-nums text-[#5F6673] whitespace-nowrap sm:w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}} title="Kleur van het werk"/>}
                   {proj&&plColorFor(proj)&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-2 ring-2 ring-white" style={{backgroundColor:plColorFor(proj)||undefined}} title={`Projectleider: ${projectleiderKey(proj,employees)}`}/>}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0" style={{backgroundColor:statusBgOf(b.status,statusColors),color:AS[b.status].text}}>
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:statusColorOf(b.status,statusColors)}}/>
                     {b.status}
                   </span>
-                  <span className="text-xs text-[#23272F] flex-1 whitespace-normal leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
+                  <span className="text-sm sm:text-xs font-medium sm:font-normal text-[#23272F] basis-full sm:basis-auto order-last sm:order-none sm:flex-1 whitespace-normal leading-snug sm:leading-tight" style={{overflowWrap:"anywhere"}} title={proj?`${proj.werknummer}\n${proj.projectnaam||""}\n${proj.opmerkingen||""}\n${plName(proj,employees)||"—"} · ${getAllAfds(proj).join(", ")}`:(b.note||"")}>{proj?`${proj.projectnaam||proj.werknummer||""}`:(b.note||"")}</span>
                   {resizePv?.id===b.id&&<span className="text-[10px] font-semibold text-[#1E3A7B] flex-shrink-0">tot {resizePv.label}</span>}
                   {proj&&<button onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className="text-[10px] text-[#1E3A7B] font-semibold flex-shrink-0">Project</button>}
                   {/* Resize-handle: eindtijd doortrekken */}
@@ -3880,12 +3890,12 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     // Eigen scrolgebied: zo blijft de kopregel met de dagen bovenaan staan bij naar beneden scrollen
     <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-auto mm-tabel" style={{maxHeight:"calc(100vh - 210px)"}}>
       {/* Vaste tabelindeling: elke dag is even breed, lange teksten lopen nooit een kolom op */}
-      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${176+dates.length*(view==="week"?90:MONTH_COL_W)}px`,...(view==="maand"?{width:`${176+dates.length*MONTH_COL_W}px`}:null)}}>
+      <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${NAAM_B+dates.length*(view==="week"?(smal?64:90):MONTH_COL_W)}px`,...(view==="maand"?{width:`${NAAM_B+dates.length*MONTH_COL_W}px`}:null)}}>
         <thead className="bg-[#F2F4F7] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:176}}>Medewerker</th>
+            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
-              style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
+              style={{...(view==="week"?{width:`calc((100% - ${NAAM_B}px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
               className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#9AA1AD]":"text-[#5F6673]"} ${isWE&&!hol?"bg-[#E8ECF1]":""}`} title={hol||undefined}>
               {/* Weeknummer boven elke maandag (en boven de eerste dag in beeld) */}
               <div className="text-[9px] leading-none h-3 text-[#1E3A7B] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
@@ -3898,11 +3908,11 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         </thead>
         <tbody className="divide-y divide-[rgba(15,23,42,0.05)]">
           {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FB]">
-            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(15,23,42,0.06)]">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-2 sm:px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(15,23,42,0.06)]">
               <div className="flex items-center gap-1.5">
-                <EmpOrderControls empId={e.id}/>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div className="min-w-0"><p className="font-semibold text-[#23272F] truncate">{e.naam}</p><p className="text-[#5F6673] truncate">{e.functie}</p></div>
+                {!smal&&<EmpOrderControls empId={e.id}/>}
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
+                <div className="min-w-0"><p className="font-semibold text-[#23272F] truncate">{e.naam}</p><p className="hidden sm:block text-[#5F6673] truncate">{e.functie}</p></div>
               </div>
             </td>
             {dates.map(d=>{const ds=toDateStr(d);const ps=getEmpProjsDate(e.id,d);const isWE=d.getDay()===0||d.getDay()===6;const abs=absFor(e.id,ds);const sel=rangeStart&&rangeStart.empId===e.id&&rangeStart.date===ds;
@@ -3956,10 +3966,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
     {view==="kwartaal"&&(
     <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-auto mm-tabel" style={{maxHeight:"calc(100vh - 210px)"}}>
-      <table className="text-xs" style={{tableLayout:"fixed",width:`${176+weeks.length*QUARTER_COL_W}px`}}>
+      <table className="text-xs" style={{tableLayout:"fixed",width:`${NAAM_B+weeks.length*QUARTER_COL_W}px`}}>
         <thead className="bg-[#F2F4F7] sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:176}}>Medewerker</th>
+            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
             {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
               const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
               return<th key={i} className="py-2 px-1 text-center font-semibold text-[#5F6673]" title={hols.join(", ")||undefined}
@@ -3972,11 +3982,11 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         </thead>
         <tbody className="divide-y divide-[rgba(15,23,42,0.05)]">
           {shownEmp.map(e=><tr key={e.id} className="hover:bg-[#F8F9FB]">
-            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(15,23,42,0.06)]">
+            <td {...empDragProps(e.id)} style={empDropStyle(e.id)} className="px-2 sm:px-3 py-2.5 sticky left-0 bg-white z-10 border-r border-[rgba(15,23,42,0.06)]">
               <div className="flex items-center gap-1.5">
-                <EmpOrderControls empId={e.id}/>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
-                <div className="min-w-0"><p className="font-semibold text-[#23272F] truncate">{e.naam}</p><p className="text-[#5F6673] truncate">{e.functie}</p></div>
+                {!smal&&<EmpOrderControls empId={e.id}/>}
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[e.afdeling].bg}}>{e.naam.slice(0,1)}</div>
+                <div className="min-w-0"><p className="font-semibold text-[#23272F] truncate">{e.naam}</p><p className="hidden sm:block text-[#5F6673] truncate">{e.functie}</p></div>
               </div>
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F2F4F7]">
