@@ -154,22 +154,22 @@ const INIT_SETTINGS:AppSettings = {
 
 // ===== CONSTANTS =====
 const SB:Record<ProjectStatus,string> = {
-  Offerte:"bg-[#EEEAE4] text-[#5A5248]",
-  Bevestigd:"bg-[#E3E9F5] text-[#1E3A7B]",
-  "In uitvoering":"bg-[#E4EFE6] text-[#2F5D3A]",
-  Afgerond:"bg-[#ECE7E0] text-[#5A5248]",
-  Gefactureerd:"bg-[#F6ECD6] text-[#7A5520]",
+  Offerte:"bg-[#ECEFF4] text-[#475569]",
+  Bevestigd:"bg-[#DCE6FA] text-[#1E3A7B]",
+  "In uitvoering":"bg-[#D9F4E5] text-[#16774A]",
+  Afgerond:"bg-[#ECE9F8] text-[#4B3FA0]",
+  Gefactureerd:"bg-[#FDEBC8] text-[#8A5300]",
 };
 const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
-  Beschikbaar:        {bg:"#E4EFE6",text:"#2F5D3A",dot:"#6A9E74"},
-  Ingepland:          {bg:"#E3E8F2",text:"#2B4170",dot:"#5A73A8"},
-  Bezet:              {bg:"#F5E1DC",text:"#8A3A2F",dot:"#C2604D"},
+  Beschikbaar:        {bg:"#D9F4E5",text:"#16774A",dot:"#22A06B"},
+  Ingepland:          {bg:"#DCE6FA",text:"#1E3A7B",dot:"#3B6FD8"},
+  Bezet:              {bg:"#FCE1DC",text:"#A42A1E",dot:"#E0402F"},
   // Gereserveerd: medewerker vastgehouden (met omschrijving); blokkeert inplannen niet
-  Gereserveerd:       {bg:"#F6ECD6",text:"#7A5520",dot:"#C99A45"},
-  "Niet beschikbaar": {bg:"#F3DEDA",text:"#7F2F26",dot:"#B5503F"},
-  Vakantie:           {bg:"#ECE5F0",text:"#5A4370",dot:"#8E78A6"},
-  Ziek:               {bg:"#EEEAE4",text:"#4A443C",dot:"#8A8378"},
-  Vrij:               {bg:"#F1EDE7",text:"#4A443C",dot:"#A39B8F"},
+  Gereserveerd:       {bg:"#FDEFD3",text:"#8A5300",dot:"#F2A43A"},
+  "Niet beschikbaar": {bg:"#FBDDDF",text:"#9B1C26",dot:"#D9363E"},
+  Vakantie:           {bg:"#ECE6FC",text:"#5134A6",dot:"#8B6CD9"},
+  Ziek:               {bg:"#ECEFF4",text:"#3F4A5A",dot:"#7A8699"},
+  Vrij:               {bg:"#F1F3F6",text:"#3F4A5A",dot:"#A3ACBA"},
 };
 const DUTCH_HOL = [
   {date:"2025-01-01",name:"Nieuwjaarsdag"},{date:"2025-04-18",name:"Goede Vrijdag"},
@@ -514,7 +514,7 @@ function canonPl(naam:string):string{
 function projectleiderKey(p:Project,employees:Employee[]):string{return canonPl(plName(p,employees));}
 // Projectleiderkleuren: vaste reeks die duidelijk afwijkt van de afdelingskleuren
 // (Stoffering turquoise, Schilderwerk koraal, Zonwering oranje), zodat het tweede kleurvlak altijd opvalt.
-const PL_PALETTE=["#3E5C99","#7A5A9E","#4F7D52","#A05A86","#2F4A7A","#7A5520","#4F4C8F","#6E8A3A","#8A3A2F","#3F7A8C","#6B4E8A","#4A5563"];
+const PL_PALETTE=["#2F6FDB","#8B5CF6","#1F9D55","#D9468F","#1E3A7B","#C9741F","#5B57D6","#6E9E1F","#C93A4E","#1D8FB5","#7E4FC9","#475569"];
 function projectleiderColorOf(name:string,map:Record<string,string>={}):string{
   if(!name)return FALLBACK_PROJECT_COLOR;
   // Handmatige kleur (ook als die onder een andere schrijfwijze is opgeslagen), anders vast op naam
@@ -723,7 +723,7 @@ function AvailBadge({status}:{status:AvailStatus}){
   </span>;
 }
 function Btn({children,onClick,variant="primary",size="md",className="",disabled=false}:{children:React.ReactNode;onClick?:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";size?:"sm"|"md";className?:string;disabled?:boolean}){
-  const v={primary:"bg-[#1E3A7B] text-white hover:bg-[#18306A]",secondary:"bg-[#FBF8F3] border border-[rgba(60,42,20,0.16)] text-[#2B2620] hover:bg-[#F3EEE6]",ghost:"text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB]",danger:"bg-[#C2604D] text-white hover:bg-[#A9513F]"};
+  const v={primary:"bg-[#1E3A7B] text-white hover:bg-[#18306A]",secondary:"bg-[#FBF8F3] border border-[rgba(60,42,20,0.16)] text-[#2B2620] hover:bg-[#F3EEE6]",ghost:"text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB]",danger:"bg-[#C2604D] text-white hover:bg-[#C93A2E]"};
   const s={sm:"px-3 py-1.5 text-xs",md:"px-4 py-2 text-sm"};
   return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition-colors ${v[variant]} ${s[size]} ${disabled?"opacity-40 cursor-not-allowed":""} ${className}`}>{children}</button>;
 }
@@ -881,7 +881,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-center text-sm text-[#6F675C]">Excelbestand verwerken… {progress}%</p>
           <div className="h-1.5 rounded-full bg-[#F3EEE6] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div>
         </div>}
-        {parseError&&<div className="bg-[#F8E7E3] border border-[#EBC9C1] rounded-md p-3 text-sm text-[#8A3A2F]">{parseError}</div>}
+        {parseError&&<div className="bg-[#FDE4E0] border border-[#F6C7BF] rounded-md p-3 text-sm text-[#A42A1E]">{parseError}</div>}
         <div className="bg-[#F3EEE6] rounded-md p-4 space-y-3 text-xs">
           <p className="font-semibold text-[#6F675C] uppercase tracking-wide">Verwachte kolommen</p>
           <table className="w-full text-left text-[#6F675C]">
@@ -902,41 +902,41 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               ].map(([col,veld,req])=><tr key={col}><td className="py-1 tabular-nums">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>)}
             </tbody>
           </table>
-          <div className="flex items-start gap-2 bg-[#F8F0DF] rounded-[10px] px-3 py-2">
-            <span className="text-[#A57A35] flex-shrink-0 font-bold">★</span>
-            <p className="text-[#7A5520]"><strong>Turnkey</strong> = alle 3 afdelingen. <strong>Combinatie</strong> = meerdere afdelingen. <strong>Schilderwerk binnen/buiten</strong>, <strong>Stoffering klein/groot</strong>, <strong>Zonwering binnen/buiten</strong> worden automatisch herkend.</p>
+          <div className="flex items-start gap-2 bg-[#FEF3DC] rounded-[10px] px-3 py-2">
+            <span className="text-[#C98208] flex-shrink-0 font-bold">★</span>
+            <p className="text-[#8A5300]"><strong>Turnkey</strong> = alle 3 afdelingen. <strong>Combinatie</strong> = meerdere afdelingen. <strong>Schilderwerk binnen/buiten</strong>, <strong>Stoffering klein/groot</strong>, <strong>Zonwering binnen/buiten</strong> worden automatisch herkend.</p>
           </div>
         </div>
       </>}
       {step==="preview"&&preview&&<>
-        {preview.missingColumns.length>0&&<div className="bg-[#F8F0DF] border border-[#E8D5AE] rounded-md p-3 text-xs text-[#7A5520]">
+        {preview.missingColumns.length>0&&<div className="bg-[#FEF3DC] border border-[#F6DCA5] rounded-md p-3 text-xs text-[#8A5300]">
           Deze kolomkoppen zijn niet in het bestand gevonden: <strong>{preview.missingColumns.join(", ")}</strong>. Deze velden blijven leeg.
         </div>}
-        {warning&&<div className="bg-[#F8F0DF] border border-[#E8D5AE] rounded-md p-3 text-xs text-[#7A5520]">{warning}</div>}
+        {warning&&<div className="bg-[#FEF3DC] border border-[#F6DCA5] rounded-md p-3 text-xs text-[#8A5300]">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
           <div className="bg-[#F3EEE6] rounded-md p-3 text-center">
             <p className="text-xl font-bold text-[#2B2620]">{preview.total}</p>
             <p className="text-[10px] text-[#6F675C] font-medium">Rijen gelezen</p>
           </div>
-          <div className="bg-[#EAF2EC] rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-[#2F5D3A]">{preview.nieuwCount}</p>
-            <p className="text-[10px] text-[#3E6E49] font-medium">Nieuw</p>
+          <div className="bg-[#E2F6EA] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#16774A]">{preview.nieuwCount}</p>
+            <p className="text-[10px] text-[#1F8A55] font-medium">Nieuw</p>
           </div>
-          <div className="bg-[#F8F0DF] rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-[#7A5520]">{preview.bestaandCount}</p>
-            <p className="text-[10px] text-[#8A6428] font-medium">Wordt overgeslagen (bestaat al)</p>
+          <div className="bg-[#FEF3DC] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#8A5300]">{preview.bestaandCount}</p>
+            <p className="text-[10px] text-[#9A6100] font-medium">Wordt overgeslagen (bestaat al)</p>
           </div>
-          <div className="bg-[#F8E7E3] rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-[#8A3A2F]">{preview.ongeldigCount}</p>
-            <p className="text-[10px] text-[#9A4234] font-medium">Ongeldig</p>
+          <div className="bg-[#FDE4E0] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#A42A1E]">{preview.ongeldigCount}</p>
+            <p className="text-[10px] text-[#B3301F] font-medium">Ongeldig</p>
           </div>
         </div>
         {preview.duplicaten>0&&<p className="text-xs text-[#6F675C]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuwCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-[#EAF2EC] rounded-[10px] text-xs flex-wrap">
-              <span className="tabular-nums text-[#2F5D3A] flex-shrink-0 min-w-12">{r.werknummer}</span>
+            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-[#E2F6EA] rounded-[10px] text-xs flex-wrap">
+              <span className="tabular-nums text-[#16774A] flex-shrink-0 min-w-12">{r.werknummer}</span>
               <span className="font-medium text-[#2B2620] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6F675C] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#6F675C] italic truncate max-w-20">{r.projectleider}</span>}
@@ -951,8 +951,8 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         {preview.bestaandCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#F8F0DF] rounded-[10px] text-xs">
-              <span className="tabular-nums text-[#7A5520] flex-shrink-0">{r.werknummer}</span>
+            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#FEF3DC] rounded-[10px] text-xs">
+              <span className="tabular-nums text-[#8A5300] flex-shrink-0">{r.werknummer}</span>
               <span className="text-[#6F675C] truncate">{r.projectnaam}</span>
             </div>)}
             {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6F675C] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
@@ -961,9 +961,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         {preview.ongeldigCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#F8E7E3] rounded-[10px] text-xs">
+            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#FDE4E0] rounded-[10px] text-xs">
               <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
-              <span className="text-[#8A3A2F]">{r.invalidReason}</span>
+              <span className="text-[#A42A1E]">{r.invalidReason}</span>
             </div>)}
             {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6F675C] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
@@ -1129,7 +1129,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
       {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#6F675C]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F3EEE6] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div></div>}
-      {parseError&&<div className="bg-[#F8E7E3] border border-[#EBC9C1] rounded-md p-3 text-sm text-[#8A3A2F]">{parseError}</div>}
+      {parseError&&<div className="bg-[#FDE4E0] border border-[#F6C7BF] rounded-md p-3 text-sm text-[#A42A1E]">{parseError}</div>}
       <div className="bg-[#F3EEE6] rounded-md p-4 text-xs space-y-2">
         <p className="font-semibold text-[#6F675C] uppercase tracking-wide">Verwachte kolommen</p>
         <table className="w-full text-left text-[#6F675C]">
@@ -1156,7 +1156,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     <div className="p-4 md:p-6 space-y-4">
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#F3EEE6] text-[#2B2620]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-[#EAF2EC] text-[#2F5D3A]"},{label:"Al bestaand",val:totalDup,cls:"bg-[#F8F0DF] text-[#7A5520]"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-[#F8E7E3] text-[#8A3A2F]":"bg-[#F3EEE6] text-[#6F675C]"}].map(s=>
+        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#F3EEE6] text-[#2B2620]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-[#E2F6EA] text-[#16774A]"},{label:"Al bestaand",val:totalDup,cls:"bg-[#FEF3DC] text-[#8A5300]"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-[#FDE4E0] text-[#A42A1E]":"bg-[#F3EEE6] text-[#6F675C]"}].map(s=>
           <div key={s.label} className={`rounded-md p-3 text-center ${s.cls}`}>
             <p className="text-xl font-bold">{s.val}</p>
             <p className="text-[10px] font-medium mt-0.5">{s.label}</p>
@@ -1168,31 +1168,31 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       {validRows.length>0&&<div>
         <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Te importeren ({validRows.length} medewerkers)</p>
         <div className="max-h-56 overflow-y-auto space-y-1.5">
-          {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-[10px] text-xs flex-wrap ${r.conflicts.length?"bg-[#F8F0DF] border border-[#E8D5AE]":"bg-[#EAF2EC]"}`}>
+          {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-[10px] text-xs flex-wrap ${r.conflicts.length?"bg-[#FEF3DC] border border-[#F6DCA5]":"bg-[#E2F6EA]"}`}>
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{backgroundColor:DEFAULT_DC[r.matchedEmployee!.afdeling].bg}}>{r.matchedEmployee!.naam.slice(0,1)}</div>
             <span className="font-medium text-[#2B2620] flex-shrink-0">{r.matchedEmployee!.naam}</span>
             <span className="text-[#6F675C]">{fmtDate(r.startDate)}{r.endDate!==r.startDate&&` – ${fmtDate(r.endDate)}`}</span>
             {r.hasExplicitTimes&&<span className="text-[#6F675C]">{r.startTime}–{r.endTime}</span>}
             <span className="px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 text-[10px]" style={{backgroundColor:AS[r.status].bg,color:AS[r.status].text}}>{r.status}</span>
-            {r.entriesToCreate.length>0&&<span className="text-[#3E6E49] font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
-            {r.duplicateDates.length>0&&<span className="text-[#8A6428] flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
-            {r.conflicts.length>0&&<span className="text-[#7A5520] font-semibold flex-shrink-0 inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true"/>{r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
+            {r.entriesToCreate.length>0&&<span className="text-[#1F8A55] font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
+            {r.duplicateDates.length>0&&<span className="text-[#9A6100] flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
+            {r.conflicts.length>0&&<span className="text-[#8A5300] font-semibold flex-shrink-0 inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true"/>{r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
           </div>)}
         </div>
       </div>}
 
       {/* Conflicts */}
       {conflictRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#7A5520] uppercase tracking-wide mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>Conflicten — projectplanning overlapt</p>
-        <div className="max-h-40 overflow-y-auto space-y-1.5 bg-[#F8F0DF] rounded-md p-3">
+        <p className="text-xs font-semibold text-[#8A5300] uppercase tracking-wide mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>Conflicten — projectplanning overlapt</p>
+        <div className="max-h-40 overflow-y-auto space-y-1.5 bg-[#FEF3DC] rounded-md p-3">
           {conflictRows.flatMap(r=>r.conflicts.map((c,ci)=><div key={`${r.rowIndex}-${ci}`} className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-[#2B2620] flex-shrink-0">{r.matchedEmployee!.naam}</span>
             <span className="text-[#6F675C]">·</span>
             <span className="text-[#2B2620] truncate">{c.project.projectnaam}</span>
             <span className="text-[#6F675C] tabular-nums flex-shrink-0">{c.project.werknummer}</span>
-            <span className="text-[#7A5520] flex-shrink-0">{fmtDate(c.date)}</span>
+            <span className="text-[#8A5300] flex-shrink-0">{fmtDate(c.date)}</span>
           </div>))}
-          <p className="text-[10px] text-[#8A6428] pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
+          <p className="text-[10px] text-[#9A6100] pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
         </div>
       </div>}
 
@@ -1212,9 +1212,9 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       {invalidRows.length>0&&<div>
         <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
-          {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#F8E7E3] rounded-[10px] text-xs">
+          {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#FDE4E0] rounded-[10px] text-xs">
             <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
-            <span className="text-[#8A3A2F]">{r.invalidReason}</span>
+            <span className="text-[#A42A1E]">{r.invalidReason}</span>
           </div>)}
         </div>
       </div>}
@@ -1377,7 +1377,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
                   <div className="flex items-center gap-1.5"><p className="font-semibold text-[#2B2620] text-xs">{emp.naam}</p>{sel&&<Check className="w-3 h-3 text-[#1E3A7B] flex-shrink-0"/>}</div>
                   <p className="text-[10px] text-[#6F675C] truncate">{emp.functie} · {emp.competenties.join(", ")}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 ${av.ok?"bg-[#E4EFE6] text-[#2F5D3A]":"bg-[#F3DEDA] text-[#7F2F26]"}`}>{isPlanned?"Ingepland":sel?"Wordt ingepland":av.ok?"Beschikbaar":av.reason}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 ${av.ok?"bg-[#E4EFE6] text-[#16774A]":"bg-[#F3DEDA] text-[#7F2F26]"}`}>{isPlanned?"Ingepland":sel?"Wordt ingepland":av.ok?"Beschikbaar":av.reason}</span>
               </button>;})}
             </div>
           }
@@ -1668,7 +1668,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       </div>
     </div>
     <div className="px-3 py-2 space-y-1 flex-1">
-      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#D35A48] text-white font-semibold":"text-[#4A443C] hover:text-[#2B2620] hover:bg-[#EDE6DB]"}`}>
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#E0402F] text-white font-semibold":"text-[#4A443C] hover:text-[#2B2620] hover:bg-[#EDE6DB]"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
@@ -1684,7 +1684,7 @@ function SidebarUser(){
   const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
   return <div className="space-y-2">
     <div className="flex items-center gap-2.5 min-w-0">
-      <div className="w-9 h-9 rounded-full bg-[#D35A48] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="w-9 h-9 rounded-full bg-[#E0402F] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
       <div className="min-w-0">
         <p className="text-[#2B2620] text-xs font-semibold truncate">{naam}</p>
         <p className="text-[#6F675C] text-xs truncate">{roleLabel}</p>
@@ -1740,11 +1740,11 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
   const toFact=projects.filter(p=>p.status==="Afgerond");
   const stats=[
-    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#4E8C80",bg:"#E3EFEA",nav:"projecten" as Nav},
-    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#5C5A9C",bg:"#ECE5F0",nav:"agenda" as Nav},
-    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#6A9E74",bg:"#E4EFE6",nav:"personeelsplanning" as Nav},
-    {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#B07A2A",bg:"#F6EAD3",nav:"personeelsplanning" as Nav},
-    {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#C2604D",bg:"#F5E1DC",nav:"facturatie" as Nav},
+    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#1E3A7B",bg:"#FFFFFF",nav:"projecten" as Nav},
+    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#26A69A",bg:"#D9F2EF",nav:"agenda" as Nav},
+    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#22A06B",bg:"#D9F4E5",nav:"personeelsplanning" as Nav},
+    {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#E08A12",bg:"#FDEFD3",nav:"personeelsplanning" as Nav},
+    {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#E0402F",bg:"#FCE1DC",nav:"facturatie" as Nav},
   ];
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6">
     <div>
@@ -1754,7 +1754,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
       {stats.map((s,i)=><button key={s.label} onClick={()=>s.label==="Actieve werken"?onShowActive():onNav(s.nav)} className={`${i===0?"mm-accent":"mm-kaart"} p-4 md:p-5 text-left transition-colors`}>
         <div className="flex items-center justify-between mb-2 md:mb-3">
-          <s.icon className="w-4 h-4 text-[#6F675C]" aria-hidden="true"/>
+          <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{backgroundColor:s.bg}}><s.icon className="w-4 h-4" style={{color:s.color}} aria-hidden="true"/></span>
         </div>
         <p className="text-[34px] leading-[40px] font-bold tracking-[-0.02em] text-[#2B2620]">{s.value}</p>
         <p className="text-xs text-[#6F675C] mt-0.5 leading-tight">{s.label}</p>
@@ -1961,9 +1961,9 @@ function NotitieNaVerslepen(){
 function DubbeleWerkenMelding({aantal,onOpruimen}:{aantal:number;onOpruimen:()=>Promise<void>}){
   const [vraag,setVraag]=useState(false);
   const [bezig,setBezig]=useState(false);
-  return <div className="flex items-center gap-3 flex-wrap rounded-md border border-[#E8D5AE] bg-[#F8F0DF] px-4 py-3">
-    <AlertTriangle className="w-4 h-4 text-[#8A6428] flex-shrink-0"/>
-    <p className="text-sm text-[#6A4818] flex-1 min-w-0"><b>{aantal}</b> werk{aantal===1?" staat":"en staan"} dubbel in het systeem (zelfde werknummer, omschrijving, opdrachtgever en adres).</p>
+  return <div className="flex items-center gap-3 flex-wrap rounded-md border border-[#F6DCA5] bg-[#FEF3DC] px-4 py-3">
+    <AlertTriangle className="w-4 h-4 text-[#9A6100] flex-shrink-0"/>
+    <p className="text-sm text-[#7A4A00] flex-1 min-w-0"><b>{aantal}</b> werk{aantal===1?" staat":"en staan"} dubbel in het systeem (zelfde werknummer, omschrijving, opdrachtgever en adres).</p>
     <Btn size="sm" variant="secondary" disabled={bezig} onClick={()=>setVraag(true)}>{bezig?"Bezig met opruimen…":"Dubbele werken opruimen"}</Btn>
     {vraag&&<ConfirmModal confirmLabel="Opruimen" confirmVariant="primary"
       message={`Per groep blijft één werk staan (het werk met de meeste planning). De planning van de dubbele werken verhuist naar dat werk en ${aantal} dubbele werk${aantal===1?"":"en"} word${aantal===1?"t":"en"} verwijderd. Werken met eigen documenten, taken, notities of facturatievinkjes blijven altijd staan. Doorgaan?`}
@@ -2213,7 +2213,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
             const hol=getDHol(ds);
             const shols=getSHols(ds,schoolRegions);
             const isDragOver=dragOverDate===ds;
-            return <div key={di} className={`border-r border-[rgba(60,42,20,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#F8E7E3]/50":""}`}
+            return <div key={di} className={`border-r border-[rgba(60,42,20,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#FDE4E0]/50":""}`}
               onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
               onDragLeave={()=>setDragOverDate(null)}
               onDrop={e=>handleDrop(e,day)}
@@ -2283,10 +2283,10 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
   return <div className="flex flex-col h-full overflow-hidden">
     <div className="flex border-b border-[rgba(60,42,20,0.08)]">
       <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[9px] text-[#9A9184] font-medium">Wk{wn}</span></div>
-      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(60,42,20,0.06)] ${hol?"bg-[#F8E7E3]/40":""}`}>
+      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(60,42,20,0.06)] ${hol?"bg-[#FDE4E0]/40":""}`}>
         <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#1E3A7B]":"text-[#6F675C]"}`}>{DAYS_NL[i]}</p>
         <p className={`text-sm font-bold ${isT?"text-[#2B2620]":"text-[#6F675C]"}`}>{d.getDate()}</p>
-        {hol&&<p className="text-[9px] text-[#C46A5A] truncate px-1">{hol}</p>}
+        {hol&&<p className="text-[9px] text-[#E0574A] truncate px-1">{hol}</p>}
       </div>;})}
     </div>
     <div className="flex border-b border-[rgba(60,42,20,0.08)]" style={{minHeight:adH}}>
@@ -2372,7 +2372,7 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
   const ds=toDateStr(date);const hol=getDHol(ds);const isT=ds===TODAY_STR;
   const wn=getWeekNumber(date);
   return <div className="flex flex-col h-full">
-    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(60,42,20,0.08)] ${hol?"bg-[#F8E7E3]/30":""}`}>
+    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(60,42,20,0.08)] ${hol?"bg-[#FDE4E0]/30":""}`}>
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl ${isT?"bg-[#1E3A7B] text-white":"bg-[#F3EEE6] text-[#2B2620]"}`}>{date.getDate()}</div>
       <div>
         <p className="font-bold text-lg text-[#2B2620]">{DAYS_FULL[(date.getDay()+6)%7]} {date.getDate()} {MONTHS_NL[date.getMonth()]}</p>
@@ -2477,7 +2477,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                   const shols=getSHols(ds,schoolRegions);
                   const isDragOver=dragOverDate===ds;
                   return <div key={di}
-                    className={`border-r border-[rgba(60,42,20,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#F8E7E3]/60":""}`}
+                    className={`border-r border-[rgba(60,42,20,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#FDE4E0]/60":""}`}
                     onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
                     onDragLeave={()=>setDragOverDate(null)}
                     onDrop={e=>handleDrop(e,day)}
@@ -2842,8 +2842,8 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
           <Input label="Eindtijd" value={et} onChange={v=>{tijdAangepast.current=true;setEt(v);}} type="time"/>
         </div>
       </div>
-      {!timeOk&&<p className="text-xs text-[#9A4234]">De eindtijd moet na de begintijd liggen.</p>}
-      {!inRange&&<p className="text-xs text-[#9A4234]">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
+      {!timeOk&&<p className="text-xs text-[#B3301F]">De eindtijd moet na de begintijd liggen.</p>}
+      {!inRange&&<p className="text-xs text-[#B3301F]">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#6F675C]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
       {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#2B2620]">
         <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
@@ -2852,9 +2852,9 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
 
       {!projectId&&<div className="space-y-2">
         <Input label="Werknummer" value={wn} onChange={setWn} placeholder="Bijv. 12345"/>
-        {wnQuery&&wnMatches.length===0&&<p className="text-xs text-[#9A4234]">Geen bestaand werk gevonden met dit werknummer.</p>}
+        {wnQuery&&wnMatches.length===0&&<p className="text-xs text-[#B3301F]">Geen bestaand werk gevonden met dit werknummer.</p>}
         {wnMatches.length>1&&<div className="space-y-1">
-          <p className="text-xs font-semibold text-[#7A5520]">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
+          <p className="text-xs font-semibold text-[#8A5300]">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
           <div className="border border-[rgba(60,42,20,0.1)] rounded-md divide-y divide-[rgba(60,42,20,0.06)] max-h-56 overflow-y-auto">
             {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#FAF6F0] ${sel?.id===p.id?"bg-[#EFE9DF]":""}`}>
               <p className="text-xs font-semibold text-[#2B2620]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
@@ -2892,16 +2892,16 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
         {nietDubbel.length===0?"Deze medewerker(s) staan op alle gekozen dagen al op dit werk ingepland.":`${dupCount} dag${dupCount===1?"":"en"} staan al op dit werk ingepland en worden overgeslagen.`}
       </p>}
       {sel&&vrijCount>0&&newPairs.length===0&&<p className="text-xs text-[#6F675C] rounded-[10px] bg-[#F3EEE6] px-3 py-2">Op de gekozen dagen is de medewerker vrij of afwezig; er valt niets in te plannen.</p>}
-      {blockers.length>0&&<div className="rounded-md border border-[#EBC9C1] bg-[#F8E7E3] p-3 space-y-1">
-        <p className="text-xs font-bold text-[#8A3A2F] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
-        {blockers.map((c,i)=><p key={i} className="text-xs text-[#8A3A2F]">{conflictLine(c)}</p>)}
+      {blockers.length>0&&<div className="rounded-md border border-[#F6C7BF] bg-[#FDE4E0] p-3 space-y-1">
+        <p className="text-xs font-bold text-[#A42A1E] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
+        {blockers.map((c,i)=><p key={i} className="text-xs text-[#A42A1E]">{conflictLine(c)}</p>)}
       </div>}
-      {blockers.length===0&&warnings.length>0&&<div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-2">
-        <p className="text-xs font-bold text-[#6A4818] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
-        {warnings.map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{conflictLine(c)}</p>)}
+      {blockers.length===0&&warnings.length>0&&<div className="rounded-md border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-2">
+        <p className="text-xs font-bold text-[#7A4A00] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
+        {warnings.map((c,i)=><p key={i} className="text-xs text-[#7A4A00]">{conflictLine(c)}</p>)}
         {!confirmed
           ?<div className="flex gap-2 pt-1"><Btn size="sm" onClick={()=>setConfirmed(true)}>Planning toch opslaan</Btn><Btn size="sm" variant="secondary" onClick={onClose}>Annuleren</Btn></div>
-          :<p className="text-xs text-[#6A4818] font-semibold">Bevestigd — je kunt nu opslaan.</p>}
+          :<p className="text-xs text-[#7A4A00] font-semibold">Bevestigd — je kunt nu opslaan.</p>}
       </div>}
       <div className="flex justify-between gap-2 pt-1">
         <div>{editId&&onDelete&&<Btn variant="danger" onClick={async()=>{setBusy(true);await onDelete(editId);setBusy(false);}} disabled={busy}><Trash2 className="w-3.5 h-3.5"/>Planning verwijderen</Btn>}</div>
@@ -2975,9 +2975,9 @@ function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
       <Input label={f.status==="Bezet"?"Omschrijving (waarmee bezet?)":f.status==="Gereserveerd"?"Omschrijving (waarvoor gereserveerd?)":"Omschrijving"} value={f.note} onChange={v=>upd({note:v})}
         placeholder={f.status==="Bezet"?"Bijv. cursus, keuring, ander werk…":f.status==="Gereserveerd"?"Bijv. werk in afwachting van opdracht…":"Optioneel"}/>
       <p className="text-xs text-[#6F675C]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
-      {conflicts.length>0&&<div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1">
-        <p className="text-xs font-bold text-[#6A4818] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
-        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
+      {conflicts.length>0&&<div className="rounded-md border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-1">
+        <p className="text-xs font-bold text-[#7A4A00] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
+        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#7A4A00]">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
       </div>}
       <div className="flex justify-between gap-2 pt-1">
         <div>{f.periodeId&&onDelete&&<Btn variant="danger" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(f.periodeId!);setBusy(false);}}><Trash2 className="w-3.5 h-3.5"/>Periode verwijderen</Btn>}</div>
@@ -3092,7 +3092,7 @@ function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
         {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(60,42,20,0.08)] rounded-md px-3 py-2">
           <span className="flex-1 min-w-0 truncate text-xs text-[#2B2620]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
           <button className="text-[11px] font-semibold text-[#1E3A7B]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
-          <button className="text-[11px] font-semibold text-[#9A4234]" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
+          <button className="text-[11px] font-semibold text-[#B3301F]" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
         </div>)}
       </div>}
       <div className="flex justify-end gap-2 pt-1">
@@ -4045,8 +4045,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {ffAsk&&<Modal title="Er staat al werk gepland" onClose={()=>setFfAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6F675C]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
-        <div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1 max-h-40 overflow-y-auto">
-          {ffAsk.dates.map(d=><p key={d} className="text-xs text-[#6A4818]">{fmtDate(d)}</p>)}
+        <div className="rounded-md border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-1 max-h-40 overflow-y-auto">
+          {ffAsk.dates.map(d=><p key={d} className="text-xs text-[#7A4A00]">{fmtDate(d)}</p>)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setFfAsk(null)}>Annuleren</Btn>
@@ -4099,7 +4099,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
           {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#9A4234]" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#B3301F]" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(60,42,20,0.08)]"/>
         </>}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{
@@ -4132,8 +4132,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {overlapAsk&&<Modal title="Let op — dubbele planning" onClose={()=>setOverlapAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6F675C]">Deze medewerker staat in dit tijdvak al op een ander project:</p>
-        <div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1">
-          {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{conflictLine(c)}</p>)}
+        <div className="rounded-md border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-1">
+          {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#7A4A00]">{conflictLine(c)}</p>)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setOverlapAsk(null)}>Annuleren</Btn>
@@ -4423,7 +4423,7 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
       <Btn onClick={save}>
         {saved?<><Check className="w-4 h-4"/>Opgeslagen!</>:<>Instellingen opslaan</>}
       </Btn>
-      {saved&&<p className="text-sm text-[#3E6E49] flex items-center gap-1"><Check className="w-4 h-4"/>Wijzigingen opgeslagen</p>}
+      {saved&&<p className="text-sm text-[#1F8A55] flex items-center gap-1"><Check className="w-4 h-4"/>Wijzigingen opgeslagen</p>}
     </div>
 
   </div>;
@@ -4993,7 +4993,7 @@ export default function PlanningApp(){
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden mm-werkvlak md:rounded-[28px]">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
-        {dbError&&<div className="bg-[#F8E7E3] text-[#8A3A2F] text-sm px-4 py-2 border-b border-[#EBC9C1]">Opslaan mislukt: {dbError}</div>}
+        {dbError&&<div className="bg-[#FDE4E0] text-[#A42A1E] text-sm px-4 py-2 border-b border-[#F6C7BF]">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject} onShowActive={showActiveWerken}/>}
           {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus} dubbelAantal={dubbeleGroepen.reduce((n,g)=>n+g.length-1,0)} onDubbeleOpruimen={()=>dubbeleOpruimen()}/>}

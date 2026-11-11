@@ -206,13 +206,13 @@ body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #
  * Opbouw zoals het voorbeeld: zandkleurige achtergrond, donkere afgeronde menubalk, één groot licht werkvlak
  * met zachte kaarten erin. Warmte komt uit de zandtinten, karakter uit de logokleuren blauw en rood; geen zware schaduwen of effecten. */
 :root {
-  --mm-zand: #eae4da;
+  --mm-zand: #ece8e1;
   --mm-werkvlak: #fbf8f3;
-  --mm-kaart: #f3eee6;
+  --mm-kaart: #f5f2ec;
   --mm-kaart-hover: #ede6db;
   --mm-lijn: #e7dfd2;
   --mm-inkt: #2b2620;
-  --mm-rail: #f6f2ec;
+  --mm-rail: #ffffff;
 }
 .mm-achtergrond { background: var(--mm-zand); }
 .mm-werkvlak { background: var(--mm-werkvlak); }
@@ -227,10 +227,10 @@ body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #
   box-shadow: none;
 }
 .mm-kaart:hover { background: var(--mm-kaart-hover); }
-.mm-accent { background: #e3e9f5; border-radius: 24px; }
-.mm-accent:hover { background: #d8e0f0; }
-.mm-accent p, .mm-accent svg { color: #1e3a7b !important; }
-.mm-accent p + p { color: #3d5590 !important; }
+.mm-accent { background: #1e3a7b; border-radius: 24px; }
+.mm-accent:hover { background: #18306a; }
+.mm-accent p { color: #ffffff !important; }
+.mm-accent p + p { color: rgba(255, 255, 255, 0.82) !important; }
 /* Drukke tabellen: wit met dunne warme rand, voor maximale leesbaarheid */
 .mm-tabel { background: #fffdf9 !important; border: 1px solid var(--mm-lijn) !important; border-radius: 20px !important; }
 /* Vensters (pop-ups) */
