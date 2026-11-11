@@ -44,16 +44,16 @@ const FacturatieRow = memo(function FacturatieRow({
   onOpen?: (id: string) => void;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.06)] overflow-hidden">
+    <div className="bg-white rounded-lg border border-[rgba(60,42,20,0.06)] overflow-hidden">
       <button
         type="button"
         onClick={() => onOpen?.(item.id)}
-        className="w-full text-left flex items-center gap-2 px-4 md:px-5 py-3 md:py-3.5 border-b border-[rgba(0,0,0,0.06)] hover:bg-[#F7F9FC] transition-colors"
+        className="w-full text-left flex items-center gap-2 px-4 md:px-5 py-3 md:py-3.5 border-b border-[rgba(60,42,20,0.06)] hover:bg-[#F7F9FC] transition-colors"
         style={{ borderLeftColor: accent, borderLeftWidth: 4 }}
       >
-        <span className="tabular-nums text-xs text-[#616161] hidden sm:inline">{item.werknummer}</span>
-        <span className="font-semibold text-[#242424] text-sm truncate flex-1">{item.projectnaam}</span>
-        <span className="text-[#616161] text-xs hidden md:inline">— {item.opdrachtgever}</span>
+        <span className="tabular-nums text-xs text-[#6F675C] hidden sm:inline">{item.werknummer}</span>
+        <span className="font-semibold text-[#2B2620] text-sm truncate flex-1">{item.projectnaam}</span>
+        <span className="text-[#6F675C] text-xs hidden md:inline">— {item.opdrachtgever}</span>
         <span
           className={`ml-auto flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}`}
         >
@@ -171,8 +171,8 @@ export function FacturatieView({
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#242424]">Facturatie</h1>
-        <p className="text-[#616161] text-xs md:text-sm">Termijnoverzicht per werk</p>
+        <h1 className="text-xl md:text-2xl font-bold text-[#2B2620]">Facturatie</h1>
+        <p className="text-[#6F675C] text-xs md:text-sm">Termijnoverzicht per werk</p>
       </div>
 
       {summary && (
@@ -182,9 +182,9 @@ export function FacturatieView({
             { label: "Nog te factureren", value: summary.teFactureren },
             { label: "Gefactureerd", value: summary.gefactureerd },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-md border border-[rgba(0,0,0,0.06)] px-4 py-3">
-              <p className="text-xs text-[#616161]">{s.label}</p>
-              <p className="text-lg font-bold text-[#242424]">{s.value}</p>
+            <div key={s.label} className="bg-white rounded-md border border-[rgba(60,42,20,0.06)] px-4 py-3">
+              <p className="text-xs text-[#6F675C]">{s.label}</p>
+              <p className="text-lg font-bold text-[#2B2620]">{s.value}</p>
             </div>
           ))}
         </div>
@@ -195,7 +195,7 @@ export function FacturatieView({
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Zoek op werknummer, projectnaam, opdrachtgever..."
-          className="flex-1 px-3 py-2 rounded-[4px] border border-[rgba(0,0,0,0.12)] text-sm bg-white focus:outline-none focus:border-[#1E3A7B]"
+          className="flex-1 px-3 py-2 rounded-[10px] border border-[rgba(60,42,20,0.12)] text-sm bg-white focus:outline-none focus:border-[#1E3A7B]"
         />
         <div className="flex items-center gap-2">
           <select
@@ -204,7 +204,7 @@ export function FacturatieView({
               setSortField(e.target.value as FacturatieSortField);
               setPage(1);
             }}
-            className="px-3 py-2 rounded-[4px] border border-[rgba(0,0,0,0.12)] text-sm bg-white"
+            className="px-3 py-2 rounded-[10px] border border-[rgba(60,42,20,0.12)] text-sm bg-white"
           >
             {SORTS.map((s) => (
               <option key={s.field} value={s.field}>
@@ -217,7 +217,7 @@ export function FacturatieView({
               setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
               setPage(1);
             }}
-            className="px-3 py-2 rounded-[4px] border border-[rgba(0,0,0,0.12)] text-sm bg-white text-[#242424]"
+            className="px-3 py-2 rounded-[10px] border border-[rgba(60,42,20,0.12)] text-sm bg-white text-[#2B2620]"
           >
             {sortDirection === "asc" ? "A→Z" : "Z→A"}
           </button>
@@ -229,7 +229,7 @@ export function FacturatieView({
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-2.5 py-1.5 rounded-[4px] text-xs font-medium transition-colors ${status === s ? "bg-[#1E3A7B] text-white" : "bg-white border border-[rgba(0,0,0,0.1)] text-[#616161] hover:bg-[#F5F5F5]"}`}
+            className={`px-2.5 py-1.5 rounded-[10px] text-xs font-medium transition-colors ${status === s ? "bg-[#1E3A7B] text-white" : "bg-white border border-[rgba(60,42,20,0.1)] text-[#6F675C] hover:bg-[#F3EEE6]"}`}
           >
             {s || "Alle"}
           </button>
@@ -247,7 +247,7 @@ export function FacturatieView({
             onOpen={onOpenProject}
           />
         ))}
-        {!loading && rows.length === 0 && <p className="text-center text-[#616161] py-12">Geen werken gevonden</p>}
+        {!loading && rows.length === 0 && <p className="text-center text-[#6F675C] py-12">Geen werken gevonden</p>}
       </div>
 
       {total > FACTURATIE_PAGE_SIZE && (
@@ -255,17 +255,17 @@ export function FacturatieView({
           <button
             onClick={() => setPage(Math.max(1, curPage - 1))}
             disabled={curPage <= 1}
-            className="px-3 py-1.5 rounded-[4px] border border-[rgba(0,0,0,0.15)] bg-white text-sm text-[#242424] disabled:opacity-40"
+            className="px-3 py-1.5 rounded-[10px] border border-[rgba(60,42,20,0.15)] bg-white text-sm text-[#2B2620] disabled:opacity-40"
           >
             Vorige
           </button>
-          <span className="text-xs text-[#616161]">
+          <span className="text-xs text-[#6F675C]">
             Pagina {curPage} van {pageCount} · {total} werken
           </span>
           <button
             onClick={() => setPage(Math.min(pageCount, curPage + 1))}
             disabled={curPage >= pageCount}
-            className="px-3 py-1.5 rounded-[4px] border border-[rgba(0,0,0,0.15)] bg-white text-sm text-[#242424] disabled:opacity-40"
+            className="px-3 py-1.5 rounded-[10px] border border-[rgba(60,42,20,0.15)] bg-white text-sm text-[#2B2620] disabled:opacity-40"
           >
             Volgende
           </button>

@@ -34,10 +34,10 @@ const LAGEN: { diepte: number; scroll: number; inhoud: ReactNode }[] = [
     diepte: 16,
     scroll: 0.04,
     inhoud: (
-      <g fill="#C9D5EE">
+      <g fill="#DCCFBC">
         <path d={skyline()} />
         {KRANEN.map(([x, h, arm]) => (
-          <g key={x} stroke="#C9D5EE" strokeWidth={6} strokeLinecap="round">
+          <g key={x} stroke="#DCCFBC" strokeWidth={6} strokeLinecap="round">
             <line x1={x} y1={BASIS} x2={x} y2={BASIS - h} />
             <line x1={x - Math.sign(arm) * 25} y1={BASIS - h + 8} x2={x + arm} y2={BASIS - h + 8} />
             <line x1={x + arm * 0.8} y1={BASIS - h + 8} x2={x + arm * 0.8} y2={BASIS - h + 60} strokeWidth={2} />

@@ -202,14 +202,14 @@ export function GeschiedenisLijst({ projects, employees, recordId, onOpenProject
   return <div className="space-y-3">
     <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
       <div className="relative flex-1">
-        <Search className="w-4 h-4 text-[#616161] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+        <Search className="w-4 h-4 text-[#6F675C] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
         <input value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op werk, medewerker of wie het deed" aria-label="Zoeken in geschiedenis"
-          className="w-full pl-9 pr-3 py-2 text-sm text-[#242424] border border-[rgba(0,0,0,0.15)] outline-none focus:border-[#1E3A7B]" />
+          className="w-full pl-9 pr-3 py-2 text-sm text-[#2B2620] border border-[rgba(60,42,20,0.15)] outline-none focus:border-[#1E3A7B]" />
       </div>
       <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Soort verandering">
         {SOORTEN.filter(([k]) => !recordId || (k !== "medewerkers" && k !== "overig")).map(([k, label]) => (
           <button key={k} onClick={() => setSoort(k)} aria-pressed={soort === k}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${soort === k ? "bg-[#1E3A7B] text-white border-[#1E3A7B]" : "border-[rgba(0,0,0,0.15)] text-[#616161] hover:border-[#1E3A7B]"}`}>
+            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${soort === k ? "bg-[#1E3A7B] text-white border-[#1E3A7B]" : "border-[rgba(60,42,20,0.15)] text-[#6F675C] hover:border-[#1E3A7B]"}`}>
             {label}
           </button>
         ))}
@@ -218,7 +218,7 @@ export function GeschiedenisLijst({ projects, employees, recordId, onOpenProject
 
     {fout && <p className="text-sm text-[#c0392b]">{fout}</p>}
     {!fout && !laden && items.length === 0 && (
-      <p className="text-sm text-[#616161] py-6 text-center">
+      <p className="text-sm text-[#6F675C] py-6 text-center">
         {regels.length ? "Geen veranderingen gevonden met deze filters." : "Er zijn nog geen veranderingen vastgelegd."}
       </p>
     )}
@@ -230,22 +230,22 @@ export function GeschiedenisLijst({ projects, employees, recordId, onOpenProject
         vorigeDag = dag;
         const Icoon = ICOON[u.soort];
         return <li key={r.id}>
-          {kop && <h3 className="text-xs font-semibold text-[#616161] pt-3 pb-1 first-letter:uppercase">{kop}</h3>}
-          <div className="flex gap-3 bg-white rounded-lg border border-[rgba(0,0,0,0.06)] px-3 py-2.5">
+          {kop && <h3 className="text-xs font-semibold text-[#6F675C] pt-3 pb-1 first-letter:uppercase">{kop}</h3>}
+          <div className="flex gap-3 bg-white rounded-lg border border-[rgba(60,42,20,0.06)] px-3 py-2.5">
             <div className="w-8 h-8 rounded-full bg-[#E3E9F5] flex items-center justify-center flex-shrink-0">
               <Icoon className="w-4 h-4 text-[#1E3A7B]" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-semibold text-[#242424]">{u.titel}</span>
+                <span className="text-sm font-semibold text-[#2B2620]">{u.titel}</span>
                 {u.onderwerp && (u.werkId && onOpenProject && !recordId
                   ? <button onClick={() => onOpenProject(u.werkId!)} className="text-sm text-[#1E3A7B] hover:underline truncate max-w-full text-left">{u.onderwerp}</button>
-                  : <span className="text-sm text-[#242424] truncate">{u.onderwerp}</span>)}
+                  : <span className="text-sm text-[#2B2620] truncate">{u.onderwerp}</span>)}
               </div>
               {u.regels.length > 0 && <ul className="mt-0.5 space-y-0.5">
-                {u.regels.map((x, i) => <li key={i} className="text-xs text-[#616161] break-words">{x}</li>)}
+                {u.regels.map((x, i) => <li key={i} className="text-xs text-[#6F675C] break-words">{x}</li>)}
               </ul>}
-              <p className="text-[11px] text-[#8A8A8A] mt-1">
+              <p className="text-[11px] text-[#9A9184] mt-1">
                 {new Date(r.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · {wieNaam(r.wie)}
               </p>
             </div>
@@ -254,7 +254,7 @@ export function GeschiedenisLijst({ projects, employees, recordId, onOpenProject
       })}
     </ol>
 
-    {laden && <div className="flex items-center gap-2 text-sm text-[#616161] py-3"><Loader2 className="w-4 h-4 animate-spin" />Geschiedenis laden…</div>}
+    {laden && <div className="flex items-center gap-2 text-sm text-[#6F675C] py-3"><Loader2 className="w-4 h-4 animate-spin" />Geschiedenis laden…</div>}
     {!laden && meer && regels.length > 0 && (
       <button onClick={() => void haal(regels[regels.length - 1].tijd)} className="w-full py-2 text-sm text-[#1E3A7B] font-semibold hover:underline">
         Oudere veranderingen laden
@@ -266,8 +266,8 @@ export function GeschiedenisLijst({ projects, employees, recordId, onOpenProject
 export default function GeschiedenisView(props: { projects: Werk[]; employees: Medewerker[]; onOpenProject?: (id: string) => void }) {
   return <div className="p-4 md:p-6 space-y-4 max-w-4xl">
     <div>
-      <h1 className="text-[24px] md:text-[28px] leading-[32px] md:leading-[36px] font-semibold text-[#242424]">Geschiedenis</h1>
-      <p className="text-[#616161] text-xs md:text-sm">Wie heeft wat wanneer veranderd in de planning, werken en medewerkers</p>
+      <h1 className="text-[24px] md:text-[28px] leading-[32px] md:leading-[36px] font-semibold text-[#2B2620]">Geschiedenis</h1>
+      <p className="text-[#6F675C] text-xs md:text-sm">Wie heeft wat wanneer veranderd in de planning, werken en medewerkers</p>
     </div>
     <GeschiedenisLijst {...props} />
   </div>;

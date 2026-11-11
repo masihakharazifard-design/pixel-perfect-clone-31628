@@ -5,32 +5,33 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system: Fluent 2 (Microsoft) met Maasmond-kleuren. Neutraal #F5F5F5 / #FFFFFF, tekst #242424 / #616161,
- * merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus), logo-rood #E0402F (alleen markering actief menu-item).
- * Segoe UI, afronding 4px (bediening) / 8px (kaarten), subtiele schaduw, zichtbare focus.
+ * Design system "Warme werkplaats": zandkleurige achtergrond #EAE4DA, licht werkvlak #FBF8F3, zachte kaarten #F3EEE6,
+ * inkt #2B2620 / #6F675C, menubalk in diep Maasmond-blauw #1C2A4A, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
+ * warm accent honinggeel #F2D27A (actief menu, uitgelichte kaart), logo-rood #E0402F spaarzaam.
+ * Plus Jakarta Sans, ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
  */
 
 :root {
   --font-size: 15px;
-  --background: #f5f5f5;
-  --foreground: #242424;
+  --background: #eae4da;
+  --foreground: #2b2620;
   --card: #ffffff;
-  --card-foreground: #242424;
+  --card-foreground: #2b2620;
   --popover: #ffffff;
-  --popover-foreground: #242424;
+  --popover-foreground: #2b2620;
   --primary: #1e3a7b;
   --primary-foreground: #ffffff;
-  --secondary: #f0f0f0;
-  --secondary-foreground: #242424;
-  --muted: #f0f0f0;
-  --muted-foreground: #616161;
+  --secondary: #ede6db;
+  --secondary-foreground: #2b2620;
+  --muted: #ede6db;
+  --muted-foreground: #6f675c;
   --accent: #1e3a7b;
   --accent-foreground: #ffffff;
   --destructive: #ff6b5b;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(60, 42, 20, 0.12);
   --input: transparent;
-  --input-background: #f5f5f5;
+  --input-background: #f6f2eb;
   --switch-background: #c7c7c7;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -40,8 +41,8 @@
   --chart-3: #f5a623;
   --chart-4: #6366f1;
   --chart-5: #10b981;
-  --radius: 0.5rem;
-  --sidebar: #242424;
+  --radius: 0.75rem;
+  --sidebar: #1c2a4a;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #1e3a7b;
   --sidebar-primary-foreground: #ffffff;
@@ -89,8 +90,8 @@
 }
 
 @theme inline {
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
-  --font-display: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -192,81 +193,62 @@
   }
 }
 
-/* Fluent 2 met Maasmond-kleuren */
+/* Basis: Maasmond-kleuren en lettertype */
 :root {
   --mm-rood: #E0402F;
   --mm-blauw: #1E3A7B;
-  --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-ui: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --fluent-shadow-2: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
   --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
-body { font-family: var(--font-ui); font-size: 14px; line-height: 20px; color: #242424; -webkit-font-smoothing: antialiased; }
-/* ===== Claymorphism (Maasmond) =====
- * Zachte, opgeblazen vlakken van "klei": ronde hoeken, dikke witte rand, lichte binnenglans linksboven,
- * schaduw rechtsonder. Kleuren: pastel van Maasmond-blauw en logo-rood. Tekst blijft donker op wit (leesbaar).
- * Drukke tabellen (.clay-dicht) krijgen een rustigere schaduw, zodat de inhoud voorop staat. */
+body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #2b2620; -webkit-font-smoothing: antialiased; font-feature-settings: "ss01", "cv11"; }
+/* ===== Warme werkplaats =====
+ * Opbouw zoals het voorbeeld: zandkleurige achtergrond, donkere afgeronde menubalk, één groot licht werkvlak
+ * met zachte kaarten erin. Warmte komt uit de zandtinten en het honinggele accent; geen zware schaduwen of effecten. */
 :root {
-  --clay-bg: #eaeef7;
-  --clay-diepte: rgba(30, 58, 123, 0.16);
-  --clay-schaduw:
-    10px 12px 28px var(--clay-diepte),
-    -8px -8px 22px rgba(255, 255, 255, 0.9),
-    inset -4px -5px 10px rgba(30, 58, 123, 0.07),
-    inset 4px 5px 10px rgba(255, 255, 255, 0.95);
-  --clay-in: inset 3px 3px 7px rgba(30, 58, 123, 0.13), inset -3px -3px 7px rgba(255, 255, 255, 0.95);
+  --mm-zand: #eae4da;
+  --mm-werkvlak: #fbf8f3;
+  --mm-kaart: #f3eee6;
+  --mm-kaart-hover: #ede6db;
+  --mm-lijn: #e7dfd2;
+  --mm-inkt: #2b2620;
+  --mm-rail: #1c2a4a;
+  --mm-honing: #f2d27a;
 }
-.mm-achtergrond {
-  background:
-    radial-gradient(52rem 38rem at 4% -10%, #dce5f6, transparent 65%),
-    radial-gradient(40rem 30rem at 100% 0%, #f9e2de, transparent 62%),
-    radial-gradient(56rem 40rem at 80% 110%, #dfe6f5, transparent 64%),
-    var(--clay-bg);
-}
-/* Kaarten en tegels */
-.clay, .bg-white.rounded-lg.border {
-  background: linear-gradient(145deg, #ffffff, #f6f8fc);
-  border: 2px solid rgba(255, 255, 255, 0.95) !important;
-  border-radius: 22px;
-  box-shadow: var(--clay-schaduw);
-}
-/* Vensters (pop-ups) */
-.clay-sterk {
-  background: linear-gradient(145deg, #ffffff, #f4f7fc) !important;
-  border: 3px solid #ffffff !important;
-  box-shadow: 18px 22px 48px rgba(30, 58, 123, 0.28), inset -5px -6px 12px rgba(30, 58, 123, 0.07), inset 5px 6px 12px #ffffff !important;
-}
-@media (min-width: 640px) { .clay-sterk.border { border-radius: 28px; } }
-/* Drukke tabellen: wel klei-vorm, maar rustige schaduw */
-.clay-dicht { box-shadow: 8px 10px 24px rgba(30, 58, 123, 0.12), inset 0 2px 0 #ffffff !important; border-radius: 18px !important; }
-/* Menu en kopbalk: zacht kussen langs de rand */
-.clay-paneel {
-  background: linear-gradient(180deg, #f8faff, #eff3fb);
+.mm-achtergrond { background: var(--mm-zand); }
+.mm-werkvlak { background: var(--mm-werkvlak); }
+.mm-rail { background: var(--mm-rail); color: #ffffff; }
+.mm-rail { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.mm-topbalk { background: var(--mm-werkvlak); border-bottom: 1px solid var(--mm-lijn); }
+/* Kaarten en tegels: zacht en warm, zonder rand of schaduw */
+.mm-kaart, .bg-white.rounded-lg.border {
+  background: var(--mm-kaart);
   border-color: transparent !important;
-  box-shadow: 6px 0 24px rgba(30, 58, 123, 0.08), inset -2px 0 0 #ffffff;
+  border-radius: 24px;
+  box-shadow: none;
 }
-.clay-pil {
-  background: linear-gradient(145deg, #ffffff, #f1f4fb);
-  border-radius: 14px !important;
-  box-shadow: 4px 5px 12px rgba(30, 58, 123, 0.14), -3px -3px 8px #ffffff, inset 2px 2px 3px #ffffff;
+.mm-kaart:hover { background: var(--mm-kaart-hover); }
+.mm-accent { background: var(--mm-honing); border-radius: 24px; }
+.mm-accent:hover { background: #eecb66; }
+/* Drukke tabellen: wit met dunne warme rand, voor maximale leesbaarheid */
+.mm-tabel { background: #fffdf9 !important; border: 1px solid var(--mm-lijn) !important; border-radius: 20px !important; }
+/* Vensters (pop-ups) */
+.mm-venster {
+  background: var(--mm-werkvlak);
+  border: 1px solid var(--mm-lijn);
+  box-shadow: 0 24px 60px rgba(43, 38, 32, 0.22);
 }
-/* Hoofdknoppen in Maasmond-blauw: opgeblazen, zakken in bij klikken */
-button[class*="bg-[#1E3A7B]"] {
-  background: linear-gradient(145deg, #3a5ba6, #1e3a7b) !important;
-  border-radius: 14px;
-  box-shadow: 5px 6px 14px rgba(30, 58, 123, 0.32), inset 2px 2px 4px rgba(255, 255, 255, 0.28), inset -2px -3px 5px rgba(0, 0, 0, 0.18);
-  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease-out;
-}
-button[class*="bg-[#1E3A7B]"]:hover { transform: translateY(-1px); }
-button[class*="bg-[#1E3A7B]"]:active { transform: scale(0.96); box-shadow: 2px 3px 6px rgba(30, 58, 123, 0.3), inset 3px 3px 6px rgba(0, 0, 0, 0.22); }
-/* Invoervelden: ingedrukt in de klei */
+/* Hoofdknoppen in Maasmond-blauw: rond, zoals in het voorbeeld */
+button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
+/* Invoervelden: zacht zandvlak, duidelijke focus */
 .mm-achtergrond input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .mm-achtergrond select, .mm-achtergrond textarea {
-  background-color: #f2f5fb;
-  border-color: rgba(30, 58, 123, 0.1);
+  background-color: #f6f2eb;
+  border-color: rgba(60, 42, 20, 0.14);
   border-radius: 12px;
-  box-shadow: var(--clay-in);
 }
+.mm-achtergrond input:focus, .mm-achtergrond select:focus, .mm-achtergrond textarea:focus { border-color: #1e3a7b; background-color: #ffffff; }
 /* Parallax-scène (inlogscherm): lucht en laag-voor-laag opkomen */
-.mm-scene-login { background: linear-gradient(180deg, #e4ebf8 0%, #f3f1f4 55%, #eef2fa 100%); }
+.mm-scene-login { background: linear-gradient(180deg, #f1e7d8 0%, #f6efe4 55%, #ece3d6 100%); }
 @keyframes mm-opkomst { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 .mm-laag-op { animation: mm-opkomst 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
