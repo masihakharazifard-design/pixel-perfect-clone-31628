@@ -2154,7 +2154,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
 
   return <div>
     <div className={`grid border-b border-[rgba(15,23,42,0.08)]`} style={{gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
-      {showWeekNumbers&&<div className="py-2 text-center text-[9px] font-semibold text-[#9AA1AD] uppercase">Wk</div>}
+      {showWeekNumbers&&<div className="py-2 text-center text-[10px] font-semibold text-[#9AA1AD] uppercase">Wk</div>}
       {DAYS_NL.map(d=><div key={d} className="py-2 text-center text-xs font-semibold text-[#5F6673] uppercase tracking-wide">{d}</div>)}
     </div>
     {weeks.map((week,wi)=>{
@@ -2165,7 +2165,7 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
       return <div key={wi} className="relative border-b border-[rgba(15,23,42,0.06)]" style={{height:rowH}}>
         <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
           {showWeekNumbers&&<div className="border-r border-[rgba(15,23,42,0.06)] flex items-start justify-center pt-1">
-            <span className="text-[9px] text-[#9AA1AD] font-medium">W{wn}</span>
+            <span className="text-[10px] text-[#9AA1AD] font-medium">W{wn}</span>
           </div>}
           {week.map((day,di)=>{
             const ds=toDateStr(day);
@@ -2180,8 +2180,8 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
               onDrop={e=>handleDrop(e,day)}
               onClick={()=>onClickDate(day)}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#23272F]"}`}>{day.getDate()}</div>
-              {hol&&<div className="text-[9px] text-[#B5503F] leading-tight truncate mt-0.5">{hol}</div>}
-              {shols.length>0&&<div className="text-[9px] text-[#C2362A] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
+              {hol&&<div className="text-[10px] text-[#B5503F] leading-tight truncate mt-0.5">{hol}</div>}
+              {shols.length>0&&<div className="text-[10px] text-[#C2362A] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
             </div>;
           })}
         </div>
@@ -2243,15 +2243,15 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
 
   return <div className="flex flex-col h-full overflow-hidden">
     <div className="flex border-b border-[rgba(15,23,42,0.08)]">
-      <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[9px] text-[#9AA1AD] font-medium">Wk{wn}</span></div>
+      <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[10px] text-[#9AA1AD] font-medium">Wk{wn}</span></div>
       {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(15,23,42,0.06)] ${hol?"bg-[#FDE4E0]/40":""}`}>
         <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#1E3A7B]":"text-[#5F6673]"}`}>{DAYS_NL[i]}</p>
         <p className={`text-sm font-bold ${isT?"text-[#23272F]":"text-[#5F6673]"}`}>{d.getDate()}</p>
-        {hol&&<p className="text-[9px] text-[#E0574A] truncate px-1">{hol}</p>}
+        {hol&&<p className="text-[10px] text-[#E0574A] truncate px-1">{hol}</p>}
       </div>;})}
     </div>
     <div className="flex border-b border-[rgba(15,23,42,0.08)]" style={{minHeight:adH}}>
-      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[9px] text-[#5F6673] uppercase">All-day</span></div>
+      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[10px] text-[#5F6673] uppercase">All-day</span></div>
       <div className="flex-1 relative" style={{height:adH}}>
         <div className="grid grid-cols-7 h-full absolute inset-0">{weekDays.map((_,i)=><div key={i} className="border-l border-[rgba(15,23,42,0.06)]"/>)}</div>
         {allDayEvs.map(ev=>{const st=agendaProjStyle(ev.project,dc);const lbl=agendaLabel(ev.project,employees);return <div key={ev.project.id} title={lbl} onClick={()=>onClickProject(ev.project)} draggable className="absolute h-5 rounded text-white text-xs font-medium px-1.5 flex items-center cursor-pointer hover:brightness-110 z-10 overflow-hidden" style={{left:`${ev.sc/7*100+0.3}%`,width:`${(ev.ec-ev.sc+1)/7*100-0.6}%`,top:6+ev.slot*22,...st}}><span className="truncate">{lbl}</span></div>;})}
@@ -2417,8 +2417,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
             <h3 className="font-bold text-sm text-[#23272F]">{MONTHS_NL[month]} {year}</h3>
           </div>
           <div className="grid border-b border-[rgba(15,23,42,0.06)]" style={{gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
-            {showWeekNumbers&&<div className="py-1.5 text-center text-[8px] font-semibold text-[#9AA1AD]">W</div>}
-            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[9px] font-semibold text-[#5F6673] uppercase tracking-wide">{d}</div>)}
+            {showWeekNumbers&&<div className="py-1.5 text-center text-[10px] font-semibold text-[#9AA1AD]">W</div>}
+            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[10px] font-semibold text-[#5F6673] uppercase tracking-wide">{d}</div>)}
           </div>
           {weeks.map((week,wi)=>{
             const evs=layoutWeek(week,projects);
@@ -2428,7 +2428,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
             return <div key={wi} className="relative border-b border-[rgba(15,23,42,0.05)]" style={{height:rowH}}>
               <div className="absolute inset-0" style={{display:"grid",gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
                 {showWeekNumbers&&<div className="border-r border-[rgba(15,23,42,0.05)] flex items-start justify-center pt-0.5">
-                  <span className="text-[8px] text-[#9AA1AD] font-medium">W{wn}</span>
+                  <span className="text-[10px] text-[#9AA1AD] font-medium">W{wn}</span>
                 </div>}
                 {week.map((day,di)=>{
                   const ds=toDateStr(day);
@@ -2444,8 +2444,8 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                     onDrop={e=>handleDrop(e,day)}
                     onClick={()=>onClickDate(day)}>
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#23272F]"}`}>{day.getDate()}</div>
-                    {hol&&<div className="text-[7px] text-[#B5503F] leading-tight truncate">{hol.split(" ")[0]}</div>}
-                    {shols.length>0&&!hol&&<div className="text-[7px] text-[#E0402F] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
+                    {hol&&<div className="text-[10px] text-[#B5503F] leading-tight truncate">{hol.split(" ")[0]}</div>}
+                    {shols.length>0&&!hol&&<div className="text-[10px] text-[#E0402F] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
                   </div>;
                 })}
               </div>
@@ -3101,7 +3101,7 @@ function ResizeHandle({small,active,label,onStart,onOpen}:{small:boolean;active:
       className={`absolute right-0 top-0 h-full flex items-center justify-center touch-none ${small?"w-3 cursor-pointer":"w-2.5 cursor-ew-resize"} opacity-100 md:opacity-0 md:group-hover:opacity-100`}>
       <span className="w-1 h-3/4 rounded-full bg-white/90 ring-1 ring-[#1E3A7B]"/>
     </span>
-    {active&&label&&<span className="absolute -top-4 right-0 z-20 whitespace-nowrap rounded bg-[#1E3A7B] px-1 text-[9px] text-white">{label}</span>}
+    {active&&label&&<span className="absolute -top-4 right-0 z-20 whitespace-nowrap rounded bg-[#1E3A7B] px-1 text-[10px] text-white">{label}</span>}
   </>;
 }
 
@@ -3163,7 +3163,7 @@ function MobieleWeek({dagen,medewerkers,blokkenVan,kleurVan,feestdag,onOpenProje
     </div>
     <div className="sticky top-0 z-10 bg-white border-b border-[rgba(15,23,42,0.08)]">
       <div className="grid" style={{gridTemplateColumns:raster}}>
-        <div className="text-[9px] text-[#1E3A7B] font-bold flex items-end justify-center pb-1">wk {getWeekNumber(dagen[0])}</div>
+        <div className="text-[10px] text-[#1E3A7B] font-bold flex items-end justify-center pb-1">wk {getWeekNumber(dagen[0])}</div>
         {perDag.map(({d,ds})=>{const vandaag=ds===TODAY_STR;const we=d.getDay()===0||d.getDay()===6;return <button key={ds} onClick={()=>onDag(d)} className="py-1.5 flex flex-col items-center" aria-label={`Dag ${d.getDate()} openen`}>
           <span className={`text-[10px] font-semibold ${vandaag?"text-[#1E3A7B]":we?"text-[#9AA1AD]":"text-[#5F6673]"}`}>{DAYS_NL[(d.getDay()+6)%7]}</span>
           <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold ${vandaag?"bg-[#1E3A7B] text-white":"text-[#23272F]"}`}>{d.getDate()}</span>
@@ -3173,23 +3173,23 @@ function MobieleWeek({dagen,medewerkers,blokkenVan,kleurVan,feestdag,onOpenProje
       {perDag.some(x=>x.chips.length||feestdag(x.ds))&&<div className="grid pb-1" style={{gridTemplateColumns:raster}}>
         <div/>
         {perDag.map(({ds,chips})=>{const hol=feestdag(ds);return <div key={ds} className="px-0.5 space-y-0.5 min-w-0">
-          {hol&&<div className="text-[9px] leading-tight px-1 py-0.5 rounded bg-[#FDE4E0] text-[#A42A1E] truncate" title={hol}>{hol}</div>}
-          {chips.slice(0,2).map(ch=><div key={ch.sleutel} className="text-[9px] leading-tight px-1 py-0.5 rounded truncate" style={{backgroundColor:AS[ch.status].bg,color:AS[ch.status].text}} title={ch.tekst}>{ch.tekst}</div>)}
-          {chips.length>2&&<div className="text-[9px] text-[#5F6673] px-1">+{chips.length-2}</div>}
+          {hol&&<div className="text-[10px] leading-tight px-1 py-0.5 rounded bg-[#FDE4E0] text-[#A42A1E] truncate" title={hol}>{hol}</div>}
+          {chips.slice(0,2).map(ch=><div key={ch.sleutel} className="text-[10px] leading-tight px-1 py-0.5 rounded truncate" style={{backgroundColor:AS[ch.status].bg,color:AS[ch.status].text}} title={ch.tekst}>{ch.tekst}</div>)}
+          {chips.length>2&&<div className="text-[10px] text-[#5F6673] px-1">+{chips.length-2}</div>}
         </div>;})}
       </div>}
     </div>
     <div className="grid" style={{gridTemplateColumns:raster}}>
       <div className="relative" style={{height:uren.length*UUR_H}}>
-        {uren.map((u,i)=><span key={u} className="absolute right-1 text-[9px] text-[#9AA1AD] -translate-y-1/2" style={{top:i*UUR_H}}>{i===0?"":`${String(u).padStart(2,"0")}:00`}</span>)}
+        {uren.map((u,i)=><span key={u} className="absolute right-1 text-[10px] text-[#9AA1AD] -translate-y-1/2" style={{top:i*UUR_H}}>{i===0?"":`${String(u).padStart(2,"0")}:00`}</span>)}
       </div>
       {perDag.map(({d,ds,lijst,plek})=>{const we=d.getDay()===0||d.getDay()===6;return <div key={ds} className={`relative border-l border-[rgba(15,23,42,0.06)] ${we?"bg-[#F6F8FA]":""}`}
         style={{height:uren.length*UUR_H,backgroundImage:`repeating-linear-gradient(to bottom, rgba(15,23,42,0.07) 0 1px, transparent 1px ${UUR_H}px)`}}>
         {lijst.map(b=>{const p=plek.get(b.sleutel)!;const top=(minuten(b.start)-vanUur*60)/60*UUR_H;const h=Math.max(22,(minuten(b.eind)-minuten(b.start))/60*UUR_H-2);
           return <button key={b.sleutel} onClick={()=>setDetail(b)} className="absolute rounded-[5px] px-1 py-0.5 text-left text-white overflow-hidden shadow-sm"
             style={{top,height:h,left:`calc(${(p.k/p.n)*100}% + 1px)`,width:`calc(${100/p.n}% - 2px)`,backgroundColor:b.kleur}}>
-            <span className="block text-[9px] font-semibold leading-tight overflow-hidden" style={{overflowWrap:"normal",wordBreak:"normal",hyphens:"auto"}} lang="nl">{b.proj.projectnaam||b.proj.werknummer}</span>
-            {h>48&&<span className="block text-[8px] leading-tight opacity-90 mt-0.5">{b.namen.length===1?b.namen[0].split(" ")[0]:`${b.namen.length} mensen`}</span>}
+            <span className="block text-[10px] font-semibold leading-tight overflow-hidden" style={{overflowWrap:"normal",wordBreak:"normal",hyphens:"auto"}} lang="nl">{b.proj.projectnaam||b.proj.werknummer}</span>
+            {h>48&&<span className="block text-[10px] leading-tight opacity-90 mt-0.5">{b.namen.length===1?b.namen[0].split(" ")[0]:`${b.namen.length} mensen`}</span>}
           </button>;})}
         {ds===TODAY_STR&&nuMin>=vanUur*60&&nuMin<=totUur*60&&<div className="absolute left-0 right-0 h-0.5 bg-[#E0402F] z-[1]" style={{top:(nuMin-vanUur*60)/60*UUR_H}}><span className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-[#E0402F]"/></div>}
       </div>;})}
@@ -3963,10 +3963,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               style={{...(view==="week"?{width:`calc((100% - ${NAAM_B}px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
               className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#9AA1AD]":"text-[#5F6673]"} ${isWE&&!hol?"bg-[#E8ECF1]":""}`} title={hol||undefined}>
               {/* Weeknummer boven elke maandag (en boven de eerste dag in beeld) */}
-              <div className="text-[9px] leading-none h-3 text-[#1E3A7B] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
+              <div className="text-[10px] leading-none h-3 text-[#1E3A7B] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
               <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center ${isT?"bg-[#1E3A7B] text-white":""}`}>{d.getDate()}</div>
-              {hol&&view!=="maand"&&<div className="text-[8px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
+              {hol&&view!=="maand"&&<div className="text-[10px] truncate mx-auto" style={{color:holColor}}>{hol}</div>}
               {hol&&view==="maand"&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
           </tr>
@@ -4012,8 +4012,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
-                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
-                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,1);}} disabled={bi===ps.length-1} className="text-[8px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omlaag">▼</button>
+                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,-1);}} disabled={bi===0} className="text-[10px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omhoog">▲</button>
+                    <button onClick={ev=>{ev.stopPropagation();reorderDayPlans(row,1);}} disabled={bi===ps.length-1} className="text-[10px] leading-none text-white/90 disabled:opacity-30 px-0.5" title="Omlaag">▼</button>
                   </span>}
                   {seriesEnd(row)===ds&&<ResizeHandle small={view!=="week"} active={resizePv?.id===row.id} label={resizePv?.id===row.id?resizePv.label:undefined}
                     onStart={ev=>{if(view==="week")startResize(ev,row,"date");}} onOpen={()=>setPeriodModal(row)}/>}
@@ -4039,7 +4039,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
               return<th key={i} className="py-2 px-1 text-center font-semibold text-[#5F6673]" title={hols.join(", ")||undefined}
                 style={{width:QUARTER_COL_W,...(hols.length?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${holColor}`}:null)}}>
-              <div className="text-[9px] text-[#9AA1AD] mb-0.5">Wk{wn}</div>
+              <div className="text-[10px] text-[#9AA1AD] mb-0.5">Wk{wn}</div>
               <div className="text-[10px]">{wk.getDate()} {MONTHS_NL[wk.getMonth()].slice(0,3)}</div>
               {!!hols.length&&<div className="w-1.5 h-1.5 rounded-full mx-auto mt-0.5" style={{backgroundColor:holColor}}/>}
             </th>;})}
@@ -4056,10 +4056,10 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             </td>
             {weeks.map((wk,i)=>{const ps=getEmpProjsWeek(e.id,wk);return<td key={i} onClick={()=>openPlan(e.id,toDateStr(wk))} className="py-1.5 px-1 text-center align-middle cursor-pointer hover:bg-[#F2F4F7]">
               {ps.length>0?<div className="space-y-0.5">
-                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[9px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(werkAfdKleur(p,dc),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
+                {ps.slice(0,2).map(p=><button key={p.id} onClick={ev=>{ev.stopPropagation();onOpenProject(p);}} className="rounded text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left" style={planBlockBg(werkAfdKleur(p,dc),plColorFor(p))} title={`${p.werknummer}\n${p.projectnaam||"—"}\n${plName(p,employees)||"—"} · ${getAllAfds(p).join(", ")}`}>
                   <span style={TWO_LINES}>{p.projectnaam||p.werknummer}</span>
                 </button>)}
-                {ps.length>2&&<div className="text-[9px] text-[#5F6673]">+{ps.length-2}</div>}
+                {ps.length>2&&<div className="text-[10px] text-[#5F6673]">+{ps.length-2}</div>}
               </div>:<span className="text-[10px] text-[#E2E7F0]">+</span>}
             </td>;})}
           </tr>)}
@@ -4531,6 +4531,13 @@ function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,
 // ===== APP =====
 export default function PlanningApp(){
   const [nav,setNav]=useState<Nav>("dashboard");
+  // Slepen ook met de vinger (telefoon/tablet): lang drukken op een blok en dan slepen. Gewoon scrollen blijft werken.
+  useEffect(()=>{if(!("ontouchstart" in window))return;let actief=true;
+    void Promise.all([import("mobile-drag-drop"),import("mobile-drag-drop/scroll-behaviour"),import("mobile-drag-drop/default.css")]).then(([dnd,scroll])=>{
+      if(!actief)return;dnd.polyfill({holdToDrag:350,dragImageTranslateOverride:scroll.scrollBehaviourDragImageTranslateOverride});
+      window.addEventListener("touchmove",()=>{},{passive:false});
+    }).catch(()=>{});
+    return()=>{actief=false;};},[]);
   // Alleen beheerders en planners mogen werken opruimen (zelfde regel als de database: can_plan)
   const {roles:mijnRollen}=useAuth();
   const magPlannen=mijnRollen.includes("beheerder")||mijnRollen.includes("planner");
@@ -4880,7 +4887,23 @@ export default function PlanningApp(){
       });
       if(changedProjects.length)await upsertRows("projects",changedProjects);
       setDbError("");
-      if(okMsg)toast.success(okMsg);
+      // Ongedaan maken: precies de vorige toestand van de geraakte regels terugzetten
+      const oudPerId=new Map(prevAvail.map(a=>[a.id,a]));
+      const terugZetten=[...upserts.map(u=>oudPerId.get(u.id)),...removeIds.map(id=>oudPerId.get(id))].filter((a):a is AvailEntry=>!!a);
+      const weghalen=upserts.filter(u=>!oudPerId.has(u.id)).map(u=>u.id);
+      const oudeWerken=changedProjects.map(p=>prevProjects.find(x=>x.id===p.id)).filter((p):p is Project=>!!p);
+      const herstel=async()=>{
+        localWriteRef.current++;
+        setAvail(cur=>{const weg=new Set([...weghalen,...terugZetten.map(a=>a.id)]);return [...cur.filter(a=>!weg.has(a.id)),...terugZetten];});
+        if(oudeWerken.length)setProjects(cur=>cur.map(p=>oudeWerken.find(o=>o.id===p.id)||p));
+        try{
+          await savePlanningRows(terugZetten,weghalen,"ongedaan_gemaakt");
+          if(oudeWerken.length)await upsertRows("projects",oudeWerken);
+          toast.success("Wijziging ongedaan gemaakt.");
+        }catch(e){fail("Ongedaan maken lukte niet:",e);}
+      };
+      if(terugZetten.length||weghalen.length)toast.success(okMsg||"Planning bijgewerkt.",{action:{label:"Ongedaan maken",onClick:()=>{void herstel();}},duration:8000});
+      else if(okMsg)toast.success(okMsg);
       return true;
     }catch(e){
       setAvail(prevAvail);setProjects(prevProjects);

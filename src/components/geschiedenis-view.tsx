@@ -27,6 +27,8 @@ const PLAN_ACTIES: Record<string, string> = {
   planning_verwijderd_bij_medewerker: "Planning verwijderd (medewerker verwijderd)",
   afwezigheid_opgeslagen: "Afwezigheid opgeslagen",
   afwezigheid_verwijderd: "Afwezigheid verwijderd",
+  afwezigheid_geimporteerd: "Afwezigheid geïmporteerd",
+  ongedaan_gemaakt: "Wijziging ongedaan gemaakt",
 };
 const VELDEN: Record<string, string> = {
   werknummer: "Werknummer", projectnr: "Projectnummer", projectnaam: "Naam", opdrachtgever: "Opdrachtgever", adres: "Adres",
