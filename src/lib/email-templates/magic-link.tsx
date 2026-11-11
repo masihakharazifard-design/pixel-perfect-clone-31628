@@ -33,7 +33,7 @@ const code = {
   fontSize: '30px',
   fontWeight: 'bold' as const,
   letterSpacing: '6px',
-  color: '#0ABFB8',
+  color: '#1E3A7B',
   margin: '0 0 20px',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }

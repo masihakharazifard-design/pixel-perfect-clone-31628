@@ -56,7 +56,7 @@ export default function GebruikersbeheerView() {
       </div>
 
       {fout && (
-        <div className="bg-[#FFE8E5] text-[#B03A2E] text-sm rounded-md px-4 py-3">{fout}</div>
+        <div className="bg-[#F5E1DC] text-[#B03A2E] text-sm rounded-md px-4 py-3">{fout}</div>
       )}
 
       <div className="bg-white rounded-lg border border-[rgba(60,42,20,0.06)] overflow-auto">
@@ -86,11 +86,11 @@ export default function GebruikersbeheerView() {
                   <td className="px-4 py-2.5 text-[#2B2620]">{u.email || "—"}</td>
                   <td className="px-4 py-2.5">
                     {r ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#EBEFF7] text-[#0A7E79]">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#EFE9DF] text-[#0A7E79]">
                         {ROLE_LABELS[r]}
                       </span>
                     ) : (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#FEF0D3] text-[#8A5B00]">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-[#F6EAD3] text-[#8A5B00]">
                         Geen toegang
                       </span>
                     )}

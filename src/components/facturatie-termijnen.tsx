@@ -60,7 +60,7 @@ export function FacturatieTermijnen({ projectId, meta }: { projectId: string; me
             </div>
             <button
               onClick={() => toggle(key)}
-              className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all border ${verstuurd ? "bg-[#EBEFF7] text-[#1E3A7B] border-[#1E3A7B]" : "bg-[#EDE6DB] text-[#6F675C] border-transparent hover:border-[#6F675C]"}`}
+              className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all border ${verstuurd ? "bg-[#EFE9DF] text-[#1E3A7B] border-[#1E3A7B]" : "bg-[#EDE6DB] text-[#6F675C] border-transparent hover:border-[#6F675C]"}`}
             >
               {verstuurd ? "✓ Verstuurd" : "Open"}
             </button>

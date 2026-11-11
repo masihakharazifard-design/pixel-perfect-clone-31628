@@ -124,39 +124,48 @@ function sortEmployeesByPlanningOrder<T extends {id:string}>(list:T[],order:stri
 
 // ===== DEPT COLOR CONTEXT =====
 const DEFAULT_DC:Record<Afdeling,{bg:string;light:string;border:string}> = {
-  Stoffering:  {bg:"#0ABFB8",light:"#E0F7F6",border:"#0ABFB8"},
-  Schilderwerk:{bg:"#FF6B5B",light:"#FFE8E5",border:"#FF6B5B"},
-  Zonwering:   {bg:"#F5A623",light:"#FEF0D3",border:"#F5A623"},
+  Stoffering:  {bg:"#4E8C80",light:"#E3EFEA",border:"#4E8C80"},
+  Schilderwerk:{bg:"#C2604D",light:"#F5E1DC",border:"#C2604D"},
+  Zonwering:   {bg:"#B07A2A",light:"#F6EAD3",border:"#B07A2A"},
 };
 const DC = DEFAULT_DC;
+// Oude felle standaardkleuren (in eerder opgeslagen instellingen) omzetten naar de zachte tinten.
+// Zelf gekozen kleuren blijven ongemoeid.
+const OUDE_AFD_KLEUR:Record<string,string>={"#0ABFB8":"#4E8C80","#E0F7F6":"#E3EFEA","#FF6B5B":"#C2604D","#FFE8E5":"#F5E1DC","#F5A623":"#B07A2A","#FEF0D3":"#F6EAD3"};
+const zacht=(k?:string)=>k?OUDE_AFD_KLEUR[k.toUpperCase()]??k:k;
+function verzachtOudeKleuren(s:AppSettings):AppSettings{
+  const dc={...s.deptColors};
+  (Object.keys(dc) as Afdeling[]).forEach(a=>{const x=dc[a];if(x)dc[a]={bg:zacht(x.bg)!,light:zacht(x.light)!,border:zacht(x.border)!};});
+  return {...s,deptColors:dc,...(s.planFilters?{planFilters:s.planFilters.map(p=>({...p,kleur:zacht(p.kleur)!}))}:{})};
+}
 const DeptColorCtx = createContext<Record<Afdeling,{bg:string;light:string;border:string}>>(DEFAULT_DC);
 function useDC(){return useContext(DeptColorCtx);}
 
 const INIT_SETTINGS:AppSettings = {
   bedrijfsnaam:"PlanPro BV",adres:"Industrieweg 14",postcode:"1234 AB",
   plaats:"Amsterdam",telefoon:"020-1234567",email:"info@planpro.nl",
-  primaryColor:"#2B2620",accentColor:"#0ABFB8",
+  primaryColor:"#2B2620",accentColor:"#4E8C80",
   deptColors:DEFAULT_DC,
 };
 
 // ===== CONSTANTS =====
 const SB:Record<ProjectStatus,string> = {
-  Offerte:"bg-slate-100 text-slate-600",
+  Offerte:"bg-[#EEEAE4] text-[#5A5248]",
   Bevestigd:"bg-[#E3E9F5] text-[#1E3A7B]",
-  "In uitvoering":"bg-emerald-100 text-emerald-700",
-  Afgerond:"bg-[#EEF0F3] text-[#4B5563]",
-  Gefactureerd:"bg-amber-100 text-amber-700",
+  "In uitvoering":"bg-[#E4EFE6] text-[#2F5D3A]",
+  Afgerond:"bg-[#ECE7E0] text-[#5A5248]",
+  Gefactureerd:"bg-[#F6ECD6] text-[#7A5520]",
 };
 const AS:Record<AvailStatus,{bg:string;text:string;dot:string}> = {
-  Beschikbaar:        {bg:"#D1FAE5",text:"#065F46",dot:"#10B981"},
-  Ingepland:          {bg:"#DBEAFE",text:"#1E40AF",dot:"#3B82F6"},
-  Bezet:              {bg:"#FFE4E6",text:"#9F1239",dot:"#F43F5E"},
+  Beschikbaar:        {bg:"#E4EFE6",text:"#2F5D3A",dot:"#6A9E74"},
+  Ingepland:          {bg:"#E3E8F2",text:"#2B4170",dot:"#5A73A8"},
+  Bezet:              {bg:"#F5E1DC",text:"#8A3A2F",dot:"#C2604D"},
   // Gereserveerd: medewerker vastgehouden (met omschrijving); blokkeert inplannen niet
-  Gereserveerd:       {bg:"#FEF3C7",text:"#92400E",dot:"#F59E0B"},
-  "Niet beschikbaar": {bg:"#FEE2E2",text:"#991B1B",dot:"#EF4444"},
-  Vakantie:           {bg:"#EDE9FE",text:"#5B21B6",dot:"#8B5CF6"},
-  Ziek:               {bg:"#F1F3F6",text:"#374151",dot:"#6B7280"},
-  Vrij:               {bg:"#F3F4F6",text:"#374151",dot:"#9CA3AF"},
+  Gereserveerd:       {bg:"#F6ECD6",text:"#7A5520",dot:"#C99A45"},
+  "Niet beschikbaar": {bg:"#F3DEDA",text:"#7F2F26",dot:"#B5503F"},
+  Vakantie:           {bg:"#ECE5F0",text:"#5A4370",dot:"#8E78A6"},
+  Ziek:               {bg:"#EEEAE4",text:"#4A443C",dot:"#8A8378"},
+  Vrij:               {bg:"#F1EDE7",text:"#4A443C",dot:"#A39B8F"},
 };
 const DUTCH_HOL = [
   {date:"2025-01-01",name:"Nieuwjaarsdag"},{date:"2025-04-18",name:"Goede Vrijdag"},
@@ -250,7 +259,7 @@ function combineLocalDT(dateStr:string,timeStr:string,defH:number,defM:number):s
 function sameDay(a:Date,b:Date){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function getDHol(s:string){return DUTCH_HOL.find(h=>h.date===s)?.name||null;}
 // ===== Feestdagkleur (instelbaar, standaard fuchsia) =====
-const HOLIDAY_COLOR="#D946EF";
+const HOLIDAY_COLOR="#A0668F";
 function holidayColorOf(s?:{holidayColor?:string}){return s?.holidayColor||HOLIDAY_COLOR;}
 function withAlpha(hex:string,alpha:number){
   const h=hex.replace("#","");
@@ -360,8 +369,8 @@ function planStatusOf(p:Project,av:AvailEntry[]):PlanStatus{
 // Standaardkleuren voor de planningsbadges (overschrijfbaar via Kleuren beheren)
 const DEFAULT_BADGE_COLORS:Record<PlanStatus,string>={
   "Niet ingepland":"#94A3B8",
-  "Gedeeltelijk ingepland":"#F59E0B",
-  "Ingepland":"#10B981",
+  "Gedeeltelijk ingepland":"#C99A45",
+  "Ingepland":"#6A9E74",
 };
 const PLAN_STATUS_LABEL:Record<PlanStatus,string>={
   "Niet ingepland":"Niet ingepland",
@@ -448,7 +457,7 @@ function planningNaarPeriode(rows:AvailEntry[],nS:string,nE:string,av:AvailEntry
 const warningsOnly=(c:PlanConflict[])=>c.filter(x=>x.kind==="warning");
 const conflictLine=(c:PlanConflict)=>`${c.employee} · ${c.label} · ${fmtDate(c.date)} · ${c.time}`;
 // ===== TEAMKLEUREN =====
-const TEAM_PALETTE=["#3B82F6","#10B981","#8B5CF6","#F59E0B","#EC4899","#14B8A6","#6366F1","#EF4444","#84CC16","#0EA5E9","#D946EF","#F97316"];
+const TEAM_PALETTE=["#5A73A8","#6A9E74","#8E78A6","#C99A45","#B5637E","#14B8A6","#5C5A9C","#B5503F","#7E9A4A","#0EA5E9","#A0668F","#C77A45"];
 function teamKey(projectId:string,date:string,empIds:string[]):string{return `${projectId}|${date}|${[...empIds].sort().join(",")}`;}
 function teamColor(key:string,overrides:Record<string,string>={}):string{
   if(overrides[key])return overrides[key];
@@ -501,7 +510,7 @@ function canonPl(naam:string):string{
 function projectleiderKey(p:Project,employees:Employee[]):string{return canonPl(plName(p,employees));}
 // Projectleiderkleuren: vaste reeks die duidelijk afwijkt van de afdelingskleuren
 // (Stoffering turquoise, Schilderwerk koraal, Zonwering oranje), zodat het tweede kleurvlak altijd opvalt.
-const PL_PALETTE=["#2563EB","#7C3AED","#15803D","#C026D3","#1E3A8A","#92400E","#4338CA","#65A30D","#9F1239","#0369A1","#6D28D9","#334155"];
+const PL_PALETTE=["#3E5C99","#7A5A9E","#4F7D52","#A05A86","#2F4A7A","#7A5520","#4F4C8F","#6E8A3A","#8A3A2F","#3F7A8C","#6B4E8A","#4A5563"];
 function projectleiderColorOf(name:string,map:Record<string,string>={}):string{
   if(!name)return FALLBACK_PROJECT_COLOR;
   // Handmatige kleur (ook als die onder een andere schrijfwijze is opgeslagen), anders vast op naam
@@ -710,20 +719,20 @@ function AvailBadge({status}:{status:AvailStatus}){
   </span>;
 }
 function Btn({children,onClick,variant="primary",size="md",className="",disabled=false}:{children:React.ReactNode;onClick?:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";size?:"sm"|"md";className?:string;disabled?:boolean}){
-  const v={primary:"bg-[#1E3A7B] text-white hover:bg-[#18306A]",secondary:"bg-[#FBF8F3] border border-[rgba(60,42,20,0.16)] text-[#2B2620] hover:bg-[#F3EEE6]",ghost:"text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB]",danger:"bg-[#FF6B5B] text-white hover:bg-[#e05c4d]"};
+  const v={primary:"bg-[#1E3A7B] text-white hover:bg-[#18306A]",secondary:"bg-[#FBF8F3] border border-[rgba(60,42,20,0.16)] text-[#2B2620] hover:bg-[#F3EEE6]",ghost:"text-[#6F675C] hover:text-[#2B2620] hover:bg-[#EDE6DB]",danger:"bg-[#C2604D] text-white hover:bg-[#A9513F]"};
   const s={sm:"px-3 py-1.5 text-xs",md:"px-4 py-2 text-sm"};
   return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition-colors ${v[variant]} ${s[size]} ${disabled?"opacity-40 cursor-not-allowed":""} ${className}`}>{children}</button>;
 }
 function Input({label,value,onChange,type="text",placeholder="",required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;type?:string;placeholder?:string;required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
       className="w-full px-3 py-2 bg-[#F3EEE6] border border-[rgba(60,42,20,0.1)] rounded-[10px] text-sm text-[#2B2620] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#9A9184]" />
   </div>;
 }
 function Select({label,value,onChange,options,required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[];required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#FF6B5B] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
     <select value={value} onChange={e=>onChange(e.target.value)}
       className="w-full px-3 py-2 bg-[#F3EEE6] border border-[rgba(60,42,20,0.1)] rounded-[10px] text-sm text-[#2B2620] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B]">
       <option value="">Selecteer...</option>
@@ -755,7 +764,7 @@ function ConfirmModal({message,onConfirm,onCancel,confirmLabel="Verwijderen",con
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
     <div className="relative mm-venster rounded-[28px] w-full max-w-sm p-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-[#FF6B5B]"/></div>
+        <div className="w-10 h-10 rounded-full bg-[#F5E1DC] flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-[#C2604D]"/></div>
         <div><h3 className="font-semibold text-[#2B2620]">Bevestigen</h3><p className="text-sm text-[#6F675C]">{message}</p></div>
       </div>
       <div className="flex gap-2 justify-end"><Btn variant="secondary" onClick={onCancel}>Annuleren</Btn><Btn variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Btn></div>
@@ -868,7 +877,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           <p className="text-center text-sm text-[#6F675C]">Excelbestand verwerken… {progress}%</p>
           <div className="h-1.5 rounded-full bg-[#F3EEE6] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div>
         </div>}
-        {parseError&&<div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">{parseError}</div>}
+        {parseError&&<div className="bg-[#F8E7E3] border border-[#EBC9C1] rounded-md p-3 text-sm text-[#8A3A2F]">{parseError}</div>}
         <div className="bg-[#F3EEE6] rounded-md p-4 space-y-3 text-xs">
           <p className="font-semibold text-[#6F675C] uppercase tracking-wide">Verwachte kolommen</p>
           <table className="w-full text-left text-[#6F675C]">
@@ -889,46 +898,46 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               ].map(([col,veld,req])=><tr key={col}><td className="py-1 tabular-nums">{col}</td><td className="py-1">{veld}</td><td className="py-1 text-[#1E3A7B] font-bold">{req}</td></tr>)}
             </tbody>
           </table>
-          <div className="flex items-start gap-2 bg-amber-50 rounded-[10px] px-3 py-2">
-            <span className="text-amber-500 flex-shrink-0 font-bold">★</span>
-            <p className="text-amber-700"><strong>Turnkey</strong> = alle 3 afdelingen. <strong>Combinatie</strong> = meerdere afdelingen. <strong>Schilderwerk binnen/buiten</strong>, <strong>Stoffering klein/groot</strong>, <strong>Zonwering binnen/buiten</strong> worden automatisch herkend.</p>
+          <div className="flex items-start gap-2 bg-[#F8F0DF] rounded-[10px] px-3 py-2">
+            <span className="text-[#A57A35] flex-shrink-0 font-bold">★</span>
+            <p className="text-[#7A5520]"><strong>Turnkey</strong> = alle 3 afdelingen. <strong>Combinatie</strong> = meerdere afdelingen. <strong>Schilderwerk binnen/buiten</strong>, <strong>Stoffering klein/groot</strong>, <strong>Zonwering binnen/buiten</strong> worden automatisch herkend.</p>
           </div>
         </div>
       </>}
       {step==="preview"&&preview&&<>
-        {preview.missingColumns.length>0&&<div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-700">
+        {preview.missingColumns.length>0&&<div className="bg-[#F8F0DF] border border-[#E8D5AE] rounded-md p-3 text-xs text-[#7A5520]">
           Deze kolomkoppen zijn niet in het bestand gevonden: <strong>{preview.missingColumns.join(", ")}</strong>. Deze velden blijven leeg.
         </div>}
-        {warning&&<div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-700">{warning}</div>}
+        {warning&&<div className="bg-[#F8F0DF] border border-[#E8D5AE] rounded-md p-3 text-xs text-[#7A5520]">{warning}</div>}
         <div className="grid grid-cols-4 gap-2 md:gap-3">
           <div className="bg-[#F3EEE6] rounded-md p-3 text-center">
             <p className="text-xl font-bold text-[#2B2620]">{preview.total}</p>
             <p className="text-[10px] text-[#6F675C] font-medium">Rijen gelezen</p>
           </div>
-          <div className="bg-emerald-50 rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-emerald-700">{preview.nieuwCount}</p>
-            <p className="text-[10px] text-emerald-600 font-medium">Nieuw</p>
+          <div className="bg-[#EAF2EC] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#2F5D3A]">{preview.nieuwCount}</p>
+            <p className="text-[10px] text-[#3E6E49] font-medium">Nieuw</p>
           </div>
-          <div className="bg-amber-50 rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-amber-700">{preview.bestaandCount}</p>
-            <p className="text-[10px] text-amber-600 font-medium">Wordt overgeslagen (bestaat al)</p>
+          <div className="bg-[#F8F0DF] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#7A5520]">{preview.bestaandCount}</p>
+            <p className="text-[10px] text-[#8A6428] font-medium">Wordt overgeslagen (bestaat al)</p>
           </div>
-          <div className="bg-red-50 rounded-md p-3 text-center">
-            <p className="text-xl font-bold text-red-700">{preview.ongeldigCount}</p>
-            <p className="text-[10px] text-red-600 font-medium">Ongeldig</p>
+          <div className="bg-[#F8E7E3] rounded-md p-3 text-center">
+            <p className="text-xl font-bold text-[#8A3A2F]">{preview.ongeldigCount}</p>
+            <p className="text-[10px] text-[#9A4234] font-medium">Ongeldig</p>
           </div>
         </div>
         {preview.duplicaten>0&&<p className="text-xs text-[#6F675C]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuwCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
-            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-[10px] text-xs flex-wrap">
-              <span className="tabular-nums text-emerald-700 flex-shrink-0 min-w-12">{r.werknummer}</span>
+            {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-[#EAF2EC] rounded-[10px] text-xs flex-wrap">
+              <span className="tabular-nums text-[#2F5D3A] flex-shrink-0 min-w-12">{r.werknummer}</span>
               <span className="font-medium text-[#2B2620] flex-1 min-w-0 truncate">{r.projectnaam}</span>
               {r.opdrachtgever&&<span className="text-[#6F675C] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#6F675C] italic truncate max-w-20">{r.projectleider}</span>}
               {r.turnkey
-                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#0ABFB8 33%,#FF6B5B 33% 66%,#F5A623 66%)"}}>Turnkey</span>
+                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#4E8C80 33%,#C2604D 33% 66%,#B07A2A 66%)"}}>Turnkey</span>
                 :<span className="flex gap-0.5 flex-shrink-0">{r.afdelingen.map(a=><span key={a} className="w-2 h-2 rounded-full" style={{backgroundColor:DEFAULT_DC[a].bg}} title={a}/>)}</span>
               }
             </div>)}
@@ -938,8 +947,8 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         {preview.bestaandCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-amber-50 rounded-[10px] text-xs">
-              <span className="tabular-nums text-amber-700 flex-shrink-0">{r.werknummer}</span>
+            {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#F8F0DF] rounded-[10px] text-xs">
+              <span className="tabular-nums text-[#7A5520] flex-shrink-0">{r.werknummer}</span>
               <span className="text-[#6F675C] truncate">{r.projectnaam}</span>
             </div>)}
             {preview.bestaandCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6F675C] px-1">Nog {preview.bestaandCount-PREVIEW_LIMIT} andere regels.</p>}
@@ -948,9 +957,9 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         {preview.ongeldigCount>0&&<div>
           <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
-            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-[10px] text-xs">
-              <span className="text-red-500 tabular-nums flex-shrink-0">R{r.rowIndex}</span>
-              <span className="text-red-700">{r.invalidReason}</span>
+            {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#F8E7E3] rounded-[10px] text-xs">
+              <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
+              <span className="text-[#8A3A2F]">{r.invalidReason}</span>
             </div>)}
             {preview.ongeldigCount>PREVIEW_LIMIT&&<p className="text-xs text-[#6F675C] px-1">Nog {preview.ongeldigCount-PREVIEW_LIMIT} andere regels met een fout.</p>}
           </div>
@@ -1116,7 +1125,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" disabled={loading} onChange={e=>{if(e.target.files?.[0])void parseFile(e.target.files[0]);}}/>
       </div>
       {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#6F675C]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F3EEE6] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div></div>}
-      {parseError&&<div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">{parseError}</div>}
+      {parseError&&<div className="bg-[#F8E7E3] border border-[#EBC9C1] rounded-md p-3 text-sm text-[#8A3A2F]">{parseError}</div>}
       <div className="bg-[#F3EEE6] rounded-md p-4 text-xs space-y-2">
         <p className="font-semibold text-[#6F675C] uppercase tracking-wide">Verwachte kolommen</p>
         <table className="w-full text-left text-[#6F675C]">
@@ -1143,7 +1152,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
     <div className="p-4 md:p-6 space-y-4">
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#F3EEE6] text-[#2B2620]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-emerald-50 text-emerald-700"},{label:"Al bestaand",val:totalDup,cls:"bg-amber-50 text-amber-700"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-red-50 text-red-700":"bg-[#F3EEE6] text-[#6F675C]"}].map(s=>
+        {[{label:"Rijen gelezen",val:preview.total,cls:"bg-[#F3EEE6] text-[#2B2620]"},{label:"Nieuw aan te maken",val:totalNew,cls:"bg-[#EAF2EC] text-[#2F5D3A]"},{label:"Al bestaand",val:totalDup,cls:"bg-[#F8F0DF] text-[#7A5520]"},{label:"Conflicten",val:conflictRows.length,cls:conflictRows.length?"bg-[#F8E7E3] text-[#8A3A2F]":"bg-[#F3EEE6] text-[#6F675C]"}].map(s=>
           <div key={s.label} className={`rounded-md p-3 text-center ${s.cls}`}>
             <p className="text-xl font-bold">{s.val}</p>
             <p className="text-[10px] font-medium mt-0.5">{s.label}</p>
@@ -1155,31 +1164,31 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       {validRows.length>0&&<div>
         <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Te importeren ({validRows.length} medewerkers)</p>
         <div className="max-h-56 overflow-y-auto space-y-1.5">
-          {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-[10px] text-xs flex-wrap ${r.conflicts.length?"bg-amber-50 border border-amber-200":"bg-emerald-50"}`}>
+          {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-[10px] text-xs flex-wrap ${r.conflicts.length?"bg-[#F8F0DF] border border-[#E8D5AE]":"bg-[#EAF2EC]"}`}>
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{backgroundColor:DEFAULT_DC[r.matchedEmployee!.afdeling].bg}}>{r.matchedEmployee!.naam.slice(0,1)}</div>
             <span className="font-medium text-[#2B2620] flex-shrink-0">{r.matchedEmployee!.naam}</span>
             <span className="text-[#6F675C]">{fmtDate(r.startDate)}{r.endDate!==r.startDate&&` – ${fmtDate(r.endDate)}`}</span>
             {r.hasExplicitTimes&&<span className="text-[#6F675C]">{r.startTime}–{r.endTime}</span>}
             <span className="px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 text-[10px]" style={{backgroundColor:AS[r.status].bg,color:AS[r.status].text}}>{r.status}</span>
-            {r.entriesToCreate.length>0&&<span className="text-emerald-600 font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
-            {r.duplicateDates.length>0&&<span className="text-amber-600 flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
-            {r.conflicts.length>0&&<span className="text-amber-700 font-semibold flex-shrink-0">⚠ {r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
+            {r.entriesToCreate.length>0&&<span className="text-[#3E6E49] font-semibold flex-shrink-0">+{r.entriesToCreate.length} dag{r.entriesToCreate.length!==1?"en":""}</span>}
+            {r.duplicateDates.length>0&&<span className="text-[#8A6428] flex-shrink-0">{r.duplicateDates.length}× al bestaand</span>}
+            {r.conflicts.length>0&&<span className="text-[#7A5520] font-semibold flex-shrink-0">⚠ {r.conflicts.length} conflict{r.conflicts.length!==1?"en":""}</span>}
           </div>)}
         </div>
       </div>}
 
       {/* Conflicts */}
       {conflictRows.length>0&&<div>
-        <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">⚠ Conflicten — projectplanning overlapt</p>
-        <div className="max-h-40 overflow-y-auto space-y-1.5 bg-amber-50 rounded-md p-3">
+        <p className="text-xs font-semibold text-[#7A5520] uppercase tracking-wide mb-2">⚠ Conflicten — projectplanning overlapt</p>
+        <div className="max-h-40 overflow-y-auto space-y-1.5 bg-[#F8F0DF] rounded-md p-3">
           {conflictRows.flatMap(r=>r.conflicts.map((c,ci)=><div key={`${r.rowIndex}-${ci}`} className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-[#2B2620] flex-shrink-0">{r.matchedEmployee!.naam}</span>
             <span className="text-[#6F675C]">·</span>
             <span className="text-[#2B2620] truncate">{c.project.projectnaam}</span>
             <span className="text-[#6F675C] tabular-nums flex-shrink-0">{c.project.werknummer}</span>
-            <span className="text-amber-700 flex-shrink-0">{fmtDate(c.date)}</span>
+            <span className="text-[#7A5520] flex-shrink-0">{fmtDate(c.date)}</span>
           </div>))}
-          <p className="text-[10px] text-amber-600 pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
+          <p className="text-[10px] text-[#8A6428] pt-1">De projectplanning wordt <strong>niet</strong> verwijderd. De vakantie wordt naast de bestaande planning toegevoegd.</p>
         </div>
       </div>}
 
@@ -1199,9 +1208,9 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       {invalidRows.length>0&&<div>
         <p className="text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
-          {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-red-50 rounded-[10px] text-xs">
-            <span className="text-red-500 tabular-nums flex-shrink-0">R{r.rowIndex}</span>
-            <span className="text-red-700">{r.invalidReason}</span>
+          {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#F8E7E3] rounded-[10px] text-xs">
+            <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
+            <span className="text-[#8A3A2F]">{r.invalidReason}</span>
           </div>)}
         </div>
       </div>}
@@ -1307,7 +1316,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <div>
-        <label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">Afdeling(en)<span className="text-[#FF6B5B] ml-0.5">*</span></label>
+        <label className="block text-xs font-semibold text-[#6F675C] uppercase tracking-wide mb-1">Afdeling(en)<span className="text-[#C2604D] ml-0.5">*</span></label>
         <div className="flex gap-2 flex-wrap">
           {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(60,42,20,0.15)] text-[#6F675C] hover:border-[#6F675C]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
         </div>
@@ -1358,13 +1367,13 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
           {availableEmps.length===0
             ?<p className="text-xs text-[#6F675C] italic py-1">Geen beschikbare medewerkers gevonden voor deze afdeling, competenties en periode.</p>
             :<div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-              {availableEmps.map(({emp,av:av0})=>{const isPlanned=plannedIds.has(emp.id);const sel=isPlanned||f.medewerkers.includes(emp.id);const av=isPlanned?{ok:true,reason:undefined}:av0;return<button key={emp.id} type="button" onClick={()=>{if(av.ok||sel)toggleMed(emp.id);}} className={`w-full flex items-center gap-3 p-2.5 rounded-[10px] border text-left transition-all ${sel?"border-[#1E3A7B] bg-[#EBEFF7]":av.ok?"border-[rgba(60,42,20,0.1)] hover:border-[#1E3A7B] bg-white":"border-[rgba(60,42,20,0.08)] bg-[#FAF6F0] opacity-60"}`}>
+              {availableEmps.map(({emp,av:av0})=>{const isPlanned=plannedIds.has(emp.id);const sel=isPlanned||f.medewerkers.includes(emp.id);const av=isPlanned?{ok:true,reason:undefined}:av0;return<button key={emp.id} type="button" onClick={()=>{if(av.ok||sel)toggleMed(emp.id);}} className={`w-full flex items-center gap-3 p-2.5 rounded-[10px] border text-left transition-all ${sel?"border-[#1E3A7B] bg-[#EFE9DF]":av.ok?"border-[rgba(60,42,20,0.1)] hover:border-[#1E3A7B] bg-white":"border-[rgba(60,42,20,0.08)] bg-[#FAF6F0] opacity-60"}`}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{backgroundColor:dc[emp.afdeling].bg}}>{emp.naam.slice(0,1)}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5"><p className="font-semibold text-[#2B2620] text-xs">{emp.naam}</p>{sel&&<Check className="w-3 h-3 text-[#1E3A7B] flex-shrink-0"/>}</div>
                   <p className="text-[10px] text-[#6F675C] truncate">{emp.functie} · {emp.competenties.join(", ")}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 ${av.ok?"bg-[#D1FAE5] text-[#065F46]":"bg-[#FEE2E2] text-[#991B1B]"}`}>{isPlanned?"Ingepland":sel?"Wordt ingepland":av.ok?"Beschikbaar":av.reason}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 ${av.ok?"bg-[#E4EFE6] text-[#2F5D3A]":"bg-[#F3DEDA] text-[#7F2F26]"}`}>{isPlanned?"Ingepland":sel?"Wordt ingepland":av.ok?"Beschikbaar":av.reason}</span>
               </button>;})}
             </div>
           }
@@ -1517,7 +1526,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
             </div>
           )}
         </div>
-        {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#EBEFF7] rounded-md">
+        {plNaam&&<div className="flex items-center gap-3 p-3 bg-[#EFE9DF] rounded-md">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{backgroundColor:primaryDc.bg}}>{plNaam.slice(0,1)}</div>
           <div><p className="font-semibold text-[#2B2620] text-sm">{plNaam}</p><p className="text-xs text-[#6F675C]">Calculator</p></div>
         </div>}
@@ -1577,7 +1586,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
               <p className="font-semibold text-[#2B2620] text-sm">{e.naam}</p>
               <p className="text-xs text-[#6F675C]">{e.functie}</p>
               {rows.length>0&&<div className="mt-1 space-y-0.5">
-                {rows.map(r=><p key={r.id} className="text-xs text-[#6F675C] tabular-nums flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#F2A65A]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
+                {rows.map(r=><p key={r.id} className="text-xs text-[#6F675C] tabular-nums flex items-center gap-1">{fmtDate(r.date)} · {r.startTime}–{r.endTime}{r.isFirstOfDay&&<Star className="w-3 h-3 text-[#D08A4E]" fill="currentColor" aria-label="Als eerste uitvoeren"/>}</p>)}
               </div>}
             </div>
             <DeptBadge afd={e.afdeling}/>
@@ -1594,7 +1603,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         {docs.map((d,i)=><div key={i} className="flex items-center gap-3 p-2.5 border border-[rgba(60,42,20,0.08)] rounded-[10px] mb-2">
           <FileText className="w-4 h-4 text-[#1E3A7B]"/>
           <span className="flex-1 text-sm text-[#2B2620]">{d}</span>
-          <button onClick={()=>setDocs(prev=>prev.filter((_,j)=>j!==i))} className="text-[#6F675C] hover:text-[#FF6B5B]"><X className="w-3.5 h-3.5"/></button>
+          <button onClick={()=>setDocs(prev=>prev.filter((_,j)=>j!==i))} className="text-[#6F675C] hover:text-[#C2604D]"><X className="w-3.5 h-3.5"/></button>
         </div>)}
       </div>}
       {tab==="facturatie"&&<FacturatieTermijnen projectId={project.id}/>}
@@ -1655,7 +1664,7 @@ function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
       </div>
     </div>
     <div className="px-3 py-2 space-y-1 flex-1">
-      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#D2382A] text-white font-semibold":"text-white/75 hover:text-white hover:bg-white/10"}`}>
+      {items.map(([id,Icon,label])=><button key={id} onClick={()=>onNav(id)} aria-current={active===id?"page":undefined} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm transition-colors ${active===id?"bg-[#C24A3B] text-white font-semibold":"text-white/75 hover:text-white hover:bg-white/10"}`}>
         <Icon className="w-4 h-4 flex-shrink-0"/>{label}
       </button>)}
     </div>
@@ -1671,7 +1680,7 @@ function SidebarUser(){
   const initials=naam.split(/[\s.]+/).filter(Boolean).slice(0,2).map((p:string)=>p[0]?.toUpperCase()).join("")||"?";
   return <div className="space-y-2">
     <div className="flex items-center gap-2.5 min-w-0">
-      <div className="w-9 h-9 rounded-full bg-[#D2382A] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
+      <div className="w-9 h-9 rounded-full bg-[#C24A3B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{initials}</div>
       <div className="min-w-0">
         <p className="text-white text-xs font-semibold truncate">{naam}</p>
         <p className="text-white/60 text-xs truncate">{roleLabel}</p>
@@ -1727,11 +1736,11 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
   const toFact=projects.filter(p=>p.status==="Afgerond");
   const stats=[
-    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#0ABFB8",bg:"#E0F7F6",nav:"projecten" as Nav},
-    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#6366F1",bg:"#EDE9FE",nav:"agenda" as Nav},
-    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#10B981",bg:"#D1FAE5",nav:"personeelsplanning" as Nav},
-    {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#F5A623",bg:"#FEF0D3",nav:"personeelsplanning" as Nav},
-    {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#FF6B5B",bg:"#FFE8E5",nav:"facturatie" as Nav},
+    {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#4E8C80",bg:"#E3EFEA",nav:"projecten" as Nav},
+    {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#5C5A9C",bg:"#ECE5F0",nav:"agenda" as Nav},
+    {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#6A9E74",bg:"#E4EFE6",nav:"personeelsplanning" as Nav},
+    {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#B07A2A",bg:"#F6EAD3",nav:"personeelsplanning" as Nav},
+    {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#C2604D",bg:"#F5E1DC",nav:"facturatie" as Nav},
   ];
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6">
     <div>
@@ -1948,9 +1957,9 @@ function NotitieNaVerslepen(){
 function DubbeleWerkenMelding({aantal,onOpruimen}:{aantal:number;onOpruimen:()=>Promise<void>}){
   const [vraag,setVraag]=useState(false);
   const [bezig,setBezig]=useState(false);
-  return <div className="flex items-center gap-3 flex-wrap rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0"/>
-    <p className="text-sm text-amber-800 flex-1 min-w-0"><b>{aantal}</b> werk{aantal===1?" staat":"en staan"} dubbel in het systeem (zelfde werknummer, omschrijving, opdrachtgever en adres).</p>
+  return <div className="flex items-center gap-3 flex-wrap rounded-md border border-[#E8D5AE] bg-[#F8F0DF] px-4 py-3">
+    <AlertTriangle className="w-4 h-4 text-[#8A6428] flex-shrink-0"/>
+    <p className="text-sm text-[#6A4818] flex-1 min-w-0"><b>{aantal}</b> werk{aantal===1?" staat":"en staan"} dubbel in het systeem (zelfde werknummer, omschrijving, opdrachtgever en adres).</p>
     <Btn size="sm" variant="secondary" disabled={bezig} onClick={()=>setVraag(true)}>{bezig?"Bezig met opruimen…":"Dubbele werken opruimen"}</Btn>
     {vraag&&<ConfirmModal confirmLabel="Opruimen" confirmVariant="primary"
       message={`Per groep blijft één werk staan (het werk met de meeste planning). De planning van de dubbele werken verhuist naar dat werk en ${aantal} dubbele werk${aantal===1?"":"en"} word${aantal===1?"t":"en"} verwijderd. Werken met eigen documenten, taken, notities of facturatievinkjes blijven altijd staan. Doorgaan?`}
@@ -2078,11 +2087,11 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
           <div className="pt-1"><DeptBadges afds={afds}/></div>
         </div>
         <div className="flex border-t border-[rgba(60,42,20,0.06)]">
-          <button onClick={()=>onOpen(p)} className="flex-1 py-2.5 text-xs font-semibold text-[#1E3A7B] hover:bg-[#EBEFF7] transition-colors">Openen</button>
+          <button onClick={()=>onOpen(p)} className="flex-1 py-2.5 text-xs font-semibold text-[#1E3A7B] hover:bg-[#EFE9DF] transition-colors">Openen</button>
           <div className="w-px bg-[rgba(60,42,20,0.06)]"/>
           <button onClick={()=>onEdit(p)} className="flex-1 py-2.5 text-xs font-medium text-[#6F675C] hover:bg-[#F3EEE6] transition-colors">Bewerken</button>
           <div className="w-px bg-[rgba(60,42,20,0.06)]"/>
-          <button onClick={()=>setDel(p.id)} className="flex-1 py-2.5 text-xs font-medium text-[#FF6B5B] hover:bg-[#FFE8E5] transition-colors">Verwijderen</button>
+          <button onClick={()=>setDel(p.id)} className="flex-1 py-2.5 text-xs font-medium text-[#C2604D] hover:bg-[#F5E1DC] transition-colors">Verwijderen</button>
         </div>
       </div>;})}
       {filtered.length===0&&<p className="text-center text-[#6F675C] text-sm py-12">Geen projecten gevonden</p>}
@@ -2134,7 +2143,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
               <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
                 <div className="flex gap-1">
                   <button onClick={()=>onEdit(p)} className="p-1.5 rounded hover:bg-[#F3EEE6] text-[#6F675C] hover:text-[#2B2620]"><Pencil className="w-3.5 h-3.5"/></button>
-                  <button onClick={()=>setDel(p.id)} className="p-1.5 rounded hover:bg-[#FFE8E5] text-[#6F675C] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
+                  <button onClick={()=>setDel(p.id)} className="p-1.5 rounded hover:bg-[#F5E1DC] text-[#6F675C] hover:text-[#C2604D]"><Trash2 className="w-3.5 h-3.5"/></button>
                 </div>
               </td>
             </tr>;
@@ -2200,13 +2209,13 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
             const hol=getDHol(ds);
             const shols=getSHols(ds,schoolRegions);
             const isDragOver=dragOverDate===ds;
-            return <div key={di} className={`border-r border-[rgba(60,42,20,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#EBEFF7]":hol?" bg-red-50/50":""}`}
+            return <div key={di} className={`border-r border-[rgba(60,42,20,0.06)] p-1 cursor-pointer transition-colors ${!inMonth?"opacity-35":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#F8E7E3]/50":""}`}
               onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
               onDragLeave={()=>setDragOverDate(null)}
               onDrop={e=>handleDrop(e,day)}
               onClick={()=>onClickDate(day)}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#2B2620]"}`}>{day.getDate()}</div>
-              {hol&&<div className="text-[9px] text-red-500 leading-tight truncate mt-0.5">{hol}</div>}
+              {hol&&<div className="text-[9px] text-[#B5503F] leading-tight truncate mt-0.5">{hol}</div>}
               {shols.length>0&&<div className="text-[9px] text-[#C2362A] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
             </div>;
           })}
@@ -2270,10 +2279,10 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
   return <div className="flex flex-col h-full overflow-hidden">
     <div className="flex border-b border-[rgba(60,42,20,0.08)]">
       <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[9px] text-[#9A9184] font-medium">Wk{wn}</span></div>
-      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(60,42,20,0.06)] ${hol?"bg-red-50/40":""}`}>
+      {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(60,42,20,0.06)] ${hol?"bg-[#F8E7E3]/40":""}`}>
         <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#1E3A7B]":"text-[#6F675C]"}`}>{DAYS_NL[i]}</p>
         <p className={`text-sm font-bold ${isT?"text-[#2B2620]":"text-[#6F675C]"}`}>{d.getDate()}</p>
-        {hol&&<p className="text-[9px] text-red-400 truncate px-1">{hol}</p>}
+        {hol&&<p className="text-[9px] text-[#C46A5A] truncate px-1">{hol}</p>}
       </div>;})}
     </div>
     <div className="flex border-b border-[rgba(60,42,20,0.08)]" style={{minHeight:adH}}>
@@ -2293,7 +2302,7 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
           return <div key={di} className="relative border-l border-[rgba(60,42,20,0.06)]" style={{height:HOURS.length*HOUR_HEIGHT}}>
             {HOURS.map(h=>{
               const slotKey=`${toDateStr(day)}-${h}`;
-              return <div key={h} style={{height:HOUR_HEIGHT}} className={`border-b border-[rgba(60,42,20,0.04)] cursor-pointer transition-colors ${dragOverSlot===slotKey?"bg-[#EBEFF7]":""}`}
+              return <div key={h} style={{height:HOUR_HEIGHT}} className={`border-b border-[rgba(60,42,20,0.04)] cursor-pointer transition-colors ${dragOverSlot===slotKey?"bg-[#EFE9DF]":""}`}
                 onDragOver={e=>{e.preventDefault();setDragOverSlot(slotKey);}}
                 onDragLeave={()=>setDragOverSlot(null)}
                 onDrop={e=>{e.preventDefault();setDragOverSlot(null);if(!dragRef.current)return;const ns=new Date(day);ns.setHours(h,0,0,0);onDropProject(dragRef.current.id,ns);dragRef.current=null;}}
@@ -2359,11 +2368,11 @@ function DayView({date,projects,employees,onClickProject,onClickTime,onDropProje
   const ds=toDateStr(date);const hol=getDHol(ds);const isT=ds===TODAY_STR;
   const wn=getWeekNumber(date);
   return <div className="flex flex-col h-full">
-    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(60,42,20,0.08)] ${hol?"bg-red-50/30":""}`}>
+    <div className={`flex items-center gap-4 p-4 border-b border-[rgba(60,42,20,0.08)] ${hol?"bg-[#F8E7E3]/30":""}`}>
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl ${isT?"bg-[#1E3A7B] text-white":"bg-[#F3EEE6] text-[#2B2620]"}`}>{date.getDate()}</div>
       <div>
         <p className="font-bold text-lg text-[#2B2620]">{DAYS_FULL[(date.getDay()+6)%7]} {date.getDate()} {MONTHS_NL[date.getMonth()]}</p>
-        <p className="text-xs text-[#6F675C]">Week {wn}{hol&&<span className="text-red-500 ml-2">🎉 {hol}</span>}</p>
+        <p className="text-xs text-[#6F675C]">Week {wn}{hol&&<span className="text-[#B5503F] ml-2">🎉 {hol}</span>}</p>
       </div>
       <div className="flex flex-wrap gap-1 ml-2">
         {allDay.map(p=><button key={p.id} title={agendaLabel(p,employees)} onClick={()=>onClickProject(p)} className="px-3 py-1 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80 transition-opacity" style={agendaProjStyle(p,dc)}>{p.projectnaam}{agendaEmpNames(p,employees)?` · ${agendaEmpNames(p,employees)}`:""}</button>)}
@@ -2464,13 +2473,13 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
                   const shols=getSHols(ds,schoolRegions);
                   const isDragOver=dragOverDate===ds;
                   return <div key={di}
-                    className={`border-r border-[rgba(60,42,20,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#EBEFF7]":hol?" bg-red-50/60":""}`}
+                    className={`border-r border-[rgba(60,42,20,0.05)] p-0.5 cursor-pointer transition-colors ${!inMonth?"opacity-30":""}${isDragOver?" bg-[#EFE9DF]":hol?" bg-[#F8E7E3]/60":""}`}
                     onDragOver={e=>{e.preventDefault();setDragOverDate(ds);}}
                     onDragLeave={()=>setDragOverDate(null)}
                     onDrop={e=>handleDrop(e,day)}
                     onClick={()=>onClickDate(day)}>
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium ${isToday?"bg-[#1E3A7B] text-white":"text-[#2B2620]"}`}>{day.getDate()}</div>
-                    {hol&&<div className="text-[7px] text-red-500 leading-tight truncate">{hol.split(" ")[0]}</div>}
+                    {hol&&<div className="text-[7px] text-[#B5503F] leading-tight truncate">{hol.split(" ")[0]}</div>}
                     {shols.length>0&&!hol&&<div className="text-[7px] text-[#E0402F] leading-tight truncate">{shols[0].name.split(" ")[0]}</div>}
                   </div>;
                 })}
@@ -2669,7 +2678,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
-        <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-[10px] font-medium transition-colors ${showWeekNumbers?"bg-[#EBEFF7] text-[#1E3A7B]":"text-[#6F675C] hover:bg-[#F3EEE6]"}`}>Wk#</button>
+        <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-[10px] font-medium transition-colors ${showWeekNumbers?"bg-[#EFE9DF] text-[#1E3A7B]":"text-[#6F675C] hover:bg-[#F3EEE6]"}`}>Wk#</button>
       </div>
 
     </div>
@@ -2701,7 +2710,7 @@ function EmployeePicker({employees,value,onChange}:{employees:Employee[];value:s
     <Input label="Medewerker" value={q} onChange={setQ} placeholder={sel?sel.naam:"Zoek medewerker..."}/>
     {sel&&<p className="text-xs text-[#2B2620]">Gekozen: <b>{sel.naam}</b> ({sel.afdeling})</p>}
     <div className="max-h-40 overflow-y-auto border border-[rgba(60,42,20,0.1)] rounded-[10px]">
-      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#EBEFF7] font-semibold":""}`}>{e.naam} <span className="text-[#6F675C]">· {e.afdeling}</span></button>)}
+      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#EFE9DF] font-semibold":""}`}>{e.naam} <span className="text-[#6F675C]">· {e.afdeling}</span></button>)}
       {list.length===0&&<p className="px-2 py-1 text-xs text-[#6F675C]">Geen medewerkers gevonden.</p>}
     </div>
   </div>;
@@ -2719,7 +2728,7 @@ function MultiEmployeePicker({employees,values,onChange}:{employees:Employee[];v
     <p className="text-xs text-[#6F675C]">{values.length===0?"Nog niemand gekozen":`${values.length} medewerker${values.length===1?"":"s"} gekozen`}</p>
     <div className="max-h-52 overflow-y-auto border border-[rgba(60,42,20,0.1)] rounded-[10px] divide-y divide-[rgba(60,42,20,0.06)]">
       {list.map(e=>{const isSelected=selected.has(e.id);return <button type="button" key={e.id} onClick={()=>toggle(e.id)}
-        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#EBEFF7] font-semibold":""}`}>
+        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#EFE9DF] font-semibold":""}`}>
         <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected?"bg-[#1E3A7B] border-[#1E3A7B] text-white":"border-[rgba(0,0,0,0.2)]"}`}>{isSelected&&<Check className="w-3 h-3"/>}</span>
         <span className="flex-1 min-w-0 truncate">{e.naam} <span className="font-normal text-[#6F675C]">· {e.afdeling}</span></span>
       </button>;})}
@@ -2829,8 +2838,8 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
           <Input label="Eindtijd" value={et} onChange={v=>{tijdAangepast.current=true;setEt(v);}} type="time"/>
         </div>
       </div>
-      {!timeOk&&<p className="text-xs text-red-600">De eindtijd moet na de begintijd liggen.</p>}
-      {!inRange&&<p className="text-xs text-red-600">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
+      {!timeOk&&<p className="text-xs text-[#9A4234]">De eindtijd moet na de begintijd liggen.</p>}
+      {!inRange&&<p className="text-xs text-[#9A4234]">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#6F675C]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
       {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#2B2620]">
         <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
@@ -2839,11 +2848,11 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
 
       {!projectId&&<div className="space-y-2">
         <Input label="Werknummer" value={wn} onChange={setWn} placeholder="Bijv. 12345"/>
-        {wnQuery&&wnMatches.length===0&&<p className="text-xs text-red-600">Geen bestaand werk gevonden met dit werknummer.</p>}
+        {wnQuery&&wnMatches.length===0&&<p className="text-xs text-[#9A4234]">Geen bestaand werk gevonden met dit werknummer.</p>}
         {wnMatches.length>1&&<div className="space-y-1">
-          <p className="text-xs font-semibold text-amber-700">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
+          <p className="text-xs font-semibold text-[#7A5520]">Meerdere werken gevonden met dit werknummer. Kies het juiste werk.</p>
           <div className="border border-[rgba(60,42,20,0.1)] rounded-md divide-y divide-[rgba(60,42,20,0.06)] max-h-56 overflow-y-auto">
-            {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#FAF6F0] ${sel?.id===p.id?"bg-[#EBEFF7]":""}`}>
+            {wnMatches.map(p=><button key={p.id} type="button" onClick={()=>setSel(p)} className={`w-full text-left p-2.5 hover:bg-[#FAF6F0] ${sel?.id===p.id?"bg-[#EFE9DF]":""}`}>
               <p className="text-xs font-semibold text-[#2B2620]">{p.projectnr||"—"} · {p.werknummer} – {p.projectnaam}</p>
               <p className="text-[11px] text-[#6F675C] truncate">{p.projectnaam||p.opmerkingen||"Geen omschrijving"} · {plName(p,employees)||"—"} · {getAllAfds(p).join(", ")}</p>
             </button>)}
@@ -2879,16 +2888,16 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
         {nietDubbel.length===0?"Deze medewerker(s) staan op alle gekozen dagen al op dit werk ingepland.":`${dupCount} dag${dupCount===1?"":"en"} staan al op dit werk ingepland en worden overgeslagen.`}
       </p>}
       {sel&&vrijCount>0&&newPairs.length===0&&<p className="text-xs text-[#6F675C] rounded-[10px] bg-[#F3EEE6] px-3 py-2">Op de gekozen dagen is de medewerker vrij of afwezig; er valt niets in te plannen.</p>}
-      {blockers.length>0&&<div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-1">
-        <p className="text-xs font-bold text-red-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
-        {blockers.map((c,i)=><p key={i} className="text-xs text-red-700">{conflictLine(c)}</p>)}
+      {blockers.length>0&&<div className="rounded-md border border-[#EBC9C1] bg-[#F8E7E3] p-3 space-y-1">
+        <p className="text-xs font-bold text-[#8A3A2F] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Conflict — inplannen is niet mogelijk</p>
+        {blockers.map((c,i)=><p key={i} className="text-xs text-[#8A3A2F]">{conflictLine(c)}</p>)}
       </div>}
-      {blockers.length===0&&warnings.length>0&&<div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
-        <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
-        {warnings.map((c,i)=><p key={i} className="text-xs text-amber-800">{conflictLine(c)}</p>)}
+      {blockers.length===0&&warnings.length>0&&<div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-2">
+        <p className="text-xs font-bold text-[#6A4818] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — deze medewerker staat al op een ander project in dit tijdvak</p>
+        {warnings.map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{conflictLine(c)}</p>)}
         {!confirmed
           ?<div className="flex gap-2 pt-1"><Btn size="sm" onClick={()=>setConfirmed(true)}>Planning toch opslaan</Btn><Btn size="sm" variant="secondary" onClick={onClose}>Annuleren</Btn></div>
-          :<p className="text-xs text-amber-800 font-semibold">Bevestigd — je kunt nu opslaan.</p>}
+          :<p className="text-xs text-[#6A4818] font-semibold">Bevestigd — je kunt nu opslaan.</p>}
       </div>}
       <div className="flex justify-between gap-2 pt-1">
         <div>{editId&&onDelete&&<Btn variant="danger" onClick={async()=>{setBusy(true);await onDelete(editId);setBusy(false);}} disabled={busy}><Trash2 className="w-3.5 h-3.5"/>Planning verwijderen</Btn>}</div>
@@ -2915,12 +2924,12 @@ function FilterManagerModal({filters,onSave,onClose}:{filters:PlanFilter[];onSav
           <option value="">Alle afdelingen</option>
           {AFDS.map(a=><option key={a} value={a}>{a}</option>)}
         </select>
-        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-[10px] text-xs font-semibold ${f.actief?"bg-[#EBEFF7] text-[#1E3A7B]":"bg-[#F3EEE6] text-[#9A9184]"}`}>{f.actief?"Actief":"Uit"}</button>
+        <button onClick={()=>upd(f.id,{actief:!f.actief})} className={`px-2 py-1 rounded-[10px] text-xs font-semibold ${f.actief?"bg-[#EFE9DF] text-[#1E3A7B]":"bg-[#F3EEE6] text-[#9A9184]"}`}>{f.actief?"Actief":"Uit"}</button>
         <button onClick={()=>move(i,-1)} className="p-1 text-[#6F675C] hover:text-[#2B2620]" title="Omhoog">↑</button>
         <button onClick={()=>move(i,1)} className="p-1 text-[#6F675C] hover:text-[#2B2620]" title="Omlaag">↓</button>
-        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#9A9184] hover:text-[#FF6B5B]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
+        <button onClick={()=>setList(prev=>prev.filter(x=>x.id!==f.id))} className="p-1 text-[#9A9184] hover:text-[#C2604D]" title="Verwijderen"><Trash2 className="w-3.5 h-3.5"/></button>
       </div>)}
-      <Btn variant="secondary" size="sm" onClick={()=>setList(prev=>[...prev,{id:"pf"+nid(),naam:"Nieuw filter",kleur:"#0ABFB8",afdeling:"",actief:true}])}><Plus className="w-3.5 h-3.5"/>Filter toevoegen</Btn>
+      <Btn variant="secondary" size="sm" onClick={()=>setList(prev=>[...prev,{id:"pf"+nid(),naam:"Nieuw filter",kleur:"#4E8C80",afdeling:"",actief:true}])}><Plus className="w-3.5 h-3.5"/>Filter toevoegen</Btn>
       <div className="flex justify-end gap-2 pt-2">
         <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
         <Btn onClick={()=>{onSave(list);onClose();}}>Opslaan</Btn>
@@ -2962,9 +2971,9 @@ function AbsenceModal({employees,availability,draft,onSave,onDelete,onClose}:{
       <Input label={f.status==="Bezet"?"Omschrijving (waarmee bezet?)":f.status==="Gereserveerd"?"Omschrijving (waarvoor gereserveerd?)":"Omschrijving"} value={f.note} onChange={v=>upd({note:v})}
         placeholder={f.status==="Bezet"?"Bijv. cursus, keuring, ander werk…":f.status==="Gereserveerd"?"Bijv. werk in afwachting van opdracht…":"Optioneel"}/>
       <p className="text-xs text-[#6F675C]">{days.length>0?`${days.length} dag${days.length>1?"en":""} · ${st}–${et}`:"Kies een geldige periode."}</p>
-      {conflicts.length>0&&<div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
-        <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
-        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
+      {conflicts.length>0&&<div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1">
+        <p className="text-xs font-bold text-[#6A4818] flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5"/>Let op — bestaande blokken in deze periode</p>
+        {conflicts.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{c.employee} · {c.status} · {fmtDate(c.date)} · {c.time} · {c.label}</p>)}
       </div>}
       <div className="flex justify-between gap-2 pt-1">
         <div>{f.periodeId&&onDelete&&<Btn variant="danger" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(f.periodeId!);setBusy(false);}}><Trash2 className="w-3.5 h-3.5"/>Periode verwijderen</Btn>}</div>
@@ -3014,7 +3023,7 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
         ()=>setS(p=>({...p,deptColors:{...p.deptColors,[a]:DEFAULT_DC[a]}})))))}
       {section("Filters",filters.map(f=>row("fl-"+f.id,f.naam,f.kleur,
         c=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:c}:x)})),
-        ()=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:DEFAULT_DC[(x.afdeling as Afdeling)]?.bg||"#0ABFB8"}:x)})))))}
+        ()=>setS(p=>({...p,planFilters:filters.map(x=>x.id===f.id?{...x,kleur:DEFAULT_DC[(x.afdeling as Afdeling)]?.bg||"#4E8C80"}:x)})))))}
       {projectleiders.length>0&&section("Projectleiders (Schilderwerk — tweede kleur in het blok)",projectleiders.map(n=>row("pl-"+n,n,projectleiderColorOf(n,s.projectleiderColors||{}),
         c=>setS(p=>({...p,projectleiderColors:{...(p.projectleiderColors||{}),[n]:c}})),
         ()=>setS(p=>{const m={...(p.projectleiderColors||{})};delete m[n];return{...p,projectleiderColors:m};}))))}
@@ -3038,7 +3047,7 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
         ()=>setS(p=>{const n={...(p.projectColors||{})};delete n[pr.id];return{...p,projectColors:n};})))}</>)}
     </div>
     <div className="flex justify-between gap-2 px-4 md:px-6 py-3 border-t border-[rgba(60,42,20,0.08)]">
-      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#0ABFB8"})),teamColors:{},statusColors:{},projectColors:{},projectleiderColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
+      <Btn variant="ghost" onClick={()=>setS(p=>({...p,deptColors:DEFAULT_DC,planFilters:(p.planFilters?.length?p.planFilters:DEFAULT_PLAN_FILTERS).map(f=>({...f,kleur:DEFAULT_DC[(f.afdeling as Afdeling)]?.bg||"#4E8C80"})),teamColors:{},statusColors:{},projectColors:{},projectleiderColors:{},borderColors:{},badgeColors:{}}))}>Alles standaard herstellen</Btn>
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={onClose}>Annuleren</Btn>
         <Btn onClick={()=>{onSave(s);onClose();}}>Opslaan</Btn>
@@ -3079,7 +3088,7 @@ function FixedFreeDaysModal({employees,series,draft,onSave,onDelete,onClose}:{
         {own.map(s=><div key={s.periodeId} className="flex items-center gap-2 border border-[rgba(60,42,20,0.08)] rounded-md px-3 py-2">
           <span className="flex-1 min-w-0 truncate text-xs text-[#2B2620]">{s.serieWeekdays.map(i=>WD_FULL[i]).join(", ")} — {fmtDate(s.serieStartDate)} t/m {fmtDate(s.serieEndDate)}</span>
           <button className="text-[11px] font-semibold text-[#1E3A7B]" onClick={()=>setF({periodeId:s.periodeId,employeeId:s.employeeId,weekdays:[...s.serieWeekdays],startDate:s.serieStartDate,endDate:s.serieEndDate})}>Wijzigen</button>
-          <button className="text-[11px] font-semibold text-red-600" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
+          <button className="text-[11px] font-semibold text-[#9A4234]" disabled={busy} onClick={async()=>{setBusy(true);await onDelete(s.periodeId);setBusy(false);}}>Verwijderen</button>
         </div>)}
       </div>}
       <div className="flex justify-end gap-2 pt-1">
@@ -3255,7 +3264,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     onDrop:(ev:React.DragEvent)=>{if(!dragEmp)return;ev.preventDefault();ev.stopPropagation();dropEmpOn(empId);},
   });
   const empDropStyle=(empId:string)=>dropEmp&&dropEmp.id===empId
-    ?(dropEmp.pos==="before"?{boxShadow:"inset 0 3px 0 0 #0ABFB8"}:{boxShadow:"inset 0 -3px 0 0 #0ABFB8"}):undefined;
+    ?(dropEmp.pos==="before"?{boxShadow:"inset 0 3px 0 0 #4E8C80"}:{boxShadow:"inset 0 -3px 0 0 #4E8C80"}):undefined;
   const EmpOrderControls=({empId}:{empId:string})=>{
     const ids=visEmp.map(x=>x.id);const i=ids.indexOf(empId);
     return <span className="flex items-center gap-0.5 flex-shrink-0">
@@ -3809,7 +3818,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         </button>)}
         <Btn variant="secondary" size="sm" onClick={()=>setShowFilters(true)}><Settings className="w-3.5 h-3.5"/>Filters</Btn>
         <select value={plFilter} onChange={ev=>setPlFilter(ev.target.value)} title="Filter op projectleider"
-          className={`py-1.5 px-2 text-xs rounded-[10px] border focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 ${plFilter?"border-[#1E3A7B] text-[#2B2620] font-semibold bg-[#EBEFF7]":"border-[rgba(60,42,20,0.12)] text-[#6F675C] bg-white"}`}>
+          className={`py-1.5 px-2 text-xs rounded-[10px] border focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 ${plFilter?"border-[#1E3A7B] text-[#2B2620] font-semibold bg-[#EFE9DF]":"border-[rgba(60,42,20,0.12)] text-[#6F675C] bg-white"}`}>
           <option value="">Alle projectleiders</option>
           {plOptions.map(n=><option key={n} value={n}>{n}</option>)}
         </select>
@@ -3839,7 +3848,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
                 <div key={b.id} draggable={!!proj} onDragStart={()=>proj&&setDragBlock(b)} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,b)}
                   className="group relative flex items-center gap-3 px-4 py-2.5 pb-4 md:pb-2.5 cursor-pointer hover:bg-[#FAF6F0]" onClick={()=>proj?onOpenProject(proj):ABSENCE_STATS.includes(b.status)?clickAbsence(b):openPlan(e.id,ds)}>
-                  {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#F2A65A] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
+                  {b.isFirstOfDay&&<Star className="w-3.5 h-3.5 text-[#D08A4E] flex-shrink-0" fill="currentColor" aria-label="Als eerste uitvoeren"/>}
                   <span className="text-xs tabular-nums text-[#6F675C] whitespace-nowrap w-28 flex-shrink-0">{b.startTime}–{resizePv?.id===b.id?resizePv.label:b.endTime}</span>
                   {proj&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:rowColor(b)}} title="Kleur van het werk"/>}
                   {proj&&plColorFor(proj)&&<span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-2 ring-2 ring-white" style={{backgroundColor:plColorFor(proj)||undefined}} title={`Projectleider: ${projectleiderKey(proj,employees)}`}/>}
@@ -3901,7 +3910,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
               style={{...(blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:null),
                 ...(cellHol?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${withAlpha(holColor,0.7)}`}:null)}}
-              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#1E3A7B]":""} ${dragProject||dragBlock?"hover:bg-[#EBEFF7]":"hover:bg-[#F3EEE6]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
+              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#1E3A7B]":""} ${dragProject||dragBlock?"hover:bg-[#EFE9DF]":"hover:bg-[#F3EEE6]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
@@ -4032,8 +4041,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {ffAsk&&<Modal title="Er staat al werk gepland" onClose={()=>setFfAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6F675C]">Op deze vaste vrije dagen staat al projectplanning. De planning blijft volledig staan; deze datums worden geen vrije dag.</p>
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1 max-h-40 overflow-y-auto">
-          {ffAsk.dates.map(d=><p key={d} className="text-xs text-amber-800">{fmtDate(d)}</p>)}
+        <div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1 max-h-40 overflow-y-auto">
+          {ffAsk.dates.map(d=><p key={d} className="text-xs text-[#6A4818]">{fmtDate(d)}</p>)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setFfAsk(null)}>Annuleren</Btn>
@@ -4081,12 +4090,12 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
         <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#9A9184]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
         {cellMenu.block&&<>
           {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
-            <Star className="w-3.5 h-3.5 text-[#F2A65A]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
+            <Star className="w-3.5 h-3.5 text-[#D08A4E]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
           </button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)openEditPlan(b);else clickAbsence(b);}}>Bewerken…</button>
           {isSeriesVrij(cellMenu.block)&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);editSeries(b.periodeId!);}}>Vaste vrije reeks wijzigen…</button>}
           <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{const b=cellMenu.block!;setCellMenu(null);setPeriodModal(b);}}>Periode aanpassen…</button>
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-red-600" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#9A4234]" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);if(b.projectId)await deletePlanRow(b);else if(b.periodeId)await onDeleteAbsence(b.periodeId);else await onDeletePlanning(b.id);}}>Verwijderen</button>
           <div className="my-1 border-t border-[rgba(60,42,20,0.08)]"/>
         </>}
         <button className="w-full text-left px-3 py-1.5 hover:bg-[#F3EEE6] text-[#2B2620]" onClick={()=>{
@@ -4119,8 +4128,8 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     {overlapAsk&&<Modal title="Let op — dubbele planning" onClose={()=>setOverlapAsk(null)} width="max-w-md">
       <div className="p-4 md:p-6 space-y-3">
         <p className="text-sm text-[#6F675C]">Deze medewerker staat in dit tijdvak al op een ander project:</p>
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
-          {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-amber-800">{conflictLine(c)}</p>)}
+        <div className="rounded-md border border-[#E8D5AE] bg-[#F8F0DF] p-3 space-y-1">
+          {overlapAsk.warnings.slice(0,6).map((c,i)=><p key={i} className="text-xs text-[#6A4818]">{conflictLine(c)}</p>)}
         </div>
         <div className="flex justify-end gap-2">
           <Btn variant="secondary" onClick={()=>setOverlapAsk(null)}>Annuleren</Btn>
@@ -4247,7 +4256,7 @@ function NotitiesView(){
               <span className="text-xs tabular-nums text-[#6F675C] w-24 flex-shrink-0">{fmtDate(n.datum)}</span>
               <p className="text-sm text-[#2B2620] flex-1 whitespace-pre-wrap">{n.tekst}</p>
               <button onClick={()=>{setEditId(n.id);setDatum(n.datum);setTekst(n.tekst);}} className="text-xs text-[#1E3A7B] font-semibold flex-shrink-0">Bewerken</button>
-              <button onClick={()=>remove(n.id)} className="text-[#9A9184] hover:text-[#FF6B5B] flex-shrink-0"><Trash2 className="w-3.5 h-3.5"/></button>
+              <button onClick={()=>remove(n.id)} className="text-[#9A9184] hover:text-[#C2604D] flex-shrink-0"><Trash2 className="w-3.5 h-3.5"/></button>
             </div>)}
           </div>}
         </div>
@@ -4285,7 +4294,7 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
           </div>
           <div className="flex gap-1">
             <button onClick={()=>onEdit(e)} className="p-1.5 rounded-[10px] hover:bg-[#F3EEE6] text-[#6F675C]"><Pencil className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>setDel(e.id)} className="p-1.5 rounded-[10px] hover:bg-[#FFE8E5] text-[#6F675C] hover:text-[#FF6B5B]"><Trash2 className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>setDel(e.id)} className="p-1.5 rounded-[10px] hover:bg-[#F5E1DC] text-[#6F675C] hover:text-[#C2604D]"><Trash2 className="w-3.5 h-3.5"/></button>
           </div>
         </div>
         <div className="mb-3"><DeptBadge afd={e.afdeling}/></div>
@@ -4404,13 +4413,13 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
         <p className="text-xs text-[#6F675C]">Alle gegevens staan alleen lokaal in deze browser. Resetten zet de voorbeelddata terug.</p>
       </div>
       <button onClick={()=>{if(window.confirm("Weet je zeker dat je alle demo-gegevens wilt terugzetten?")){void resetDemoData().then(()=>window.location.reload());}}}
-        className="px-4 py-2 rounded-md border border-[#FF6B5B] text-[#FF6B5B] text-sm font-semibold hover:bg-[#FFE8E5]">Demo resetten</button>
+        className="px-4 py-2 rounded-md border border-[#C2604D] text-[#C2604D] text-sm font-semibold hover:bg-[#F5E1DC]">Demo resetten</button>
     </div>}
     <div className="flex gap-3">
       <Btn onClick={save}>
         {saved?<><Check className="w-4 h-4"/>Opgeslagen!</>:<>Instellingen opslaan</>}
       </Btn>
-      {saved&&<p className="text-sm text-emerald-600 flex items-center gap-1"><Check className="w-4 h-4"/>Wijzigingen opgeslagen</p>}
+      {saved&&<p className="text-sm text-[#3E6E49] flex items-center gap-1"><Check className="w-4 h-4"/>Wijzigingen opgeslagen</p>}
     </div>
 
   </div>;
@@ -4492,7 +4501,7 @@ export default function PlanningApp(){
         setProjects(res.projects);
         setEmployees(res.employees);
         setAvail(res.availability);
-        if(res.settings)applySettings({...INIT_SETTINGS,...res.settings,deptColors:{...INIT_SETTINGS.deptColors,...(res.settings.deptColors||{})}});
+        if(res.settings)applySettings(verzachtOudeKleuren({...INIT_SETTINGS,...res.settings,deptColors:{...INIT_SETTINGS.deptColors,...(res.settings.deptColors||{})}}));
         setDbReady(true);
       }catch(err){
         if(!cancelled&&!silent)setLoadError(err instanceof Error?err.message:"Onbekende fout");
@@ -4761,7 +4770,7 @@ export default function PlanningApp(){
   }),[]);
   const facturatieDataVersion=useProjectIndexVersion(projectIndex);
   const facturatieAccent=useCallback((afd:string)=>(settings.deptColors[afd as Afdeling]||DEFAULT_DC.Stoffering).bg,[settings.deptColors]);
-  const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-slate-100 text-slate-600",[]);
+  const facturatieStatusClass=useCallback((st:string)=>SB[st as ProjectStatus]||"bg-[#EEEAE4] text-[#5A5248]",[]);
 
   // Alleen de projectperiode wordt afgeleid; medewerkers en alle overige projectvelden
   // (status, afdeling(en), calculator, werknummer, opdrachtgever) blijven ongewijzigd.
@@ -4980,7 +4989,7 @@ export default function PlanningApp(){
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden mm-werkvlak md:rounded-[28px]">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
-        {dbError&&<div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">Opslaan mislukt: {dbError}</div>}
+        {dbError&&<div className="bg-[#F8E7E3] text-[#8A3A2F] text-sm px-4 py-2 border-b border-[#EBC9C1]">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject} onShowActive={showActiveWerken}/>}
           {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus} dubbelAantal={dubbeleGroepen.reduce((n,g)=>n+g.length-1,0)} onDubbeleOpruimen={()=>dubbeleOpruimen()}/>}
