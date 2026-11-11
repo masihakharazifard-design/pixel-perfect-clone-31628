@@ -8,7 +8,7 @@
  * Design system "Lichte werkplaats": lichtgrijze achtergrond #EEF1F5, licht werkvlak #FCFCFD, zachte kaarten #F4F6F9,
  * inkt #23272F / #5F6673, witte menubalk, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus, uitgelichte tegel),
  * logo-rood #E0402F (actief menu-item). Afdelingen: Stoffering #26A69A, Schilderwerk #EF6A50, Zonwering #F2A43A.
- * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen. Minimale tekst 10px.
+ * Aptos (anders Segoe UI), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen. Minimale tekst 10px.
  */
 
 :root {
@@ -90,8 +90,8 @@
 }
 
 @theme inline {
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Aptos", "Aptos Display", "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Aptos", "Aptos Display", "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -197,9 +197,17 @@
 :root {
   --mm-rood: #E0402F;
   --mm-blauw: #1E3A7B;
-  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ui: "Aptos", "Aptos Display", "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
 body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #23272f; -webkit-font-smoothing: antialiased; }
+/* Computerscherm: alles iets groter en luchtiger, zodat het beter leesbaar is */
+@media (min-width: 1024px) {
+  html { font-size: 16.5px; }
+  body { font-size: 15px; line-height: 23px; }
+  .text-\[9px\] { font-size: 10.5px; }
+  .text-\[10px\] { font-size: 11.5px; }
+  .text-\[11px\] { font-size: 12.5px; }
+}
 /* ===== Warme werkplaats =====
  * Opbouw zoals het voorbeeld: lichtgrijze achtergrond, lichte afgeronde menubalk, één groot licht werkvlak
  * met zachte kaarten erin. Rustige neutrale tinten, karakter uit de logokleuren blauw en rood; geen zware schaduwen of effecten. */

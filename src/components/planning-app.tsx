@@ -690,14 +690,14 @@ function Btn({children,onClick,variant="primary",size="md",className="",disabled
 }
 function Input({label,value,onChange,type="text",placeholder="",required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;type?:string;placeholder?:string;required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6673] mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
       className="w-full px-3 py-2 bg-[#F2F4F7] border border-[rgba(15,23,42,0.1)] rounded-[10px] text-sm text-[#23272F] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#9AA1AD]" />
   </div>;
 }
 function Select({label,value,onChange,options,required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[];required?:boolean;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6673] mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
     <select value={value} onChange={e=>onChange(e.target.value)}
       className="w-full px-3 py-2 bg-[#F2F4F7] border border-[rgba(15,23,42,0.1)] rounded-[10px] text-sm text-[#23272F] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B]">
       <option value="">Selecteer...</option>
@@ -707,7 +707,7 @@ function Select({label,value,onChange,options,required=false,className=""}:{labe
 }
 function Textarea({label,value,onChange,rows=3,placeholder="",className=""}:{label?:string;value:string;onChange:(v:string)=>void;rows?:number;placeholder?:string;className?:string}){
   return <div className={className}>
-    {label&&<label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">{label}</label>}
+    {label&&<label className="block text-xs font-semibold text-[#5F6673] mb-1">{label}</label>}
     <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows} placeholder={placeholder}
       className="w-full px-3 py-2 bg-[#F2F4F7] border border-[rgba(15,23,42,0.1)] rounded-[10px] text-sm text-[#23272F] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#9AA1AD] resize-none" />
   </div>;
@@ -844,7 +844,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>}
         {parseError&&<div className="bg-[#FDE4E0] border border-[#F6C7BF] rounded-md p-3 text-sm text-[#A42A1E]">{parseError}</div>}
         <div className="bg-[#F2F4F7] rounded-md p-4 space-y-3 text-xs">
-          <p className="font-semibold text-[#5F6673] uppercase tracking-wide">Verwachte kolommen</p>
+          <p className="font-semibold text-[#5F6673]">Verwachte kolommen</p>
           <table className="w-full text-left text-[#5F6673]">
             <thead><tr className="border-b border-[rgba(15,23,42,0.1)]"><th className="py-1 font-semibold text-[#23272F]">Excel kolom</th><th className="py-1 font-semibold text-[#23272F]">Veld</th><th className="py-1 font-semibold text-[#23272F]">Verplicht</th></tr></thead>
             <tbody className="divide-y divide-[rgba(15,23,42,0.06)]">
@@ -894,7 +894,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
         </div>
         {preview.duplicaten>0&&<p className="text-xs text-[#5F6673]">{preview.duplicaten} dubbel{preview.duplicaten!==1?"e":""} werknummer{preview.duplicaten!==1?"s":""} in het bestand samengevoegd.</p>}
         {preview.nieuwCount>0&&<div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Te importeren ({preview.nieuwCount})</p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">Te importeren ({preview.nieuwCount})</p>
           <div className="max-h-52 overflow-y-auto space-y-1.5">
             {preview.nieuwSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2.5 bg-[#E2F6EA] rounded-[10px] text-xs flex-wrap">
               <span className="tabular-nums text-[#16774A] flex-shrink-0 min-w-12">{r.werknummer}</span>
@@ -910,7 +910,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
         </div>}
         {preview.bestaandCount>0&&<div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">Wordt overgeslagen (bestaat al) ({preview.bestaandCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.bestaandSample.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#FEF3DC] rounded-[10px] text-xs">
               <span className="tabular-nums text-[#8A5300] flex-shrink-0">{r.werknummer}</span>
@@ -920,7 +920,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
           </div>
         </div>}
         {preview.ongeldigCount>0&&<div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">Ongeldig — niet geïmporteerd ({preview.ongeldigCount})</p>
           <div className="max-h-28 overflow-y-auto space-y-1">
             {preview.ongeldigSample.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#FDE4E0] rounded-[10px] text-xs">
               <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
@@ -1092,7 +1092,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
       {loading&&<div className="space-y-2"><p className="text-center text-sm text-[#5F6673]">Bestand verwerken… {progress}%</p><div className="h-1.5 rounded-full bg-[#F2F4F7] overflow-hidden"><div className="h-full bg-[#1E3A7B] transition-all" style={{width:`${progress}%`}}/></div></div>}
       {parseError&&<div className="bg-[#FDE4E0] border border-[#F6C7BF] rounded-md p-3 text-sm text-[#A42A1E]">{parseError}</div>}
       <div className="bg-[#F2F4F7] rounded-md p-4 text-xs space-y-2">
-        <p className="font-semibold text-[#5F6673] uppercase tracking-wide">Verwachte kolommen</p>
+        <p className="font-semibold text-[#5F6673]">Verwachte kolommen</p>
         <table className="w-full text-left text-[#5F6673]">
           <tbody className="divide-y divide-[rgba(15,23,42,0.06)]">
             {[["Medewerker / Naam","Naam medewerker","✓"],["Startdatum","Eerste dag","✓"],["Einddatum","Laatste dag",""],["Starttijd","Begin (HH:MM)",""],["Eindtijd","Einde (HH:MM)",""],["Status / Type","Beschikbaar, Ingepland, Niet beschikbaar, Vakantie, Ziek, Vrij",""],["Notitie","Vrije tekst",""]].map(([col,desc,req])=>
@@ -1127,7 +1127,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Import rows */}
       {validRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Te importeren ({validRows.length} medewerkers)</p>
+        <p className="text-xs font-semibold text-[#5F6673] mb-2">Te importeren ({validRows.length} medewerkers)</p>
         <div className="max-h-56 overflow-y-auto space-y-1.5">
           {validRows.map((r,i)=><div key={i} className={`flex items-center gap-2 p-2.5 rounded-[10px] text-xs flex-wrap ${r.conflicts.length?"bg-[#FEF3DC] border border-[#F6DCA5]":"bg-[#E2F6EA]"}`}>
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{backgroundColor:DEFAULT_DC[r.matchedEmployee!.afdeling].bg}}>{r.matchedEmployee!.naam.slice(0,1)}</div>
@@ -1144,7 +1144,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Conflicts */}
       {conflictRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#8A5300] uppercase tracking-wide mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>Conflicten — projectplanning overlapt</p>
+        <p className="text-xs font-semibold text-[#8A5300] mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>Conflicten — projectplanning overlapt</p>
         <div className="max-h-40 overflow-y-auto space-y-1.5 bg-[#FEF3DC] rounded-md p-3">
           {conflictRows.flatMap(r=>r.conflicts.map((c,ci)=><div key={`${r.rowIndex}-${ci}`} className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-[#23272F] flex-shrink-0">{r.matchedEmployee!.naam}</span>
@@ -1159,7 +1159,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Unmatched */}
       {unmatchedRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Niet gevonden ({unmatchedRows.length})</p>
+        <p className="text-xs font-semibold text-[#5F6673] mb-2">Niet gevonden ({unmatchedRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
           {unmatchedRows.map((r,i)=><div key={i} className="flex items-center gap-2 p-2 bg-[#F2F4F7] rounded-[10px] text-xs">
             <span className="tabular-nums text-[#5F6673]">R{r.rowIndex}</span>
@@ -1171,7 +1171,7 @@ function VacationImportModal({employees,projects,availability,onImport,onClose}:
 
       {/* Invalid */}
       {invalidRows.length>0&&<div>
-        <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Ongeldig ({invalidRows.length})</p>
+        <p className="text-xs font-semibold text-[#5F6673] mb-2">Ongeldig ({invalidRows.length})</p>
         <div className="max-h-24 overflow-y-auto space-y-1">
           {invalidRows.map((r,i)=><div key={i} className="flex items-start gap-2 p-2 bg-[#FDE4E0] rounded-[10px] text-xs">
             <span className="text-[#B5503F] tabular-nums flex-shrink-0">R{r.rowIndex}</span>
@@ -1281,7 +1281,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <div>
-        <label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">Afdeling(en)<span className="text-[#C2604D] ml-0.5">*</span></label>
+        <label className="block text-xs font-semibold text-[#5F6673] mb-1">Afdeling(en)<span className="text-[#C2604D] ml-0.5">*</span></label>
         <div className="flex gap-2 flex-wrap">
           {AFDS.map(a=><button key={a} type="button" onClick={()=>toggleAfdeling(a)} className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold border transition-all ${curAfds.includes(a)?"text-white border-transparent":"border-[rgba(15,23,42,0.15)] text-[#5F6673] hover:border-[#5F6673]"}`} style={curAfds.includes(a)?{backgroundColor:dc[a].bg}:{}}>{curAfds.includes(a)&&<Check className="w-3 h-3 inline mr-1"/>}{a}</button>)}
         </div>
@@ -1306,17 +1306,17 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
     </div>
     <div className="border border-[rgba(15,23,42,0.1)] rounded-md overflow-hidden">
       <div className="bg-[#F2F4F7] px-4 py-2.5 border-b border-[rgba(15,23,42,0.1)]">
-        <span className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide">Medewerkers toewijzen</span>
+        <span className="text-xs font-semibold text-[#5F6673]">Medewerkers toewijzen</span>
       </div>
       <div className="p-4 space-y-4">
         <div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">1. Afdeling</p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">1. Afdeling</p>
           <div className="flex gap-2">
             {AFDS.map(a=><button key={a} type="button" onClick={()=>handleAssignAfdChange(a)} className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold border transition-all ${assignAfd===a?"text-white border-transparent":"border-[rgba(15,23,42,0.15)] text-[#5F6673] hover:border-[#5F6673]"}`} style={assignAfd===a?{backgroundColor:dc[a].bg}:{}}>{a}</button>)}
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">2. Competenties <span className="normal-case font-normal text-[#9AA1AD]">(optioneel)</span></p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">2. Competenties <span className="normal-case font-normal text-[#9AA1AD]">(optioneel)</span></p>
           {afdComps.length===0?<p className="text-xs text-[#9AA1AD]">Geen competenties gevonden.</p>
           :<div className="flex flex-wrap gap-1.5">
             {afdComps.map(c=>{const sel=assignComps.includes(c);return<button key={c} type="button" onClick={()=>setAssignComps(prev=>sel?prev.filter(x=>x!==c):[...prev,c])} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${sel?"bg-[#1E3A7B] text-white border-[#1E3A7B]":"border-[rgba(15,23,42,0.15)] text-[#5F6673] hover:border-[#1E3A7B]"}`}>{sel&&<Check className="w-2.5 h-2.5 inline mr-0.5"/>}{c}</button>;})}
@@ -1328,7 +1328,7 @@ function ProjectForm({initial,employees,projects,availability,onSave,onCancel}:{
           <span className="text-[#5F6673]">{fmtDate(f.startdatum)} {fmtTime(f.startdatum)} – {fmtDate(f.afloopdatum)} {fmtTime(f.afloopdatum)}</span>
         </div>
         <div>
-          <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">4. Beschikbare medewerkers</p>
+          <p className="text-xs font-semibold text-[#5F6673] mb-2">4. Beschikbare medewerkers</p>
           {availableEmps.length===0
             ?<p className="text-xs text-[#5F6673] italic py-1">Geen beschikbare medewerkers gevonden voor deze afdeling, competenties en periode.</p>
             :<div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
@@ -1440,15 +1440,18 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
     setPdfBezig(true);
     try{
       const taken=await listTaken(project.id);
-      if(!taken.some(t=>!!t.start)){
-        toast.error("Voeg eerst taken toe bij dit werk voordat je een planning kunt exporteren");
-        return;
-      }
-      const {generateProjectPlanningPdf}=await import("@/lib/taken-pdf");
-      generateProjectPlanningPdf({project:{
-        werknummer:project.werknummer||"",projectnaam:project.projectnaam||"",
-        opdrachtgever:project.opdrachtgever||"",adres:project.adres||"",plaats:project.plaats||"",
-      },taken});
+      const pdfWerk={werknummer:project.werknummer||"",projectnaam:project.projectnaam||"",
+        opdrachtgever:project.opdrachtgever||"",adres:project.adres||"",plaats:project.plaats||""};
+      const pdf=await import("@/lib/taken-pdf");
+      if(taken.some(t=>!!t.start)){pdf.generateProjectPlanningPdf({project:pdfWerk,taken});return;}
+      // Geen taken: de planning uit de ingeplande medewerkers halen (wie werkt wanneer)
+      const ids=new Set(werkIdsVan(project));
+      const regels=availability.filter(a=>a.status==="Ingepland"&&a.projectId&&ids.has(a.projectId)).map(a=>{
+        const e=employees.find(x=>x.id===a.employeeId);
+        return {datum:a.date,naam:e?.naam||"Onbekende medewerker",tijd:`${a.startTime}–${a.endTime}`,kleur:e?dc[e.afdeling].bg:"#1E3A7B"};
+      });
+      if(!regels.length){toast.error("Er is nog geen planning of taak voor dit werk om te exporteren.");return;}
+      pdf.generatePersoneelsPlanningPdf({project:pdfWerk,regels});
     }catch{
       toast.error("De planning kon niet als PDF worden gegenereerd. Probeer het opnieuw.");
     }finally{
@@ -1505,7 +1508,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         <TakenTab projectId={project.id}/>
       </Suspense>}
       {tab==="opmerkingen"&&<div>
-        <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-2">Opmerkingen</p>
+        <p className="text-xs font-semibold text-[#5F6673] mb-2">Opmerkingen</p>
         <p className="text-[#23272F] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
       </div>}
       {tab==="planning"&&<div className="space-y-4">
@@ -1714,7 +1717,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
   ];
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6">
     <div>
-      <h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Dashboard</h1>
+      <h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Dashboard</h1>
       <p className="text-[#5F6673] text-xs md:text-sm">{now.toLocaleDateString("nl-NL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
@@ -1722,7 +1725,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
         <div className="flex items-center justify-between mb-2 md:mb-3">
           <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{backgroundColor:s.bg}}><s.icon className="w-4 h-4" style={{color:s.color}} aria-hidden="true"/></span>
         </div>
-        <p className="text-[34px] leading-[40px] font-bold tracking-[-0.02em] text-[#23272F]">{s.value}</p>
+        <p className="text-[32px] leading-[38px] font-semibold text-[#23272F]">{s.value}</p>
         <p className="text-xs text-[#5F6673] mt-0.5 leading-tight">{s.label}</p>
       </button>)}
     </div>
@@ -1811,7 +1814,7 @@ function ColHeader({label,active,children}:{label:string;active:boolean;children
   const [open,setOpen]=useState(false);
   const ref=useRef<HTMLTableCellElement>(null);
   useEffect(()=>{const h=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
-  return <th ref={ref} className="relative px-3 py-3 text-left text-xs font-semibold text-[#5F6673] uppercase tracking-wide">
+  return <th ref={ref} className="relative px-3 py-3 text-left text-xs font-semibold text-[#5F6673]">
     <div className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap" onClick={()=>setOpen(p=>!p)}>
       {label}
       <Filter className={`w-3 h-3 flex-shrink-0 ${active?"text-[#1E3A7B]":"text-[#9AA1AD]"}`}/>
@@ -2004,7 +2007,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Werken</h1>
+        <h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Werken</h1>
         <p className="text-[#5F6673] text-xs md:text-sm">{filtered.length} van {projects.length} werken{activeCount>0&&<span> · <button onClick={()=>clearFilters()} className="text-[#1E3A7B] hover:underline font-medium">Filters wissen ({activeCount})</button></span>}</p>
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">
@@ -2159,8 +2162,8 @@ function MonthView({year,month,projects,employees,schoolRegions,onClickProject,o
 
   return <div>
     <div className={`grid border-b border-[rgba(15,23,42,0.08)]`} style={{gridTemplateColumns:showWeekNumbers?"28px repeat(7,1fr)":"repeat(7,1fr)"}}>
-      {showWeekNumbers&&<div className="py-2 text-center text-[10px] font-semibold text-[#9AA1AD] uppercase">Wk</div>}
-      {DAYS_NL.map(d=><div key={d} className="py-2 text-center text-xs font-semibold text-[#5F6673] uppercase tracking-wide">{d}</div>)}
+      {showWeekNumbers&&<div className="py-2 text-center text-[10px] font-semibold text-[#9AA1AD]">Wk</div>}
+      {DAYS_NL.map(d=><div key={d} className="py-2 text-center text-xs font-semibold text-[#5F6673]">{d}</div>)}
     </div>
     {weeks.map((week,wi)=>{
       const evs=layoutWeek(week,projects);
@@ -2250,13 +2253,13 @@ function WeekView({weekDays,projects,employees,onClickProject,onClickDateTime,on
     <div className="flex border-b border-[rgba(15,23,42,0.08)]">
       <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1"><span className="text-[10px] text-[#9AA1AD] font-medium">Wk{wn}</span></div>
       {weekDays.map((d,i)=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;return <div key={i} className={`flex-1 py-2 text-center border-l border-[rgba(15,23,42,0.06)] ${hol?"bg-[#FDE4E0]/40":""}`}>
-        <p className={`text-xs font-semibold uppercase tracking-wide ${isT?"text-[#1E3A7B]":"text-[#5F6673]"}`}>{DAYS_NL[i]}</p>
+        <p className={`text-xs font-semibold ${isT?"text-[#1E3A7B]":"text-[#5F6673]"}`}>{DAYS_NL[i]}</p>
         <p className={`text-sm font-bold ${isT?"text-[#23272F]":"text-[#5F6673]"}`}>{d.getDate()}</p>
         {hol&&<p className="text-[10px] text-[#E0574A] truncate px-1">{hol}</p>}
       </div>;})}
     </div>
     <div className="flex border-b border-[rgba(15,23,42,0.08)]" style={{minHeight:adH}}>
-      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[10px] text-[#5F6673] uppercase">All-day</span></div>
+      <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2"><span className="text-[10px] text-[#5F6673]">All-day</span></div>
       <div className="flex-1 relative" style={{height:adH}}>
         <div className="grid grid-cols-7 h-full absolute inset-0">{weekDays.map((_,i)=><div key={i} className="border-l border-[rgba(15,23,42,0.06)]"/>)}</div>
         {allDayEvs.map(ev=>{const st=agendaProjStyle(ev.project,dc);const lbl=agendaLabel(ev.project,employees);return <div key={ev.project.id} title={lbl} onClick={()=>onClickProject(ev.project)} draggable className="absolute h-5 rounded text-white text-xs font-medium px-1.5 flex items-center cursor-pointer hover:brightness-110 z-10 overflow-hidden" style={{left:`${ev.sc/7*100+0.3}%`,width:`${(ev.ec-ev.sc+1)/7*100-0.6}%`,top:6+ev.slot*22,...st}}><span className="truncate">{lbl}</span></div>;})}
@@ -2423,7 +2426,7 @@ function KwartaalView({year,quarter,projects,employees,schoolRegions,onClickProj
           </div>
           <div className="grid border-b border-[rgba(15,23,42,0.06)]" style={{gridTemplateColumns:showWeekNumbers?"24px repeat(7,1fr)":"repeat(7,1fr)"}}>
             {showWeekNumbers&&<div className="py-1.5 text-center text-[10px] font-semibold text-[#9AA1AD]">W</div>}
-            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[10px] font-semibold text-[#5F6673] uppercase tracking-wide">{d}</div>)}
+            {DAYS_NL.map(d=><div key={d} className="py-1.5 text-center text-[10px] font-semibold text-[#5F6673]">{d}</div>)}
           </div>
           {weeks.map((week,wi)=>{
             const evs=layoutWeek(week,projects);
@@ -2982,7 +2985,7 @@ function ColorManagerModal({settings,teams,projectleiders=[],onSave,onClose}:{
       <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{backgroundColor:kleur}}>Voorbeeld</span>
       <button onClick={onReset} className="text-[10px] text-[#5F6673] hover:text-[#23272F] font-semibold">Standaard</button>
     </div>;
-  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold uppercase tracking-wide text-[#5F6673]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
+  const section=(title:string,children:React.ReactNode)=><div className="space-y-2"><h3 className="text-xs font-bold text-[#5F6673]">{title}</h3><div className="space-y-1.5">{children}</div></div>;
   return <Modal title="Kleuren beheren" onClose={onClose} width="max-w-2xl">
     <div className="p-4 md:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
       {section("Statussen",AVAIL_STATS.map(st=>row("st-"+st,st,statusColorOf(st,statusColors),
@@ -3877,7 +3880,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Personeelsplanning</h1><p className="hidden sm:block text-[#5F6673] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
+      <div><h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Personeelsplanning</h1><p className="hidden sm:block text-[#5F6673] text-xs md:text-sm">Bezetting per medewerker · klik = inplannen, shift-klik op twee dagen = afwezigheid</p></div>
       <div className="flex gap-2 overflow-x-auto sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
@@ -3963,7 +3966,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       <table className={`text-xs ${view==="week"?"w-full":""}`} style={{tableLayout:"fixed",minWidth:`${NAAM_B+dates.length*(view==="week"?(smal?64:90):MONTH_COL_W)}px`,...(view==="maand"?{width:`${NAAM_B+dates.length*MONTH_COL_W}px`}:null)}}>
         <thead className="bg-[#F2F4F7] sticky top-0 z-10">
           <tr>
-            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
+            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
               style={{...(view==="week"?{width:`calc((100% - ${NAAM_B}px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
               className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#9AA1AD]":"text-[#5F6673]"} ${isWE&&!hol?"bg-[#E8ECF1]":""}`} title={hol||undefined}>
@@ -4039,7 +4042,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       <table className="text-xs" style={{tableLayout:"fixed",width:`${NAAM_B+weeks.length*QUARTER_COL_W}px`}}>
         <thead className="bg-[#F2F4F7] sticky top-0 z-10">
           <tr>
-            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold uppercase tracking-wide sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
+            <th className="px-2 sm:px-4 py-3 text-left text-[#5F6673] font-semibold sticky left-0 bg-[#F2F4F7] z-20" style={{width:NAAM_B}}>{smal?"Naam":"Medewerker"}</th>
             {weeks.map((wk,i)=>{const wn=getWeekNumber(wk);
               const hols=Array.from({length:7},(_,k)=>{const d=new Date(wk);d.setDate(wk.getDate()+k);return getDHol(toDateStr(d));}).filter(Boolean) as string[];
               return<th key={i} className="py-2 px-1 text-center font-semibold text-[#5F6673]" title={hols.join(", ")||undefined}
@@ -4088,7 +4091,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       {plSchilder.map(n=><div key={n} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{backgroundColor:projectleiderColorOf(n,plColors)}}/><span className="text-xs text-[#5F6673]">{n}</span></div>)}
     </div>}
     {teams.length>0&&<div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4">
-      <h3 className="text-xs font-bold text-[#23272F] uppercase tracking-wide mb-2">Teams in deze periode</h3>
+      <h3 className="text-xs font-bold text-[#23272F] mb-2">Teams in deze periode</h3>
       <div className="flex flex-wrap gap-3">
         {teams.map(t=><div key={t.key} className="flex items-center gap-1.5">
           <input type="color" value={t.kleur} onChange={ev=>setTeamColor(t.key,ev.target.value)} className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0" title="Teamkleur aanpassen"/>
@@ -4171,7 +4174,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       <div className="fixed inset-0 z-40" onClick={()=>setCellMenu(null)} onContextMenu={ev=>{ev.preventDefault();setCellMenu(null);}}/>
       <div ref={menuRef} className="fixed z-50 bg-white rounded-md border border-[rgba(15,23,42,0.12)] shadow-lg py-1 text-xs min-w-44"
         style={{left:Math.max(8,Math.min(cellMenu.x,window.innerWidth-200)),top:Math.max(8,Math.min(cellMenu.y,window.innerHeight-menuH-8))}}>
-        <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[#9AA1AD]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
+        <p className="px-3 py-1.5 text-[10px] text-[#9AA1AD]">{employees.find(e=>e.id===cellMenu.empId)?.naam} · {fmtDate(cellMenu.date)}{cellMenu.block?` · ${cellMenu.block.startTime}–${cellMenu.block.endTime}`:""}</p>
         {cellMenu.block&&<>
           {cellMenu.block.projectId&&<button className="w-full text-left px-3 py-1.5 hover:bg-[#F2F4F7] text-[#23272F] flex items-center gap-2" onClick={async()=>{const b=cellMenu.block!;setCellMenu(null);await markFirstOfDay(b,!b.isFirstOfDay);}}>
             <Star className="w-3.5 h-3.5 text-[#D08A4E]" fill="currentColor"/>{cellMenu.block.isFirstOfDay?"Markering verwijderen":"Als eerste uitvoeren"}
@@ -4310,7 +4313,7 @@ function NotitiesView(){
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div>
-      <h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Persoonlijke notities</h1>
+      <h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Persoonlijke notities</h1>
       <p className="text-[#5F6673] text-xs md:text-sm">{noteOwnerId&&!realUserId?"Zonder account worden je notities op dit apparaat bewaard.":"Alleen jij ziet deze notities — ze zijn gekoppeld aan jouw account."}</p>
     </div>
     {!noteOwnerId
@@ -4359,7 +4362,7 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
   const filtered=employees.filter(e=>{const q=search.toLowerCase();return(!q||e.naam.toLowerCase().includes(q)||e.functie.toLowerCase().includes(q))&&(!afdFilter||e.afdeling===afdFilter);});
   return <div className="p-4 md:p-6 space-y-4 md:space-y-5">
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div><h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Medewerkers</h1><p className="text-[#5F6673] text-xs md:text-sm">{employees.length} medewerkers</p></div>
+      <div><h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Medewerkers</h1><p className="text-[#5F6673] text-xs md:text-sm">{employees.length} medewerkers</p></div>
       <div className="flex gap-2 flex-shrink-0">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn onClick={onAdd}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuwe medewerker</span></Btn>
@@ -4431,7 +4434,7 @@ function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:A
 
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-2xl">
     <div>
-      <h1 className="text-[28px] md:text-[36px] leading-[34px] md:leading-[42px] font-bold tracking-[-0.02em] text-[#23272F]">Instellingen</h1>
+      <h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Instellingen</h1>
       <p className="text-[#5F6673] text-xs md:text-sm">Bedrijfsinstellingen en voorkeuren</p>
     </div>
     <div className="flex gap-1 bg-[#F2F4F7] p-1 rounded-md w-fit">
@@ -4470,7 +4473,7 @@ function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:A
       </div>
       <Input label="Plaats" value={form.plaats} onChange={v=>setForm(p=>({...p,plaats:v}))}/>
       <div>
-        <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">Standaard werkdag (nieuwe planning)</p>
+        <p className="text-xs font-semibold text-[#5F6673] mb-1">Standaard werkdag (nieuwe planning)</p>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Begintijd" type="time" value={form.werkdagStart||"07:00"} onChange={v=>setForm(p=>({...p,werkdagStart:v}))}/>
           <Input label="Eindtijd" type="time" value={form.werkdagEind||"17:00"} onChange={v=>setForm(p=>({...p,werkdagEind:v}))}/>
@@ -4483,14 +4486,14 @@ function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:A
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">Primaire kleur</label>
+          <label className="block text-xs font-semibold text-[#5F6673] mb-1">Primaire kleur</label>
           <div className="flex items-center gap-2">
             <input type="color" value={form.primaryColor} onChange={e=>setForm(p=>({...p,primaryColor:e.target.value}))} className="w-10 h-10 rounded-[10px] border border-[rgba(15,23,42,0.1)] cursor-pointer p-0.5 bg-[#F2F4F7]"/>
             <span className="text-sm text-[#23272F] tabular-nums">{form.primaryColor}</span>
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-[#5F6673] uppercase tracking-wide mb-1">Accentkleur</label>
+          <label className="block text-xs font-semibold text-[#5F6673] mb-1">Accentkleur</label>
           <div className="flex items-center gap-2">
             <input type="color" value={form.accentColor} onChange={e=>setForm(p=>({...p,accentColor:e.target.value}))} className="w-10 h-10 rounded-[10px] border border-[rgba(15,23,42,0.1)] cursor-pointer p-0.5 bg-[#F2F4F7]"/>
             <span className="text-sm text-[#23272F] tabular-nums">{form.accentColor}</span>

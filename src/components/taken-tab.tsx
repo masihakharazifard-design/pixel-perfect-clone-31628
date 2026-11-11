@@ -59,7 +59,7 @@ export function TakenTab({ projectId, canEdit = true }: { projectId: string; can
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between gap-3">
-      <p className="text-xs font-semibold text-[#5F6673] uppercase tracking-wide">Taken</p>
+      <p className="text-xs font-semibold text-[#5F6673]">Taken</p>
       {canEdit && <button onClick={() => setForm(LEEG(projectId))}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#1E3A7B] text-white text-xs font-semibold hover:opacity-90">
         <Plus className="w-3.5 h-3.5"/>Taak toevoegen

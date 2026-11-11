@@ -128,3 +128,86 @@ export function generateProjectPlanningPdf({ project, taken }: { project: Planni
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** Eén regel in de planning-pdf zonder taken: wie werkt er die dag en hoe laat. */
+export interface PlanningRegelPdf {
+  datum: string; // JJJJ-MM-DD
+  naam: string;
+  tijd: string; // bijv. "07:00–17:00"
+  kleur: string; // afdelingskleur (#rrggbb)
+}
+
+/**
+ * Planning van één werk als pdf, opgebouwd uit de ingeplande medewerkers (voor werken zonder taken).
+ * Zelfde opmaak als de takenplanning: per dag een blok met wie er werkt en van hoe laat tot hoe laat.
+ */
+export function generatePersoneelsPlanningPdf({ project, regels }: { project: PlanningPdfProject; regels: PlanningRegelPdf[] }): void {
+  const perDag = new Map<string, PlanningRegelPdf[]>();
+  [...regels].sort((a, b) => a.datum.localeCompare(b.datum) || a.naam.localeCompare(b.naam)).forEach((r) => {
+    perDag.set(r.datum, [...(perDag.get(r.datum) || []), r]);
+  });
+  if (!perDag.size) throw new Error("geen planning");
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297, M = 14;
+  let y = 0;
+  const kop = () => {
+    doc.setFillColor(26, 39, 68);
+    doc.rect(0, 0, W, 26, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold").setFontSize(14);
+    doc.text(project.projectnaam || project.werknummer || "Planning", M, 12);
+    doc.setFont("helvetica", "normal").setFontSize(9);
+    doc.text([project.werknummer, project.opdrachtgever].filter(Boolean).join("  ·  "), M, 18);
+    const regel3 = [project.adres, project.plaats].filter(Boolean).join(", ");
+    if (regel3) doc.text(regel3, M, 23);
+    doc.setTextColor(26, 39, 68);
+    y = 34;
+  };
+  kop();
+  const dagen = [...perDag.keys()];
+  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(107, 122, 153);
+  doc.text(`Personeelsplanning · ${dagen.length} dag${dagen.length === 1 ? "" : "en"} · ${langeDatum(dagen[0])} t/m ${langeDatum(dagen[dagen.length - 1])}`, M, y);
+  y += 6;
+  for (const datum of dagen) {
+    const lijst = perDag.get(datum)!;
+    const hoogte = 9 + lijst.length * 6 + 3;
+    if (y + hoogte > H - 18) {
+      doc.addPage();
+      kop();
+    }
+    const weekend = isWeekend(datum);
+    if (weekend) doc.setFillColor(251, 252, 254);
+    else doc.setFillColor(234, 239, 247);
+    doc.roundedRect(M, y, W - M * 2, hoogte, 2, 2, "F");
+    doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(26, 39, 68);
+    doc.text(langeDatum(datum) + (weekend ? "  (weekend)" : ""), M + 4, y + 6.5);
+    let ty = y + 12;
+    for (const r of lijst) {
+      const [rr, g, b] = hexToRgb(r.kleur);
+      doc.setFillColor(rr, g, b);
+      doc.roundedRect(M + 5, ty - 3, 3.2, 3.2, 0.6, 0.6, "F");
+      doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(26, 39, 68);
+      doc.text(doc.splitTextToSize(r.naam, 110)[0], M + 11, ty);
+      doc.setTextColor(107, 122, 153);
+      doc.text(r.tijd, W - M - 5, ty, { align: "right" });
+      ty += 6;
+    }
+    y += hoogte + 4;
+  }
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(120, 130, 155);
+    doc.text("Planning gemaakt met Maasmond Planning", M, H - 8);
+    doc.text(`Pagina ${i} van ${n}`, W - M, H - 8, { align: "right" });
+  }
+  const url = URL.createObjectURL(doc.output("blob"));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Planning - ${(project.werknummer || project.projectnaam || "werk").replace(/[\/:*?"<>|]+/g, "-")}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
