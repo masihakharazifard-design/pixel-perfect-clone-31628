@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system "Lichte werkplaats" (was warm; nu licht neutraal): lichtgrijze achtergrond #EEF1F5, licht werkvlak #FCFCFD, zachte kaarten #F2F4F7,
- * inkt #23272F / #5F6673, lichte menubalk #F7F8FA, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus),
- * logo-rood #D35A48 (actief menu-item), uitgelichte kaart lichtblauw met Maasmond-blauwe tekst.
- * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen.
+ * Design system "Lichte werkplaats": lichtgrijze achtergrond #EEF1F5, licht werkvlak #FCFCFD, zachte kaarten #F4F6F9,
+ * inkt #23272F / #5F6673, witte menubalk, merkkleur Maasmond-blauw #1E3A7B (knoppen, links, focus, uitgelichte tegel),
+ * logo-rood #E0402F (actief menu-item). Afdelingen: Stoffering #26A69A, Schilderwerk #EF6A50, Zonwering #F2A43A.
+ * Helvetica (op Windows Arial), ronde knoppen, kaarten 24px, werkvlak 28px, geen zware schaduwen. Minimale tekst 10px.
  */
 
 :root {
@@ -198,8 +198,6 @@
   --mm-rood: #E0402F;
   --mm-blauw: #1E3A7B;
   --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --fluent-shadow-2: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
-  --fluent-shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
 }
 body { font-family: var(--font-ui); font-size: 14px; line-height: 21px; color: #23272f; -webkit-font-smoothing: antialiased; }
 /* ===== Warme werkplaats =====
@@ -275,6 +273,6 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 .mm-paneel-form .mb-6 { margin-bottom: 14px; }
 /* Smal scherm: gewoon inlogvak in het midden over de foto */
 .mm-login-los > .bg-white.rounded-lg.border { background: #ffffff; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
-/* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
+/* Zichtbare focus bij toetsenbordbediening */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

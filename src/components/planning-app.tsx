@@ -1418,15 +1418,20 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
     }).catch(()=>setMetaLoaded(true));
     return()=>{cancelled=true;};
   },[project.id]);
+  // Opslaan na 1,5 s zonder typen (niet bij elke toetsaanslag); bij sluiten direct opslaan wat nog openstaat.
+  const metaOpslaan=useRef<(()=>void)|null>(null);
   useEffect(()=>{
     if(!metaLoaded)return;
-    const t=setTimeout(()=>{
-      void loadProjectMeta(project.id).then(prev=>
-        saveProjectMeta(project.id,{...EMPTY_META,...(prev||{}),docs,notities}),
-      ).catch(()=>{});
-    },300);
+    const sla=()=>{metaOpslaan.current=null;void loadProjectMeta(project.id).then(prev=>{
+      const p={...EMPTY_META,...(prev||{})};
+      if(p.notities===notities&&JSON.stringify(p.docs)===JSON.stringify(docs))return;
+      return saveProjectMeta(project.id,{...p,docs,notities});
+    }).catch(()=>{});};
+    metaOpslaan.current=sla;
+    const t=setTimeout(sla,1500);
     return()=>clearTimeout(t);
   },[docs,notities,metaLoaded,project.id]);
+  useEffect(()=>()=>{metaOpslaan.current?.();},[]);
 
   const [pdfBezig,setPdfBezig]=useState(false);
   // Dag-voor-dag agenda van dit ene werk als echte PDF (download, geen printvenster).
@@ -4392,7 +4397,7 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
 }
 
 // ===== INSTELLINGEN =====
-function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppSettings)=>void}){
+function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:AppSettings;onSave:(s:AppSettings)=>void;projects?:Project[];employees?:Employee[]}){
   const [form,setForm]=useState<AppSettings>(settings);
   const [saved,setSaved]=useState(false);
   const [activeTab,setActiveTab]=useState<"bedrijf"|"kleuren"|"projectleiders">("bedrijf");
@@ -4400,6 +4405,15 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
   const plRows=Object.entries({...DEFAULT_PL_NAMEN,...(form.projectleiderNamen||{})});
   const setPlName=(code:string,naam:string)=>setForm(p=>({...p,projectleiderNamen:{...(p.projectleiderNamen||{}),[code]:naam}}));
   const [newCode,setNewCode]=useState("");const [newNaam,setNewNaam]=useState("");
+  // Afkortingen die in de werken voorkomen maar nog niet aan een naam gekoppeld zijn
+  const onbekend=useMemo(()=>{
+    const bekend=new Set(Object.keys(normPlAliases({...DEFAULT_PL_NAMEN,...(settings.projectleiderNamen||{})})));
+    const mensen=new Set(employees.map(e=>e.id));
+    const tel=new Map<string,number>();
+    projects.forEach(p=>{const raw=String(p.projectleider||"").trim();if(!raw||mensen.has(raw))return;const k=raw.toUpperCase();
+      if(!/^[A-Z.]{2,5}$/.test(k)||bekend.has(k))return;tel.set(k,(tel.get(k)||0)+1);});
+    return [...tel.entries()].sort((a,b)=>b[1]-a[1]);
+  },[projects,employees,settings.projectleiderNamen]);
 
   // sync if settings prop changes
   useEffect(()=>{setForm(settings);},[settings]);
@@ -4425,6 +4439,15 @@ function InstellingenView({settings,onSave}:{settings:AppSettings;onSave:(s:AppS
     </div>
     {activeTab==="projectleiders"&&<div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 md:p-6 space-y-3">
       <p className="text-sm text-[#5F6673]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
+      {onbekend.length>0&&<div className="rounded-[10px] border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-2">
+        <p className="text-sm font-semibold text-[#7A4A00] flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" aria-hidden="true"/>Nog niet gekoppeld ({onbekend.length})</p>
+        <p className="text-xs text-[#7A4A00]">Deze afkortingen staan bij werken, maar hebben nog geen volledige naam. Vul de naam in en sla op; daarna krijgen ze overal de juiste naam en kleur.</p>
+        {onbekend.map(([code,n])=><div key={code} className="flex items-center gap-2">
+          <span className="w-20 flex-shrink-0 tabular-nums text-sm font-semibold text-[#23272F]">{code}</span>
+          <input value={form.projectleiderNamen?.[code]||""} onChange={e=>setPlName(code,e.target.value)} placeholder={`Volledige naam (${n} werk${n===1?"":"en"})`}
+            className="flex-1 py-1.5 px-2.5 text-sm border border-[rgba(15,23,42,0.12)] rounded-[10px] bg-white text-[#23272F] focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50"/>
+        </div>)}
+      </div>}
       <div className="space-y-2">
         {plRows.map(([code,naam])=><div key={code} className="flex items-center gap-2">
           <span className="w-20 flex-shrink-0 tabular-nums text-sm font-semibold text-[#23272F]">{code}</span>
@@ -5100,7 +5123,7 @@ export default function PlanningApp(){
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
-          {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings}/>}
+          {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings} projects={projects} employees={employees}/>}
           {nav==="geschiedenis"&&<GeschiedenisView projects={projects} employees={employees} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#5F6673]">Laden…</div>}><GebruikersbeheerView/></Suspense>}
         </div>
