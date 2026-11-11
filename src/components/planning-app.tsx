@@ -124,14 +124,18 @@ function sortEmployeesByPlanningOrder<T extends {id:string}>(list:T[],order:stri
 
 // ===== DEPT COLOR CONTEXT =====
 const DEFAULT_DC:Record<Afdeling,{bg:string;light:string;border:string}> = {
-  Stoffering:  {bg:"#67AC9F",light:"#E6F2EE",border:"#67AC9F"},
-  Schilderwerk:{bg:"#DA7B63",light:"#F8E6E0",border:"#DA7B63"},
-  Zonwering:   {bg:"#D9A04A",light:"#F8EDD8",border:"#D9A04A"},
+  Stoffering:  {bg:"#26A69A",light:"#DDF2EF",border:"#26A69A"},
+  Schilderwerk:{bg:"#EF6A50",light:"#FDE5DF",border:"#EF6A50"},
+  Zonwering:   {bg:"#F2A43A",light:"#FDEFD8",border:"#F2A43A"},
 };
 const DC = DEFAULT_DC;
 // Oude felle standaardkleuren (in eerder opgeslagen instellingen) omzetten naar de zachte tinten.
 // Zelf gekozen kleuren blijven ongemoeid.
-const OUDE_AFD_KLEUR:Record<string,string>={"#0ABFB8":"#67AC9F","#E0F7F6":"#E6F2EE","#FF6B5B":"#DA7B63","#FFE8E5":"#F8E6E0","#F5A623":"#D9A04A","#FEF0D3":"#F8EDD8","#4E8C80":"#67AC9F","#E3EFEA":"#E6F2EE","#C2604D":"#DA7B63","#F5E1DC":"#F8E6E0","#B07A2A":"#D9A04A","#F6EAD3":"#F8EDD8"};
+const OUDE_AFD_KLEUR:Record<string,string>=Object.fromEntries(([
+    [["#0ABFB8","#4E8C80","#67AC9F"],"#26A69A"],[["#E0F7F6","#E3EFEA","#E6F2EE"],"#DDF2EF"],
+    [["#FF6B5B","#C2604D","#DA7B63"],"#EF6A50"],[["#FFE8E5","#F5E1DC","#F8E6E0"],"#FDE5DF"],
+    [["#F5A623","#B07A2A","#D9A04A"],"#F2A43A"],[["#FEF0D3","#F6EAD3","#F8EDD8"],"#FDEFD8"],
+  ] as [string[],string][]).flatMap(([oud,nieuw])=>oud.map(o=>[o,nieuw])));
 const zacht=(k?:string)=>k?OUDE_AFD_KLEUR[k.toUpperCase()]??k:k;
 function verzachtOudeKleuren(s:AppSettings):AppSettings{
   const dc={...s.deptColors};
@@ -937,7 +941,7 @@ function ExcelImportModal({projects,employees,onImport,onClose}:{
               {r.opdrachtgever&&<span className="text-[#6F675C] truncate max-w-28">{r.opdrachtgever}</span>}
               {r.projectleider&&<span className="text-[#6F675C] italic truncate max-w-20">{r.projectleider}</span>}
               {r.turnkey
-                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#67AC9F 33%,#DA7B63 33% 66%,#D9A04A 66%)"}}>Turnkey</span>
+                ?<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{background:"linear-gradient(90deg,#26A69A 33%,#EF6A50 33% 66%,#F2A43A 66%)"}}>Turnkey</span>
                 :<span className="flex gap-0.5 flex-shrink-0">{r.afdelingen.map(a=><span key={a} className="w-2 h-2 rounded-full" style={{backgroundColor:DEFAULT_DC[a].bg}} title={a}/>)}</span>
               }
             </div>)}
