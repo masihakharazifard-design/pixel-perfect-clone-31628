@@ -252,7 +252,7 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
  * Eén beeld dat het scherm vult (cover) en als geheel subtiel meeschuift met de muis.
  * De foto staat eronder: als stilstaand beeld bij minder beweging en zolang de video laadt of ontbreekt. */
 .mm-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: #293547; }
-.mm-bg__waas { position: absolute; inset: 0; background: rgba(13, 23, 38, 0.18); }
+.mm-bg__waas { position: absolute; inset: 0; background: rgba(13, 23, 38, 0.04); }
 .mm-bg__foto {
   position: absolute;
   inset: -20px;
@@ -271,7 +271,7 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
   translate: -50% -50%;
   background: var(--scene) center / cover no-repeat;
 }
-.mm-bg__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 600ms ease; }
+.mm-bg__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 600ms ease; filter: brightness(1.22) contrast(1.03) saturate(1.05); }
 .mm-bg__video.is-playing { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .mm-bg__foto { transform: none; transition: none; }
@@ -280,27 +280,88 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
 /* Inlogformulier als poster op de witte achtermuur van de foto */
 .mm-poster-plek { position: absolute; }
 .mm-poster { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: auto; z-index: 2; }
-.mm-poster > .bg-white.rounded-lg.border {
+/* 3D: papier hangt voor de muur, kantelt licht mee met de muis */
+.mm-poster__3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: perspective(1300px) rotateX(var(--poster-rx, 0deg)) rotateY(var(--poster-ry, 0deg));
+  transition: transform 320ms ease-out;
+}
+.mm-poster__schaduw {
+  position: absolute;
+  inset: 8px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.42);
+  filter: blur(16px);
+  transform: translate3d(var(--poster-sx, 6px), var(--poster-sy, 12px), 0);
+  transition: transform 320ms ease-out;
+}
+.mm-poster__papier { position: relative; transform: translateZ(10px); }
+.mm-poster__papier > .bg-white.rounded-lg.border {
   max-width: none;
   background: #fdfdfd;
   border: none !important;
   border-radius: 3px;
-  rotate: -0.6deg;
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.18), 0 10px 22px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 0 #e6e9ed, 0 2px 0 #d5dae0, 0 3px 6px rgba(15, 23, 42, 0.18);
 }
-/* plakband op de bovenhoeken */
-.mm-poster::before, .mm-poster::after {
+/* lichtval van de ramen rechts over het papier */
+.mm-poster__papier::after {
   content: "";
   position: absolute;
-  top: -10px;
-  width: 74px;
-  height: 22px;
-  background: rgba(236, 228, 210, 0.82);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  z-index: 3;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0.28) 62%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0) 65%, rgba(15, 23, 42, 0.05));
 }
-.mm-poster::before { left: -14px; rotate: -32deg; }
-.mm-poster::after { right: -14px; rotate: 30deg; }
+/* Touwtjes: van het oogje in de hoek schuin naar een spijker in de muur */
+.mm-touw { position: absolute; width: 0; height: 0; transform: translateZ(4px); }
+.mm-touw--lb { left: 14px; top: 14px; --hoek: 225deg; --sx: -36px; --sy: -36px; }
+.mm-touw--rb { right: 14px; top: 14px; --hoek: 315deg; --sx: 36px; --sy: -36px; }
+.mm-touw--lo { left: 14px; bottom: 14px; --hoek: 135deg; --sx: -36px; --sy: 36px; }
+.mm-touw--ro { right: 14px; bottom: 14px; --hoek: 45deg; --sx: 36px; --sy: 36px; }
+.mm-touw__koord {
+  position: absolute;
+  left: 0;
+  top: -1.75px;
+  width: 51px;
+  height: 3.5px;
+  transform-origin: 0 50%;
+  rotate: var(--hoek);
+  border-radius: 2px;
+  background: repeating-linear-gradient(115deg, #c9b791 0 2px, #9c8660 2px 4px);
+  box-shadow: 0 2px 2px rgba(15, 23, 42, 0.28);
+}
+.mm-touw__spijker {
+  position: absolute;
+  left: calc(var(--sx) - 5px);
+  top: calc(var(--sy) - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff, #a7afb8 45%, #4b525b);
+  box-shadow: 1px 2px 3px rgba(15, 23, 42, 0.45);
+}
+/* Metalen oogjes in de hoeken van het papier */
+.mm-oogje {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  transform: translateZ(11px);
+  background: radial-gradient(circle, #e9ecef 0 2.5px, #8d949c 3px, #dfe3e7 4.5px, #9aa1a9 6px, rgba(0, 0, 0, 0) 6.5px);
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.3);
+}
+.mm-oogje--lb { left: 14px; top: 14px; }
+.mm-oogje--rb { left: calc(100% - 14px); top: 14px; }
+.mm-oogje--lo { left: 14px; top: calc(100% - 14px); }
+.mm-oogje--ro { left: calc(100% - 14px); top: calc(100% - 14px); }
+@media (prefers-reduced-motion: reduce) {
+  .mm-poster__3d, .mm-poster__schaduw { transition: none; }
+  .mm-poster__3d { transform: none; }
+}
 /* Smal scherm: gewoon inlogvak in het midden over de foto */
 .mm-login-los > .bg-white.rounded-lg.border { background: #ffffff; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
