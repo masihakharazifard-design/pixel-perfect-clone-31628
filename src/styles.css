@@ -252,7 +252,7 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
  * De foto vult het scherm (cover) en schuift licht mee met de muis. Drie zachte werkbewegingen
  * (vloer leggen, schilderen, screen ophangen) bewegen alleen het stukje foto rond die persoon. */
 .mm-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: #293547; }
-.mm-bg::after { content: ""; position: absolute; inset: 0; background: rgba(13, 23, 38, 0.18); }
+.mm-bg__waas { position: absolute; inset: 0; background: rgba(13, 23, 38, 0.18); }
 .mm-bg__foto {
   position: absolute;
   inset: -20px;
@@ -287,8 +287,32 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
   .mm-bg__foto { transform: none; transition: none; }
   .mm-gebaar { animation: none; }
 }
-/* Inlogvak als bord in een houten lijst, midden in de ruimte */
-.mm-scene-login ~ .bg-white.rounded-lg.border { background: #fffdf9; border: 9px solid #B88A5E !important; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(90, 60, 30, 0.18), 0 2px 0 #8F6646, 0 24px 50px rgba(60, 35, 15, 0.35); }
+/* Inlogformulier als poster op de witte achtermuur van de foto */
+.mm-poster-plek { position: absolute; }
+.mm-poster { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: auto; z-index: 2; }
+.mm-poster > .bg-white.rounded-lg.border {
+  max-width: none;
+  background: #fbfaf6;
+  border: none !important;
+  border-radius: 3px;
+  rotate: -0.6deg;
+  box-shadow: 0 1px 1px rgba(20, 16, 12, 0.18), 0 10px 22px rgba(20, 16, 12, 0.22), 0 2px 6px rgba(20, 16, 12, 0.08);
+}
+/* plakband op de bovenhoeken */
+.mm-poster::before, .mm-poster::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 74px;
+  height: 22px;
+  background: rgba(236, 228, 210, 0.82);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 3;
+}
+.mm-poster::before { left: -14px; rotate: -32deg; }
+.mm-poster::after { right: -14px; rotate: 30deg; }
+/* Smal scherm: gewoon inlogvak in het midden over de foto */
+.mm-login-los > .bg-white.rounded-lg.border { background: #fffdf9; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
 /* Zichtbare focus bij toetsenbordbediening (Fluent: duidelijke rand) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--mm-blauw); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

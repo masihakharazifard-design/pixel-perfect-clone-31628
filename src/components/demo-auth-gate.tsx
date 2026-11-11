@@ -34,7 +34,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
       className="relative min-h-screen flex items-center justify-center bg-[#FDFBF7] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <LoginAchtergrond />
+      <LoginAchtergrond>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -81,6 +81,7 @@ function DemoLoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
           Demo-modus: er worden geen echte gegevens of e-mails verstuurd.
         </p>
       </form>
+      </LoginAchtergrond>
     </div>
   );
 }
