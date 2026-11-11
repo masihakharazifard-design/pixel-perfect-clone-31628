@@ -2714,7 +2714,7 @@ function EmployeePicker({employees,value,onChange}:{employees:Employee[];value:s
     <Input label="Medewerker" value={q} onChange={setQ} placeholder={sel?sel.naam:"Zoek medewerker..."}/>
     {sel&&<p className="text-xs text-[#2B2620]">Gekozen: <b>{sel.naam}</b> ({sel.afdeling})</p>}
     <div className="max-h-40 overflow-y-auto border border-[rgba(60,42,20,0.1)] rounded-[10px]">
-      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F0F4FA] ${e.id===value?"bg-[#EFE9DF] font-semibold":""}`}>{e.naam} <span className="text-[#6F675C]">· {e.afdeling}</span></button>)}
+      {list.map(e=><button type="button" key={e.id} onClick={()=>onChange(e.id)} className={`w-full text-left px-2 py-1 text-xs hover:bg-[#F5F1EA] ${e.id===value?"bg-[#EFE9DF] font-semibold":""}`}>{e.naam} <span className="text-[#6F675C]">· {e.afdeling}</span></button>)}
       {list.length===0&&<p className="px-2 py-1 text-xs text-[#6F675C]">Geen medewerkers gevonden.</p>}
     </div>
   </div>;
@@ -2732,7 +2732,7 @@ function MultiEmployeePicker({employees,values,onChange}:{employees:Employee[];v
     <p className="text-xs text-[#6F675C]">{values.length===0?"Nog niemand gekozen":`${values.length} medewerker${values.length===1?"":"s"} gekozen`}</p>
     <div className="max-h-52 overflow-y-auto border border-[rgba(60,42,20,0.1)] rounded-[10px] divide-y divide-[rgba(60,42,20,0.06)]">
       {list.map(e=>{const isSelected=selected.has(e.id);return <button type="button" key={e.id} onClick={()=>toggle(e.id)}
-        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F0F4FA] ${isSelected?"bg-[#EFE9DF] font-semibold":""}`}>
+        className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-[#F5F1EA] ${isSelected?"bg-[#EFE9DF] font-semibold":""}`}>
         <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected?"bg-[#1E3A7B] border-[#1E3A7B] text-white":"border-[rgba(0,0,0,0.2)]"}`}>{isSelected&&<Check className="w-3 h-3"/>}</span>
         <span className="flex-1 min-w-0 truncate">{e.naam} <span className="font-normal text-[#6F675C]">· {e.afdeling}</span></span>
       </button>;})}
@@ -3886,7 +3886,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
             <th className="px-4 py-3 text-left text-[#6F675C] font-semibold uppercase tracking-wide sticky left-0 bg-[#F3EEE6] z-20" style={{width:176}}>Medewerker</th>
             {dates.map(d=>{const ds=toDateStr(d);const hol=getDHol(ds);const isT=ds===TODAY_STR;const isWE=d.getDay()===0||d.getDay()===6;return<th key={ds}
               style={{...(view==="week"?{width:`calc((100% - 176px) / ${dates.length})`}:{width:MONTH_COL_W}),...(hol?{backgroundColor:withAlpha(holColor,0.1),borderTop:`2px solid ${holColor}`,color:holColor}:null)}}
-              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#9A9184]":"text-[#6F675C]"} ${isWE&&!hol?"bg-[#F8F8FB]":""}`} title={hol||undefined}>
+              className={`py-2 text-center font-semibold min-w-10 ${isT?"text-[#1E3A7B]":isWE?"text-[#9A9184]":"text-[#6F675C]"} ${isWE&&!hol?"bg-[#ECE6DC]":""}`} title={hol||undefined}>
               {/* Weeknummer boven elke maandag (en boven de eerste dag in beeld) */}
               <div className="text-[9px] leading-none h-3 text-[#1E3A7B] font-bold">{d.getDay()===1||ds===toDateStr(dates[0])?`wk ${getWeekNumber(d)}`:""}</div>
               <div>{DAYS_NL[(d.getDay()+6)%7]}</div>
@@ -3914,7 +3914,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               onDragOver={ev=>{if(dragProject||dragBlock)ev.preventDefault();}} onDrop={()=>dropOnCell(e.id,ds)}
               style={{...(blockState?{boxShadow:`inset 0 0 0 2px ${borderColorOf(blockState,borderColors,statusColors)}`}:null),
                 ...(cellHol?{backgroundColor:withAlpha(holColor,0.08),borderTop:`2px solid ${withAlpha(holColor,0.7)}`}:null)}}
-              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F8FB]":""} ${sel?"ring-2 ring-inset ring-[#1E3A7B]":""} ${dragProject||dragBlock?"hover:bg-[#EFE9DF]":"hover:bg-[#F3EEE6]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
+              className={`py-1 ${linkedCell?"px-0":"px-0.5"} text-center align-middle cursor-pointer ${isWE&&!cellHol?"bg-[#F8F4EE]":""} ${sel?"ring-2 ring-inset ring-[#1E3A7B]":""} ${dragProject||dragBlock?"hover:bg-[#EFE9DF]":"hover:bg-[#F3EEE6]"}`} title={cellHol?`${cellHol} · klik = inplannen`:"Klik = inplannen · shift-klik = periode afwezigheid · rechtsklik = snelmenu"}>
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
