@@ -254,59 +254,9 @@ button[class*="bg-[#1E3A7B]"] { border-radius: 999px; }
   border-radius: 12px;
 }
 .mm-achtergrond input:focus, .mm-achtergrond select:focus, .mm-achtergrond textarea:focus { border-color: #1e3a7b; background-color: #ffffff; }
-/* Inlogscherm: stilstaande foto met een wit kunststof paneel op de achtermuur.
- * De foto vult het scherm (cover); het formulier staat in dezelfde uitsnede op het paneel. */
-.mm-bg { position: absolute; inset: 0; overflow: hidden; background: #e9ecef; container-type: size; }
-.mm-bg__scene {
-  position: absolute;
-  width: max(100cqw, 177.68cqh);
-  aspect-ratio: 1672 / 941;
-  left: 50%;
-  top: 50%;
-  translate: -50% -50%;
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-.mm-paneel-plek { position: absolute; }
-/* Paneel met het formulier: minstens zo groot als het fotopaneel (dat het afdekt), groter als de tekst dat nodig heeft.
- * Kleur en licht als het kunststof paneel in de foto (licht valt van rechts door de ramen). */
-.mm-paneel {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  translate: -50% calc(-50% - 1.5%);
-  min-width: calc(100% + 4px);
-  min-height: calc(100% + 4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 28px;
-  border-radius: 2px;
-  background: linear-gradient(100deg, #e4e2dd 0%, #eceae6 55%, #f1efeb 100%);
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.12), 0 6px 16px rgba(15, 23, 42, 0.1);
-  pointer-events: auto;
-}
-/* Vier metalen bevestigingen in de hoeken, zoals op het paneel in de foto */
-.mm-bout { position: absolute; width: 12px; height: 12px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffffff, #b9bec4 45%, #6e747b);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.35); }
-.mm-bout--lb { left: 10px; top: 10px; }
-.mm-bout--rb { right: 10px; top: 10px; }
-.mm-bout--lo { left: 10px; bottom: 10px; }
-.mm-bout--ro { right: 10px; bottom: 10px; }
-.mm-paneel-form { position: relative; }
-/* Formulier op het paneel: geen eigen achtergrond, rand of schaduw — het paneel ís de achtergrond */
-.mm-paneel-form > .bg-white.rounded-lg.border {
-  max-width: none;
-  background: transparent;
-  border: none !important;
-  box-shadow: none;
-  padding: 6px 4px;
-}
-.mm-paneel-form .mb-6 { margin-bottom: 14px; }
-/* Smal scherm: gewoon inlogvak in het midden over de foto */
-.mm-login-los > .bg-white.rounded-lg.border { background: #ffffff; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 50px rgba(13, 23, 38, 0.35); }
+/* Inlogscherm: eenvoudige donkerblauwe achtergrond (Maasmond-blauw) met een witte kaart in het midden */
+.mm-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1e3a7b 0%, #172e63 100%); }
+.mm-login-los > .bg-white.rounded-lg.border { background: #ffffff; border-color: transparent !important; border-radius: 16px; box-shadow: 0 24px 60px rgba(6, 14, 34, 0.45); }
 /* Personeelsplanning: elk blok even hoog (twee regels), zodat een meerdaagse balk overal even dik doorloopt */
 .mm-planblok { display: flex; align-items: center; gap: 2px; height: calc(2.4em + 6px); overflow: hidden; }
 /* Overal hetzelfde lettertype (Aptos): ook knoppen, invulvelden, keuzelijsten en meldingen */

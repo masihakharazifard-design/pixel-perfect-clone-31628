@@ -103,7 +103,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-[#F5F7FA] px-4 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center bg-[#1E3A7B] px-4 overflow-hidden"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       <LoginAchtergrond>
