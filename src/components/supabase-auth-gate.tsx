@@ -9,6 +9,18 @@ import { LoginAchtergrond } from "@/components/login-achtergrond";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 
 const TOEGESTAAN_DOMEIN = "@maasmond.nl";
+
+// Terugkomst van Microsoft (via de Lovable-aanmeldservice): de inloggegevens staan in het adres
+// (#access_token=…&refresh_token=… of ?access_token=…). Vastleggen bij het laden van de pagina.
+const START_ADRES = typeof window !== "undefined" ? { hash: window.location.hash, search: window.location.search } : { hash: "", search: "" };
+function tokensUitAdres(): { access_token: string; refresh_token: string } | null {
+  for (const deel of [START_ADRES.hash, START_ADRES.search]) {
+    const p = new URLSearchParams(deel.replace(/^[#?]/, ""));
+    const access_token = p.get("access_token"), refresh_token = p.get("refresh_token");
+    if (access_token && refresh_token) return { access_token, refresh_token };
+  }
+  return null;
+}
 const OUDE_DEMO_KEY = "maasmond-demo-user";
 
 const MSG = {
@@ -35,7 +47,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
   // Toon hem, zodat duidelijk is waarom inloggen niet lukte, en haal hem daarna uit het adres.
   useEffect(() => {
     const uitAdres = (s: string) => new URLSearchParams(s.replace(/^[#?]/, ""));
-    const h = uitAdres(window.location.hash), q = uitAdres(window.location.search);
+    const h = uitAdres(START_ADRES.hash), q = uitAdres(START_ADRES.search);
     const fout = h.get("error_description") || q.get("error_description") || h.get("error") || q.get("error");
     if (!fout) return;
     const tekst = decodeURIComponent(fout.replace(/\+/g, " "));
@@ -267,10 +279,23 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
       setSession(s);
       setReady(true);
     });
-    void supabase.auth.getSession().then(({ data }) => {
+    const start = async () => {
+      // Terug van Microsoft met inloggegevens in het adres: zelf de sessie starten en het adres opschonen.
+      const tokens = tokensUitAdres();
+      if (tokens) {
+        try {
+          const { error } = await supabase.auth.setSession(tokens);
+          if (error) console.warn("Sessie na Microsoft-login starten mislukt:", error.message);
+        } catch (e) {
+          console.warn("Sessie na Microsoft-login starten mislukt:", e);
+        }
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setReady(true);
-    });
+    };
+    void start();
     return () => sub.subscription.unsubscribe();
   }, []);
 
