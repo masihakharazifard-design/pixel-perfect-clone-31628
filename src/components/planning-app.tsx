@@ -4001,7 +4001,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
               <div className="space-y-0.5">
                 {abs.map(a=><div key={a.id} className="group relative">
                   <button onClick={ev=>{ev.stopPropagation();clickAbsence(a);}}
-                    className="rounded px-1 py-0.5 text-[10px] font-semibold block w-full text-left hover:opacity-90"
+                    className="mm-planblok rounded px-1 text-[10px] font-semibold w-full text-left hover:opacity-90"
                     style={absenceStyle(a.status,statusColors)} title={`${a.status}${a.note?" – "+a.note:""} (${a.startTime}–${a.endTime})`}>
                     <span style={TWO_LINES}>{a.note?`${view==="week"?a.status:a.status.slice(0,4)}: ${a.note}`:(view==="week"?a.status:a.status.slice(0,4))}</span>
                   </button>
@@ -4014,9 +4014,9 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
 
                   <button draggable onDragStart={ev=>{ev.stopPropagation();setDragBlock(row);}} onDragEnd={()=>setDragBlock(null)}
                   onContextMenu={ev=>openCellMenu(ev,e.id,ds,row)}
-                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`text-white px-1 py-0.5 text-[10px] font-medium hover:opacity-80 transition-opacity block w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{...blockStyle(row,proj),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={blockTitle(row,proj)}>
+                  onClick={ev=>{ev.stopPropagation();onOpenProject(proj);}} className={`mm-planblok text-white px-1 text-[10px] font-medium hover:opacity-80 transition-opacity w-full text-left cursor-grab active:cursor-grabbing ${dragBlock?.id===row.id?"opacity-50":""}`} style={{...blockStyle(row,proj),borderTopLeftRadius:seg.prev?0:4,borderBottomLeftRadius:seg.prev?0:4,borderTopRightRadius:seg.next?0:4,borderBottomRightRadius:seg.next?0:4}} title={blockTitle(row,proj)}>
                     {row.isFirstOfDay&&!seg.prev&&<Star className="w-2.5 h-2.5 flex-shrink-0 mb-0.5" fill="currentColor"/>}
-                    <span style={view==="maand"?TWO_LINES:{overflowWrap:"anywhere",whiteSpace:"normal",lineHeight:1.2,display:"block"}}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
+                    <span className="min-w-0" style={TWO_LINES}>{seg.prev?"\u00A0":(proj.projectnaam||proj.werknummer||"")}</span>
                   </button>
 
                   {ps.length>1&&<span className="hidden group-hover:flex absolute -left-0.5 top-0 h-full flex-col justify-center">
