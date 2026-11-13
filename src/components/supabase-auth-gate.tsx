@@ -31,6 +31,19 @@ export function LoginScreen({ melding }: { melding?: string }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
+  // Terug van Microsoft met een fout? Die staat in het adres (#error_description=… of ?error_description=…).
+  // Toon hem, zodat duidelijk is waarom inloggen niet lukte, en haal hem daarna uit het adres.
+  useEffect(() => {
+    const uitAdres = (s: string) => new URLSearchParams(s.replace(/^[#?]/, ""));
+    const h = uitAdres(window.location.hash), q = uitAdres(window.location.search);
+    const fout = h.get("error_description") || q.get("error_description") || h.get("error") || q.get("error");
+    if (!fout) return;
+    const tekst = decodeURIComponent(fout.replace(/\+/g, " "));
+    console.warn("Inloggen mislukt (terug van de aanmeldpagina):", tekst);
+    setError(/maasmond/i.test(tekst) ? MSG.domein : `Inloggen met Microsoft is niet gelukt: ${tekst}`);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+
   // Inloggen met het Microsoft-account van Maasmond (Outlook/Teams), zonder code per e-mail.
   // Alleen @maasmond.nl-accounts worden toegelaten (database-controle); de rol volgt automatisch.
   const inloggenMicrosoft = async () => {
