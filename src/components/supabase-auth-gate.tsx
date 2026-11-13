@@ -2,6 +2,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
+
+// Microsoft-inloggen loopt via de aanmeldservice van Lovable (startadres /~oauth/initiate).
+// Op lovable.app regelt Lovable dat startadres zelf; op een ander adres (zoals de Cloudflare-versie op
+// workers.dev) bestaat het niet, dus starten we daar via de Lovable-versie van de app.
+const LOVABLE_APP = "https://maasmond-planning.lovable.app";
+const opLovable = () => typeof window !== "undefined" && /(^|\.)lovable\.(app|dev)$|lovableproject\.com$/.test(window.location.hostname);
+const microsoftViaLovable = createLovableAuth({ oauthBrokerUrl: `${LOVABLE_APP}/~oauth/initiate` });
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -63,7 +71,9 @@ export function LoginScreen({ melding }: { melding?: string }) {
     setInfo("");
     setBezig(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("microsoft", { redirect_uri: window.location.origin });
+      const result = opLovable()
+        ? await lovable.auth.signInWithOAuth("microsoft", { redirect_uri: window.location.origin })
+        : await microsoftViaLovable.signInWithOAuth("microsoft", { redirect_uri: window.location.origin });
       if (result.redirected) return;
       if (result.error) {
         console.warn("Inloggen met Microsoft mislukt:", result.error);
