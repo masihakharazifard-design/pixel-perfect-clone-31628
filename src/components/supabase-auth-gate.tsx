@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { bootstrapMyRole } from "@/lib/planning-store";
 import { LogIn, Loader2, Mail } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -29,6 +30,29 @@ export function LoginScreen({ melding }: { melding?: string }) {
   const [bezig, setBezig] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  // Inloggen met het Microsoft-account van Maasmond (Outlook/Teams), zonder code per e-mail.
+  // Alleen @maasmond.nl-accounts worden toegelaten (database-controle); de rol volgt automatisch.
+  const inloggenMicrosoft = async () => {
+    setError("");
+    setInfo("");
+    setBezig(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("microsoft", { redirect_uri: window.location.origin });
+      if (result.redirected) return;
+      if (result.error) {
+        console.warn("Inloggen met Microsoft mislukt:", result.error);
+        const m = result.error.message || "";
+        setError(/maasmond/i.test(m) ? MSG.domein : `Inloggen met Microsoft is niet gelukt. Probeer het opnieuw of log in met een code per e-mail. (${m})`);
+      }
+      // Gelukt: de sessie is gezet; de gate toont de app.
+    } catch (e) {
+      console.warn("Inloggen met Microsoft mislukt:", e);
+      setError("Inloggen met Microsoft is niet gelukt. Probeer het opnieuw of log in met een code per e-mail.");
+    } finally {
+      setBezig(false);
+    }
+  };
 
   const vraagCode = async (e?: { preventDefault(): void }) => {
     e?.preventDefault();
@@ -117,6 +141,27 @@ export function LoginScreen({ melding }: { melding?: string }) {
         </div>
 
         {stap === "email" ? (
+          <>
+          <button
+            type="button"
+            disabled={bezig}
+            onClick={() => void inloggenMicrosoft()}
+            className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-full border border-[rgba(15,23,42,0.18)] bg-white text-sm font-semibold text-[#23272F] hover:bg-[#F2F4F7] disabled:opacity-60"
+          >
+            {/* Microsoft-logo (functioneel aanmeldsymbool) */}
+            <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+              <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+              <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+              <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+            </svg>
+            Inloggen met Microsoft
+          </button>
+          <div className="flex items-center gap-3 my-4 text-xs text-[#5F6673]">
+            <span className="flex-1 h-px bg-[rgba(15,23,42,0.12)]" />
+            of met een code per e-mail
+            <span className="flex-1 h-px bg-[rgba(15,23,42,0.12)]" />
+          </div>
           <form onSubmit={vraagCode} className="space-y-3">
             <label className="block text-xs font-semibold text-[#23272F]" htmlFor="login-email">
               E-mailadres
@@ -139,6 +184,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
               Inloggen
             </button>
           </form>
+          </>
         ) : (
           <form onSubmit={bevestigCode} className="space-y-3">
             <label className="block text-xs font-semibold text-[#23272F]" htmlFor="login-code">
