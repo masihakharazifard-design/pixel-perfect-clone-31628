@@ -15,8 +15,7 @@ import { LogIn, Loader2, Mail } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { LoginAchtergrond } from "@/components/login-achtergrond";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
-
-const TOEGESTAAN_DOMEIN = "@maasmond.nl";
+import { isAllowedLoginEmail } from "@/lib/login-access";
 
 // Terugkomst van Microsoft (via de Lovable-aanmeldservice): de inloggegevens staan in het adres
 // (#access_token=…&refresh_token=… of ?access_token=…). Vastleggen bij het laden van de pagina.
@@ -38,10 +37,6 @@ const MSG = {
     "Je account is aangemeld, maar heeft nog geen toegang tot Maasmond Planning. Neem contact op met de beheerder.",
   fout: "Inloggen is niet gelukt. Probeer het opnieuw.",
 };
-
-function isMaasmond(mail: string): boolean {
-  return mail.trim().toLowerCase().endsWith(TOEGESTAAN_DOMEIN);
-}
 
 export function LoginScreen({ melding }: { melding?: string }) {
   const [email, setEmail] = useState("");
@@ -65,7 +60,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
   }, []);
 
   // Inloggen met het Microsoft-account van Maasmond (Outlook/Teams), zonder code per e-mail.
-  // Alleen @maasmond.nl-accounts worden toegelaten (database-controle); de rol volgt automatisch.
+  // Alleen toegestane adressen worden toegelaten (database-controle); de rol volgt automatisch.
   const inloggenMicrosoft = async () => {
     setError("");
     setInfo("");
@@ -93,7 +88,7 @@ export function LoginScreen({ melding }: { melding?: string }) {
     e?.preventDefault();
     const mail = email.trim().toLowerCase();
     setInfo("");
-    if (!isMaasmond(mail)) {
+    if (!isAllowedLoginEmail(mail)) {
       setError(MSG.domein);
       return;
     }
@@ -335,7 +330,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
         }
         const gevonden = await leesRollen().catch(() => [] as AppRole[]);
         if (gevonden.length > 0) return gevonden;
-        if (!isMaasmond(user.email ?? "")) return [];
+        if (!isAllowedLoginEmail(user.email ?? "")) return [];
         await new Promise((r) => setTimeout(r, 400 * (poging + 1)));
       }
       return [];

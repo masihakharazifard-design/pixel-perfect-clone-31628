@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep login email prevalidation aligned with the database signup hook and verified-email role assignment; browser checks must never grant roles.
