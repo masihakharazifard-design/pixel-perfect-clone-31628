@@ -55,7 +55,15 @@ export interface UrenRegel {
   pauze: number; // minuten
   uren: number;
   opmerking: string;
+  /** werk (op een werknummer), reisuren of werkplaats/overig */
+  soort?: UrenSoort;
+  /** concept → ingediend → goedgekeurd (of afgekeurd, dan weer aan te passen) */
+  status?: UrenStatus;
+  beoordeeldDoor?: string;
+  beoordeeldOp?: string;
 }
+export type UrenSoort = "werk" | "reisuren" | "werkplaats";
+export type UrenStatus = "concept" | "ingediend" | "goedgekeurd" | "afgekeurd";
 
 /** Netto uren: eindtijd min begintijd min pauze, afgerond op een kwartier. */
 export function berekenUren(start: string, eind: string, pauze: number): number {

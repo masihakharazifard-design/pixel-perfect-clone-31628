@@ -82,6 +82,8 @@ function searchIndexedProjects(q:string,limit=20):Project[]{
 interface Employee {
   id:string; naam:string; functie:Functie; afdeling:Afdeling;
   telefoon:string; email:string; competenties:string[];
+  /** Contracturen per week (voor de urenweekstaat), standaard 40 */
+  contractUren?:number;
 }
 interface AvailEntry { id:string; employeeId:string; date:string; startTime:string; endTime:string; status:AvailStatus; note?:string; projectId?:string; periodeId?:string; volgorde?:number; teamId?:string; reeksId?:string; isFirstOfDay?:boolean;
   isSeriesException?:boolean; serieType?:"vastevrij"; serieWeekdays?:number[]; serieStartDate?:string; serieEndDate?:string; vasteVrijExceptionIds?:string[]; }
@@ -1663,7 +1665,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
 // ===== EMPLOYEE FORM =====
 function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSave:(e:Employee)=>void;onCancel:()=>void;}){
   const dc=useDC();
-  const [f,setF]=useState<Employee>({id:initial.id||nid(),naam:initial.naam||"",functie:initial.functie||"Stoffeerder",afdeling:initial.afdeling||"Stoffering",telefoon:initial.telefoon||"",email:initial.email||"",competenties:initial.competenties||[]});
+  const [f,setF]=useState<Employee>({id:initial.id||nid(),naam:initial.naam||"",functie:initial.functie||"Stoffeerder",afdeling:initial.afdeling||"Stoffering",telefoon:initial.telefoon||"",email:initial.email||"",competenties:initial.competenties||[],...(initial.contractUren?{contractUren:initial.contractUren}:{})});
   const [comp,setComp]=useState(f.competenties.join(", "));
   const set=(k:keyof Employee,v:unknown)=>setF(prev=>({...prev,[k]:v}));
   const valid=f.naam&&f.functie&&f.afdeling;
@@ -1676,6 +1678,9 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
       <Select label="Functie" value={f.functie} onChange={v=>set("functie",v as Functie)} required options={FUNCS.map(fn=>({value:fn,label:fn}))}/>
       <Select label="Afdeling" value={f.afdeling} onChange={v=>set("afdeling",v as Afdeling)} required options={AFDS.map(a=>({value:a,label:a}))}/>
       <Input label="E-mail" value={f.email} onChange={v=>set("email",v)}/>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Input label="Contracturen per week" value={f.contractUren?String(f.contractUren):""} onChange={v=>{const n=Number(String(v).replace(",","."));set("contractUren",Number.isFinite(n)&&n>0?n:undefined);}} placeholder="40"/>
     </div>
     <Input label="Competenties (kommagescheiden)" value={comp} onChange={v=>{setComp(v);set("competenties",v.split(",").map(s=>s.trim()).filter(Boolean));}}/>
     <div className="flex justify-end gap-2 pt-2 border-t border-[rgba(15,23,42,0.08)]">

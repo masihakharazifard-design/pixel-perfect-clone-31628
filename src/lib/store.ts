@@ -10,6 +10,8 @@ import type {
   SettingsPathPatch,
   SyncTable,
   UrenRegel,
+  UrenStatus,
+  UrenSoort,
   GereedMelding,
   WithId,
 } from "./store-types";
@@ -17,7 +19,7 @@ import type {
 export { EMPTY_META } from "./store-types";
 export type { GeschiedenisRegel } from "./geschiedenis";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
-export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, GereedMelding };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, UrenStatus, UrenSoort, GereedMelding };
 export { berekenUren } from "./store-types";
 
 type Impl = typeof import("./planning-store");
@@ -170,6 +172,9 @@ export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
 }
 export async function deleteUren(id: string): Promise<void> {
   return (await impl()).deleteUren(id);
+}
+export async function zetUrenStatus(ids: string[], status: UrenStatus, door?: string): Promise<void> {
+  return (await impl()).zetUrenStatus(ids, status, door);
 }
 
 // ===== Gereedmeldingen en werkplan =====

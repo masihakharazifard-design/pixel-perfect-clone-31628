@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { Taak } from "@/lib/taken";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "@/lib/geschiedenis";
-import { EMPTY_META, type PersonalNote, type UrenRegel, type GereedMelding, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
+import { EMPTY_META, type PersonalNote, type UrenRegel, type UrenStatus, type GereedMelding, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
 
@@ -365,13 +365,19 @@ export async function deleteTaak(id: string): Promise<void> {
 type UrenRow = {
   id: string; employee_id: string; project_id: string | null; datum: string;
   start_tijd: string; eind_tijd: string; pauze_min: number; uren: number | string; opmerking: string;
+  soort?: string; status?: string; beoordeeld_door_naam?: string | null; beoordeeld_op?: string | null;
 };
-const UREN_COLS = "id, employee_id, project_id, datum, start_tijd, eind_tijd, pauze_min, uren, opmerking";
+// "*": werkt ook als de kolommen soort/status (nieuwere databasewijziging) nog niet bestaan
+const UREN_COLS = "*";
+// Bestaan de kolommen soort/status nog niet? Dan opslaan zonder die velden.
+const kolomOntbreekt = (e: unknown) => /soort|status|beoordeeld/i.test(String((e as { message?: string })?.message ?? "")) && /column|kolom|schema cache/i.test(String((e as { message?: string })?.message ?? ""));
 // De tabel "uren" staat (nog) niet in de gegenereerde typen
 const urenTabel = () => (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> }).from("uren");
 const naarUren = (r: UrenRow): UrenRegel => ({
   id: r.id, employeeId: r.employee_id, projectId: r.project_id, datum: r.datum,
   start: r.start_tijd, eind: r.eind_tijd, pauze: r.pauze_min ?? 0, uren: Number(r.uren) || 0, opmerking: r.opmerking || "",
+  soort: (r.soort as UrenRegel["soort"]) || "werk", status: (r.status as UrenRegel["status"]) || "concept",
+  beoordeeldDoor: r.beoordeeld_door_naam || undefined, beoordeeldOp: r.beoordeeld_op || undefined,
 });
 
 export async function loadUren(van: string, tot: string): Promise<UrenRegel[]> {
@@ -382,16 +388,26 @@ export async function loadUren(van: string, tot: string): Promise<UrenRegel[]> {
 }
 
 export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
-  const payload = {
+  const basis = {
     employee_id: r.employeeId, project_id: r.projectId || null, datum: r.datum,
     start_tijd: r.start, eind_tijd: r.eind, pauze_min: r.pauze, uren: r.uren, opmerking: r.opmerking,
   };
-  const q = r.id
+  const extra = { soort: r.soort || "werk", status: r.status || "concept" };
+  const doe = (payload: object) => r.id
     ? urenTabel().update(payload as never).eq("id", r.id).select(UREN_COLS).single()
     : urenTabel().insert(payload as never).select(UREN_COLS).single();
-  const { data, error } = await q;
+  let { data, error } = await doe({ ...basis, ...extra });
+  if (error && kolomOntbreekt(error)) ({ data, error } = await doe(basis));
   if (error) throw error;
   return naarUren(data as unknown as UrenRow);
+}
+
+/** Status van uren wijzigen (indienen, goedkeuren, afkeuren). */
+export async function zetUrenStatus(ids: string[], status: UrenStatus, door?: string): Promise<void> {
+  if (!ids.length) return;
+  const beoordeeld = status === "goedgekeurd" || status === "afgekeurd";
+  const { error } = await urenTabel().update({ status, beoordeeld_door_naam: beoordeeld ? door || null : null, beoordeeld_op: beoordeeld ? new Date().toISOString() : null } as never).in("id", ids);
+  if (error) throw kolomOntbreekt(error) ? new Error("Indienen en goedkeuren werkt pas na de databasewijziging voor de urenstatus.") : error;
 }
 
 export async function deleteUren(id: string): Promise<void> {

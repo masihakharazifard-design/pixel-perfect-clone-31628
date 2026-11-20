@@ -30,6 +30,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   const [mensen, setMensen] = useState<Map<string, string>>(new Map());
   const [mij, setMij] = useState<Rec | null>(null);
   const [planning, setPlanning] = useState<Regel[]>([]);
+  const [eigenAgenda, setEigenAgenda] = useState<Regel[]>([]);
   const [instellingen, setInstellingen] = useState<Record<string, unknown>>({});
   const [gereed, setGereed] = useState<GereedMelding[]>([]);
   const [tab, setTab] = useState<"planning" | "uren">("planning");
@@ -50,7 +51,9 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         setWerken(new Map(d.projects.map((p) => [p.id, p])));
         setMensen(new Map(d.employees.map((e) => [e.id, str(e.naam)])));
         setInstellingen(d.settings || {});
-        setPlanning((d.availability as unknown as Regel[]).filter((a) => a.employeeId === ik.id && a.status === "Ingepland" && a.projectId));
+        const mijnRegels = (d.availability as unknown as Regel[]).filter((a) => a.employeeId === ik.id);
+        setEigenAgenda(mijnRegels);
+        setPlanning(mijnRegels.filter((a) => a.status === "Ingepland" && a.projectId));
         setGereed((await loadGereed(van, tot)).filter((g) => g.employeeId === ik.id));
       } catch (e) {
         if (!weg) setFout(`Je planning kon niet worden geladen: ${e instanceof Error ? e.message : String(e)}`);
@@ -178,8 +181,8 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         </section>)}
       </>}
 
-      {!laden && !fout && tab === "uren" && mij && <div className="-mx-4 -my-4">
-        <UrenView employees={[{ id: mij.id, naam: str(mij.naam), afdeling: str(mij.afdeling) }]} availability={planning} werkNaam={werkLabel}
+      {!laden && !fout && tab === "uren" && mij && <div>
+        <UrenView eigen employees={[{ id: mij.id, naam: str(mij.naam), afdeling: str(mij.afdeling), contractUren: Number(mij.contractUren) || undefined }]} availability={eigenAgenda} werkNaam={werkLabel}
           zoekWerken={(q) => [...werken.values()].filter((p) => `${str(p.werknummer)} ${str(p.projectnaam)}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8).map((p) => ({ id: p.id, label: werkLabel(p.id) }))} />
       </div>}
     </main>

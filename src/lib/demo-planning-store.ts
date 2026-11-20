@@ -16,6 +16,7 @@ import {
   type LoadAllResult,
   type PersonalNote,
   type UrenRegel,
+  type UrenStatus,
   type GereedMelding,
   type ProjectDocument,
   type ProjectMeta,
@@ -431,6 +432,11 @@ export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
 }
 export async function deleteUren(id: string): Promise<void> {
   schrijfUren(leesUren().filter((x) => x.id !== id));
+}
+export async function zetUrenStatus(ids: string[], status: UrenStatus, door?: string): Promise<void> {
+  const set = new Set(ids);
+  const beoordeeld = status === "goedgekeurd" || status === "afgekeurd";
+  schrijfUren(leesUren().map((x) => set.has(x.id) ? { ...x, status, beoordeeldDoor: beoordeeld ? door : undefined, beoordeeldOp: beoordeeld ? new Date().toISOString() : undefined } : x));
 }
 
 // ===== Gereedmeldingen (demo: foto als data-URL in de browser) =====
