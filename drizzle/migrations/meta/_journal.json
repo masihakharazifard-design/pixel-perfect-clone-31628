@@ -29,6 +29,13 @@
       "when": 1794929030210,
       "tag": "0003_allow_tyas_login",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795187643941,
+      "tag": "0004_uren_schilders_gereed",
+      "breakpoints": true
     }
   ]
 }

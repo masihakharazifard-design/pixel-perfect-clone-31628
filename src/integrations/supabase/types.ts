@@ -248,6 +248,51 @@ export type Database = {
         }
         Relationships: []
       }
+      uren: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          datum: string
+          eind_tijd: string
+          employee_id: string
+          id: string
+          opmerking: string
+          pauze_min: number
+          project_id: string | null
+          start_tijd: string
+          updated_at: string
+          uren: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          datum: string
+          eind_tijd?: string
+          employee_id: string
+          id?: string
+          opmerking?: string
+          pauze_min?: number
+          project_id?: string | null
+          start_tijd?: string
+          updated_at?: string
+          uren?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          datum?: string
+          eind_tijd?: string
+          employee_id?: string
+          id?: string
+          opmerking?: string
+          pauze_min?: number
+          project_id?: string | null
+          start_tijd?: string
+          updated_at?: string
+          uren?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -266,6 +311,39 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      werk_gereed: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          datum: string
+          employee_id: string
+          foto_pad: string
+          id: string
+          opmerking: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          datum: string
+          employee_id: string
+          foto_pad: string
+          id?: string
+          opmerking?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          datum?: string
+          employee_id?: string
+          foto_pad?: string
+          id?: string
+          opmerking?: string
+          project_id?: string
         }
         Relationships: []
       }
@@ -309,6 +387,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_member: { Args: never; Returns: boolean }
+      is_staff: { Args: never; Returns: boolean }
       lees_geschiedenis: {
         Args: { _limit?: number; _record_id?: string; _voor?: string }
         Returns: {
@@ -322,9 +401,15 @@ export type Database = {
           wie: string
         }[]
       }
+      mag_werk_zien: { Args: { _pid: string }; Returns: boolean }
+      mijn_medewerker_id: { Args: never; Returns: string }
       patch_app_settings: {
         Args: { _changes?: Json; _expected_updated_at?: string; _paths?: Json }
         Returns: Json
+      }
+      rol_voor_email: {
+        Args: { _email: string }
+        Returns: Database["public"]["Enums"]["app_role"]
       }
       save_planning_rows: {
         Args: { _actie?: string; _delete_ids?: string[]; _upserts?: Json }
