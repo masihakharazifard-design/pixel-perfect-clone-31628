@@ -64,3 +64,14 @@ export function berekenUren(start: string, eind: string, pauze: number): number 
   if (!(netto > 0)) return 0;
   return Math.min(24, Math.round(netto / 15) / 4);
 }
+
+/** Gereedmelding van een medewerker voor een werk op een dag, met foto. */
+export interface GereedMelding {
+  id: string;
+  employeeId: string;
+  projectId: string;
+  datum: string; // JJJJ-MM-DD
+  fotoPad: string;
+  opmerking: string;
+  tijd: string; // ISO-tijdstip van melden
+}

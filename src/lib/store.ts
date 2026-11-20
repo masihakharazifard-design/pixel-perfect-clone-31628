@@ -10,13 +10,14 @@ import type {
   SettingsPathPatch,
   SyncTable,
   UrenRegel,
+  GereedMelding,
   WithId,
 } from "./store-types";
 
 export { EMPTY_META } from "./store-types";
 export type { GeschiedenisRegel } from "./geschiedenis";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
-export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, GereedMelding };
 export { berekenUren } from "./store-types";
 
 type Impl = typeof import("./planning-store");
@@ -169,4 +170,21 @@ export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
 }
 export async function deleteUren(id: string): Promise<void> {
   return (await impl()).deleteUren(id);
+}
+
+// ===== Gereedmeldingen en werkplan =====
+export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
+  return (await impl()).loadGereed(van, tot);
+}
+export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob, opmerking: string): Promise<GereedMelding> {
+  return (await impl()).meldGereed(employeeId, projectId, datum, foto, opmerking);
+}
+export async function gereedFotoUrl(pad: string): Promise<string> {
+  return (await impl()).gereedFotoUrl(pad);
+}
+export async function intrekGereed(m: GereedMelding): Promise<void> {
+  return (await impl()).intrekGereed(m);
+}
+export async function uploadWerkplanPdf(employeeId: string, bestandsnaam: string, pdf: Blob): Promise<string> {
+  return (await impl()).uploadWerkplanPdf(employeeId, bestandsnaam, pdf);
 }

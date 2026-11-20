@@ -11,6 +11,9 @@ import {
 import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
 import { WeerAdvies, ADVIES, laadWeer, weerOp, weerDagen, type WeerPlanItem } from "@/components/weer-advies";
 import UrenView from "@/components/uren-view";
+import SchilderApp from "@/components/schilder-app";
+import GereedOverzicht from "@/components/gereed-overzicht";
+import WerkplanDialoog from "@/components/werkplan-dialoog";
 import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
 import { stuurWerkbon } from "@/lib/werkbon.functions";
 
@@ -18,7 +21,7 @@ import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { feestdagenTussen, feestdagOp } from "@/lib/feestdagen";
-import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows, verschuifMetSprong } from "@/lib/werkdagen";
+import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows, verschuifMetSprong, schuifVolgendeOp } from "@/lib/werkdagen";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -419,6 +422,12 @@ const blockingOnly=(c:PlanConflict[])=>c.filter(x=>x.kind==="blocking");
 // stilzwijgend overgeslagen, zonder foutmelding.
 function isGeblokkeerd(av:AvailEntry[],empId:string,date:string,st:string,et:string,negeer:string[]=[]):boolean{
   return blockingOnly(findConflicts(av.filter(a=>a.employeeId===empId&&a.date===date&&!negeer.includes(a.id)),[],getIndexedProject,empId,date,st,et)).length>0;
+}
+// Na verschuiven: werken van dezelfde medewerker die nu botsen schuiven op (in volgorde, over vrije dagen heen)
+function metMeeschuiven(av:AvailEntry[],verplaatst:AvailEntry[],mag:(r:AvailEntry)=>boolean=()=>true):AvailEntry[]{
+  const eigen=verplaatst.map(e=>e.id);
+  const extra=schuifVolgendeOp(av,verplaatst,(r,d)=>!!feestdagOp(d)||isGeblokkeerd(av,r.employeeId,d,r.startTime,r.endTime,eigen)).filter(mag);
+  return [...verplaatst,...extra];
 }
 // Werk krijgt nieuwe datums (werkformulier): de planning schuift mee zoals bij slepen. Nieuwe startdatum =
 // alles verschuiven (werkdagen); daarna per medewerker inkorten of doortrekken tot de nieuwe einddatum.
@@ -1848,6 +1857,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
       </div>
       <WeerAdvies planning={weerPlanning}/>
     </div>
+    <GereedOverzicht werkNaam={werkLabel} naamVan={id=>employees.find(e=>e.id===id)?.naam||"Medewerker"}/>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(15,23,42,0.06)] flex items-center justify-between">
@@ -2019,7 +2029,6 @@ function NotitieNaVerslepen(){
       const wie=(user?.email||"").split("@")[0];
       const regel=`[${new Date().toLocaleString("nl-NL",{dateStyle:"short",timeStyle:"short"})}${wie?" – "+wie:""}] ${vraag.wat}: ${t}`;
       await saveProjectMeta(vraag.projectId,{...EMPTY_META,...(prev||{}),notities:oud?`${oud}\n${regel}`:regel});
-      toast.success("Notitie opgeslagen bij het werk");
       sluit();
     }catch{
       toast.error("De notitie kon niet worden opgeslagen. Probeer het opnieuw.");
@@ -2703,7 +2712,8 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   // de planning gaat dan verder op de eerstvolgende beschikbare werkdag.
   const verschuifBlok=(rows:AvailEntry[],naar:string)=>{
     const eigen=rows.map(r=>r.id);
-    return verschuifMetSprong(rows,naar,(r,d)=>!!feestdagOp(d)||isGeblokkeerd(availability,r.employeeId,d,r.startTime,r.endTime,eigen));
+    const moved=verschuifMetSprong(rows,naar,(r,d)=>!!feestdagOp(d)||isGeblokkeerd(availability,r.employeeId,d,r.startTime,r.endTime,eigen));
+    return moved.length?metMeeschuiven(availability,moved):moved;
   };
   const handleDropProject=(id:string,newStart:Date)=>{
     if(isPlanBlock(id)){
@@ -3733,7 +3743,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const moveBlocks=async(rows:AvailEntry[],empId:string,ds:string)=>{
     if(!visEmpIds.has(empId)||rows.some(r=>!canActSilent(r.projectId,r.employeeId))){toast.error(FILTER_MSG);return;}
     // Bij verplaatsen naar een andere dag/medewerker vervalt de markering; de nieuwe dag wordt genormaliseerd.
-    if(await tryCommit(rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),[],true))
+    if(await tryCommit(metMeeschuiven(availability,rows.map(r=>({...r,employeeId:rows.length>1?r.employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined})),r=>canActSilent(r.projectId,r.employeeId)),[],true))
       vraagNotitie(rows[0]?.projectId,`Verschoven naar ${fmtDate(ds)}`);
   };
 
@@ -3746,7 +3756,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       if(!canAct(block.projectId,block.employeeId)||!visEmpIds.has(empId)){if(block.projectId)toast.error(FILTER_MSG);return;}
       const teamRows=block.projectId?teamRowsForDay(availability,block.projectId,block.date):[];
       if(teamRows.length>1){setTeamChoice({block,empId,date:ds,teamRows});return;}
-      if(await tryCommit([{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],[],true))
+      if(await tryCommit(metMeeschuiven(availability,[{...block,employeeId:empId,date:ds,isFirstOfDay:false,volgorde:undefined}],r=>canActSilent(r.projectId,r.employeeId)),[],true))
         vraagNotitie(block.projectId,`Verschoven naar ${fmtDate(ds)}`);
       return;
     }
@@ -3899,6 +3909,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const periodEnd=view==="kwartaal"?new Date(year,quarter*3+3,0):dates[dates.length-1];
 
   // Datums van de zichtbare periode: de basis voor alle periode-afhankelijke berekeningen.
+  const [werkplanOpen,setWerkplanOpen]=useState(false);
   const visibleDateStrings=useMemo(()=>(
     periodStart&&periodEnd?getDatesInRange(new Date(periodStart),new Date(periodEnd)):[]
   ),[periodStart?.getTime(),periodEnd?.getTime()]);
@@ -4023,10 +4034,14 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       <div className="flex gap-2 overflow-x-auto sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openAbsence(visEmp[0]?.id||employees[0]?.id||"",toDateStr(refDate),toDateStr(refDate))}><CalendarDays className="w-3.5 h-3.5"/>Afwezigheid</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>setWerkplanOpen(true)}><Download className="w-3.5 h-3.5"/>Werkplan</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>openFixedFree()}><CalendarDays className="w-3.5 h-3.5"/>Vaste vrije dagen</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>setShowColors(true)}><Palette className="w-3.5 h-3.5"/>Kleuren beheren</Btn>
       </div>
     </div>
+    {werkplanOpen&&<WerkplanDialoog employees={employees} availability={availability} bedrijf={settings.bedrijfsnaam}
+      van={visibleDateStrings[0]||TODAY_STR} tot={visibleDateStrings[visibleDateStrings.length-1]||TODAY_STR} onSluit={()=>setWerkplanOpen(false)}
+      info={pid=>{const p=getIndexedProject(pid);return {werk:werkLabel(pid)||"Werk",adres:p?[p.straatObject||p.adres,p.plaatsObject||p.plaats].filter(Boolean).join(", "):"",projectleider:p?plName(p,employees):"",opmerking:p?.opmerkingen||""};}}/>}
     <div className="flex gap-2 items-center flex-wrap">
       <div className="flex items-center gap-1 border border-[rgba(15,23,42,0.12)] rounded-[10px] overflow-hidden">
         <button onClick={()=>navigate(-1)} className="p-1.5 hover:bg-[#F2F4F7] text-[#5F6673]"><ChevronLeft className="w-4 h-4"/></button>
@@ -4441,13 +4456,13 @@ function NotitiesView(){
     try{
       const saved=await savePersonalNote(noteOwnerId,datum,tekst.trim(),editId||undefined);
       setNotes(prev=>{const rest=prev.filter(n=>n.id!==saved.id);return [saved,...rest].sort((a,b)=>b.datum.localeCompare(a.datum));});
-      reset();toast.success("Notitie opgeslagen.");
+      reset();
     }catch{toast.error("Notitie kon niet worden opgeslagen.");}
     setBusy(false);
   };
   const remove=async(id:string)=>{
     setBusy(true);
-    try{await deletePersonalNote(id);setNotes(prev=>prev.filter(n=>n.id!==id));if(editId===id)reset();toast.success("Notitie verwijderd.");}
+    try{await deletePersonalNote(id);setNotes(prev=>prev.filter(n=>n.id!==id));if(editId===id)reset();}
     catch{toast.error("Notitie kon niet worden verwijderd.");}
     setBusy(false);
   };
@@ -4493,9 +4508,9 @@ function NotitiesView(){
 }
 
 // ===== MEDEWERKERS =====
-function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
+function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport,onAlsSchilder}:{
   employees:Employee[];onAdd:()=>void;onEdit:(e:Employee)=>void;onDelete:(id:string)=>void;
-  onVacImport:()=>void;
+  onVacImport:()=>void;onAlsSchilder?:(id:string)=>void;
 }){
   const dc=useDC();
   const [search,setSearch]=useState("");const [afdFilter,setAfdFilter]=useState<string>("");
@@ -4506,6 +4521,11 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
       <div><h1 className="text-[26px] md:text-[30px] leading-[32px] md:leading-[38px] font-semibold text-[#23272F]">Medewerkers</h1><p className="text-[#5F6673] text-xs md:text-sm">{employees.length} medewerkers</p></div>
       <div className="flex gap-2 flex-shrink-0">
         <Btn variant="secondary" onClick={onVacImport} size="sm"><Table2 className="w-3.5 h-3.5"/>Vakantie importeren</Btn>
+        {onAlsSchilder&&<select value="" onChange={e=>{if(e.target.value)onAlsSchilder(e.target.value);}} aria-label="Bekijk de app als medewerker"
+          className="py-1.5 px-2 text-xs rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F]">
+          <option value="">Bekijk als schilder…</option>
+          {[...employees].filter(e=>e.functie!=="Projectleider").sort((a,b)=>a.naam.localeCompare(b.naam,"nl")).map(e=><option key={e.id} value={e.id}>{e.naam}</option>)}
+        </select>}
         <Btn onClick={onAdd}><Plus className="w-4 h-4"/><span className="hidden sm:inline">Nieuwe medewerker</span></Btn>
       </div>
     </div>
@@ -4731,7 +4751,17 @@ function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,
 }
 
 // ===== APP =====
+// Schilders (alleen rol "medewerker") krijgen hun eigen omgeving; kantoor ziet het planbord.
+// Kantoor kan via Medewerkers bekijken hoe een schilder de app ziet.
 export default function PlanningApp(){
+  const {roles}=useAuth();
+  const [alsSchilder,setAlsSchilder]=useState<string|null>(null);
+  if(roles.length>0&&roles.every(r=>r==="medewerker"))return <SchilderApp/>;
+  if(alsSchilder)return <SchilderApp employeeId={alsSchilder} onTerug={()=>setAlsSchilder(null)}/>;
+  return <PlanningBord onAlsSchilder={setAlsSchilder}/>;
+}
+
+function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void}){
   const [nav,setNav]=useState<Nav>("dashboard");
   useEffect(()=>{void laadWeer();},[]);
   // Slepen ook met de vinger (telefoon/tablet): lang drukken op een blok en dan slepen. Gewoon scrollen blijft werken.
@@ -4866,7 +4896,6 @@ export default function PlanningApp(){
     const toPlan=[...new Set(p.medewerkers)].filter(id=>!planned.has(id)&&employees.some(e=>e.id===id));
     const {rows}=buildProjectPlanRows(p,toPlan,basisAvail,employees);
     if(!rows.length){
-      toast.success("Werk opgeslagen.");
       return;
     }
     const ids=new Set(rows.map(r=>r.id));
@@ -4896,7 +4925,6 @@ export default function PlanningApp(){
     try{
       await setProjectStatusDb(p.id,status);
       setDbError("");
-      toast.success("Projectstatus is bijgewerkt.");
     }catch(e){
       setProjects(cur=>cur.map(x=>x.id===p.id?{...x,status:prevStatus}:x));
       fail("De projectstatus kon niet worden bijgewerkt:",e);
@@ -4983,7 +5011,7 @@ export default function PlanningApp(){
     try{
       if(rowIds.length)await savePlanningRows([],rowIds,"planning_verwijderd_bij_werk");
       await deleteRow("projects",id);
-      setDbError("");toast.success("Werk verwijderd.");
+      setDbError("");
     }catch(e){setProjects(prevP);setAvail(prevA);fail("Werk kon niet worden verwijderd:",e);}
   };
 
@@ -5043,7 +5071,6 @@ export default function PlanningApp(){
         toast.error(`${failed.length} werk${failed.length===1?"":"en"} kon${failed.length===1?"":"den"} niet automatisch op "In uitvoering" worden gezet.`);
       }
       const ok=due.filter((_p,i)=>res[i].status==="fulfilled");
-      if(ok.length)toast.success(ok.length===1?`${ok[0].werknummer} staat ingepland en is op "In uitvoering" gezet.`:`${ok.length} ingeplande werken zijn op "In uitvoering" gezet.`);
     });
   },[availIndexes,projects,todayStr,dbReady]);
   // ===== Facturatie =====
@@ -5137,7 +5164,7 @@ export default function PlanningApp(){
         if(u.status!=="Ingepland"||!u.projectId)return;
         const w=weerOp(u.date);if(!w||w==="goed")return;
         const wp=getIndexedProject(u.projectId);if(!isBuitenwerk(wp))return;
-        slecht.set(`${u.date}|${wp!.id}`,`${new Date(u.date+"T12:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"})}: ${ADVIES[w].kort.toLowerCase()} (${wp!.projectnaam||wp!.werknummer})`);
+        slecht.set(`${w}|${u.date}`,`${w==="regen"?"het regent":"harde wind"} op ${new Date(u.date+"T12:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"})}`);
       });
       // Werkbon: nieuw ingeplande medewerkers (optie in Instellingen) een werkbon mailen
       const wbModus=settings.werkbonMail||"uit";
@@ -5159,9 +5186,8 @@ export default function PlanningApp(){
           else toast(`Werkbon mailen naar ${namen.slice(0,3).join(", ")}${namen.length>3?` en ${namen.length-3} anderen`:""}?`,{action:{label:"Mailen",onClick:verstuur},duration:15000});
         }
       }
-      if(slecht.size)toast.warning(`Let op: ${[...slecht.values()].slice(0,3).join("; ")}. Geen buitenschilderwerk of zonwering buiten inplannen op deze dag${slecht.size>1?"en":""}.`,{duration:12000});
-      if(terugZetten.length||weghalen.length)toast.success(okMsg||"Planning bijgewerkt.",{action:{label:"Ongedaan maken",onClick:()=>{void herstel();}},duration:8000});
-      else if(okMsg)toast.success(okMsg);
+      if(slecht.size)toast.warning(`Let op: ${[...slecht.values()].slice(0,3).join(", ")}. Dit is buitenwerk.`,{duration:10000});
+      if(terugZetten.length||weghalen.length)toast(okMsg&&okMsg!=="Planning opgeslagen."?okMsg:"Planning aangepast",{action:{label:"Ongedaan maken",onClick:()=>{void herstel();}},duration:5000});
       return true;
     }catch(e){
       setAvail(prevAvail);setProjects(prevProjects);
@@ -5215,7 +5241,6 @@ export default function PlanningApp(){
     const pid=row?.projectId;
     const rest=pid?projectPlans(nextAvail,pid):[];
     const ok=await persistPlanning(nextAvail,[],[id],"planning_verwijderd",pid&&rest.length===0?"":"Planning verwijderd.");
-    if(ok&&pid&&rest.length===0)toast.info("Laatste planning verwijderd — de projectdatums blijven staan tot je ze zelf aanpast.");
   };
 
   const handleImport=async(rows:ImportRow[])=>{
@@ -5285,7 +5310,7 @@ export default function PlanningApp(){
     const exists=employees.some(x=>x.id===e.id);
     setEmployees(exists?employees.map(x=>x.id===e.id?{...x,...e}:x):[...employees,e]);
     setEditEmployee(null);setIsNewEmployee(false);
-    try{await upsertRow("employees",e);setDbError("");toast.success("Medewerker opgeslagen.");}
+    try{await upsertRow("employees",e);setDbError("");}
     catch(err){setEmployees(prev);fail("Medewerker kon niet worden opgeslagen:",err);}
   };
   const deleteEmployee=async(id:string)=>{
@@ -5298,7 +5323,7 @@ export default function PlanningApp(){
     try{
       if(rowIds.length)await savePlanningRows([],rowIds,"planning_verwijderd_bij_medewerker");
       await deleteRow("employees",id);
-      setDbError("");toast.success("Medewerker verwijderd.");
+      setDbError("");
     }catch(err){setEmployees(prevE);setAvail(prevA);setProjects(prevP);fail("Medewerker kon niet worden verwijderd:",err);}
   };
 
@@ -5356,7 +5381,7 @@ export default function PlanningApp(){
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="uren"&&<UrenView employees={employees} availability={avail} werkNaam={werkLabel} zoekWerken={q=>searchIndexedProjects(q,8).map(p=>({id:p.id,label:werkLabel(p.id)}))}/>}
-          {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)} onAlsSchilder={onAlsSchilder}/>}
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings} projects={projects} employees={employees}/>}

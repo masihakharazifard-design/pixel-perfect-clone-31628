@@ -86,11 +86,10 @@ export default function UrenView({ employees, availability, werkNaam, zoekWerken
     return { id: "", employeeId: a.employeeId, projectId: a.projectId || null, datum: a.date, start, eind, pauze: STANDAARD_PAUZE, uren: berekenUren(start, eind, STANDAARD_PAUZE), opmerking: "" };
   };
 
-  const opslaan = async (r: UrenRegel, stil = false) => {
+  const opslaan = async (r: UrenRegel) => {
     try {
       const n = await saveUren({ ...r, uren: berekenUren(r.start, r.eind, r.pauze) });
       setRegels((cur) => [...cur.filter((x) => x.id !== n.id), n].sort((a, b) => a.datum.localeCompare(b.datum)));
-      if (!stil) toast.success("Uren opgeslagen.");
       return true;
     } catch (e) {
       toast.error(`Uren opslaan mislukt: ${e instanceof Error ? e.message : String(e)}`);
@@ -99,12 +98,11 @@ export default function UrenView({ employees, availability, werkNaam, zoekWerken
   };
   const allesOvernemen = async () => {
     let ok = 0;
-    for (const a of teBevestigen) if (await opslaan(vanPlanning(a), true)) ok++;
-    if (ok) toast.success(`${ok} dag${ok === 1 ? "" : "en"} overgenomen uit de planning.`);
+    for (const a of teBevestigen) if (await opslaan(vanPlanning(a))) ok++;
   };
   const verwijder = async (r: UrenRegel) => {
     if (!window.confirm(`Uren van ${naamVan(r.employeeId)} op ${dagKort(r.datum)} verwijderen?`)) return;
-    try { await deleteUren(r.id); setRegels((cur) => cur.filter((x) => x.id !== r.id)); toast.success("Uren verwijderd."); }
+    try { await deleteUren(r.id); setRegels((cur) => cur.filter((x) => x.id !== r.id)); }
     catch (e) { toast.error(`Verwijderen mislukt: ${e instanceof Error ? e.message : String(e)}`); }
   };
 

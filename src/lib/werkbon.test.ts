@@ -26,3 +26,16 @@ describe("maakWerkbon", () => {
     expect(wb.tekst).toContain("07:00 – 16:00");
   });
 });
+
+import { maakWerkplanPdf } from "./werkplan-pdf";
+import { maakWerkplanMail } from "./werkbon";
+describe("werkplan", () => {
+  it("maakt een pdf en een mail met link", async () => {
+    const regels = [{ datum: "2026-11-24", start: "07:00", eind: "16:00", werk: "24001 – Gevel", adres: "Kade 1, Rotterdam", opmerking: "Steiger staat er al" }];
+    const pdf = maakWerkplanPdf({ medewerker: "Piet", van: "2026-11-23", tot: "2026-11-27", regels });
+    expect(pdf.size).toBeGreaterThan(1500);
+    const m = maakWerkplanMail({ medewerker: "Piet", van: "2026-11-23", tot: "2026-11-27", regels, pdfUrl: "https://x/storage/v1/object/sign/a.pdf" });
+    expect(m.html).toContain("Werkplan downloaden");
+    expect(m.tekst).toContain("24001 – Gevel");
+  });
+});

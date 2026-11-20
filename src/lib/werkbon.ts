@@ -93,3 +93,30 @@ ${w.opmerkingen ? `<tr><td style="padding:8px 24px 12px"><div style="font-size:1
 
   return { onderwerp, html, tekst };
 }
+
+export interface WerkplanMailRegel { datum: string; start?: string; eind?: string; werk: string; adres?: string }
+
+/** E-mail met het werkplan van een medewerker (overzicht per dag) en een link naar de pdf. */
+export function maakWerkplanMail(inv: { medewerker: string; van: string; tot: string; regels: WerkplanMailRegel[]; pdfUrl?: string; bedrijf?: string }): { onderwerp: string; html: string; tekst: string } {
+  const bedrijf = inv.bedrijf || "Maasmond";
+  const regels = [...inv.regels].sort((a, b) => a.datum.localeCompare(b.datum) || (a.start || "").localeCompare(b.start || ""));
+  const onderwerp = `Werkplan ${datumLang(inv.van)} t/m ${datumLang(inv.tot)}`;
+  const tijd = (r: WerkplanMailRegel) => (r.start && r.eind ? `${r.start} – ${r.eind}` : r.start || "");
+  const td = "padding:7px 10px;border-bottom:1px solid #E6E9EF;font-size:14px;color:#23272F;vertical-align:top";
+  const html = `<!doctype html><html lang="nl"><body style="margin:0;background:#EEF1F5;font-family:Aptos,'Segoe UI',Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF1F5;padding:24px 0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden">
+<tr><td style="background:#1E3A7B;padding:18px 24px;color:#ffffff"><div style="font-size:12px;opacity:.8">${esc(bedrijf)}</div><div style="font-size:22px;font-weight:bold;margin-top:2px">Werkplan</div></td></tr>
+<tr><td style="padding:20px 24px 4px;font-size:15px;color:#23272F">Beste ${esc(inv.medewerker)},<br><br>Hieronder je planning van ${esc(datumLang(inv.van))} t/m ${esc(datumLang(inv.tot))}.</td></tr>
+${inv.pdfUrl ? `<tr><td style="padding:12px 24px 0"><a href="${esc(inv.pdfUrl)}" style="display:inline-block;background:#E0402F;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 16px;border-radius:8px">Werkplan downloaden (pdf)</a></td></tr>` : ""}
+<tr><td style="padding:12px 24px 20px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+${regels.length ? regels.map((r) => `<tr><td style="${td};white-space:nowrap">${esc(datumLang(r.datum))}</td><td style="${td}"><b>${esc(r.werk)}</b>${r.adres ? `<br><span style="color:#5F6673;font-size:13px">${esc(r.adres)}</span>` : ""}</td><td style="${td};text-align:right;white-space:nowrap">${esc(tijd(r))}</td></tr>`).join("\n") : `<tr><td style="${td}">Er is in deze periode niets ingepland.</td></tr>`}
+</table></td></tr>
+</table></td></tr></table></body></html>`;
+  const tekst = [
+    `Werkplan – ${bedrijf}`, "", `Beste ${inv.medewerker},`, "", `Je planning van ${datumLang(inv.van)} t/m ${datumLang(inv.tot)}:`, "",
+    ...(regels.length ? regels.map((r) => `- ${datumLang(r.datum)}${tijd(r) ? ` ${tijd(r)}` : ""}: ${r.werk}${r.adres ? ` (${r.adres})` : ""}`) : ["Er is in deze periode niets ingepland."]),
+    ...(inv.pdfUrl ? ["", `Werkplan als pdf: ${inv.pdfUrl}`] : []),
+  ].join("\n");
+  return { onderwerp, html, tekst };
+}

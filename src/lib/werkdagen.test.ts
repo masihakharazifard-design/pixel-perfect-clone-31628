@@ -48,3 +48,20 @@ describe("verschuifMetSprong", () => {
     expect(uit.map((r) => r.date)).toEqual(["2026-11-26", "2026-11-30"]);
   });
 });
+
+import { schuifVolgendeOp } from "./werkdagen";
+describe("schuifVolgendeOp", () => {
+  const rij = (id: string, projectId: string, date: string) => ({ id, employeeId: "a", date, startTime: "07:00", endTime: "17:00", status: "Ingepland", projectId });
+  it("schuift het volgende werk op als het verplaatste werk erop terechtkomt", () => {
+    // Werk B staat di 24 en wo 25 nov; werk A wordt naar di 24 nov verplaatst
+    const alle = [rij("b1", "B", "2026-11-24"), rij("b2", "B", "2026-11-25"), rij("c1", "C", "2026-11-27")];
+    const uit = schuifVolgendeOp(alle, [rij("a1", "A", "2026-11-24")], () => false);
+    expect(uit.map((r) => `${r.id}:${r.date}`)).toEqual(["b1:2026-11-25", "b2:2026-11-26"]);
+  });
+  it("laat werk staan dat niet botst en springt over weekend en vrije dag", () => {
+    const alle = [rij("b1", "B", "2026-11-27"), rij("c1", "C", "2026-11-30")];
+    const uit = schuifVolgendeOp(alle, [rij("a1", "A", "2026-11-27")], (_r, d) => d === "2026-11-30");
+    // B gaat van vr 27 naar di 1 dec (weekend + vrije ma 30 overgeslagen); C botst daardoor niet en blijft
+    expect(uit.map((r) => `${r.id}:${r.date}`)).toEqual(["b1:2026-12-01"]);
+  });
+});

@@ -86,3 +86,57 @@ export function verschuifMetSprong<T extends { date: string; employeeId: string;
   });
   return moved;
 }
+
+export interface PlanRegelBasis {
+  id: string; employeeId: string; date: string; startTime: string; endTime: string;
+  status: string; projectId?: string; isFirstOfDay?: boolean; volgorde?: number;
+}
+const overlapt = (a1: string, a2: string, b1: string, b2: string) => a1 < b2 && b1 < a2;
+
+/**
+ * Meeschuiven: komt verplaatst werk terecht op dagen waar dezelfde medewerker al ander werk heeft,
+ * dan schuiven die werken (en de werken daarna, als die daardoor ook botsen) op naar de eerstvolgende
+ * vrije werkdag, in dezelfde volgorde. Vrije dagen/feestdagen (geblokkeerd) en het weekend worden overgesprongen.
+ * Geeft alleen de regels terug die een andere datum krijgen.
+ */
+export function schuifVolgendeOp<T extends PlanRegelBasis>(alle: T[], verplaatst: T[], geblokkeerd: (r: T, datum: string) => boolean): T[] {
+  const ids = new Set(verplaatst.map((r) => r.id));
+  const uit: T[] = [];
+  const perMw = new Map<string, T[]>();
+  verplaatst.forEach((r) => { if (r.status === "Ingepland") perMw.set(r.employeeId, [...(perMw.get(r.employeeId) || []), r]); });
+  perMw.forEach((mijn, emp) => {
+    const bezet = new Map<string, [string, string][]>();
+    const zet = (d: string, s: string, e: string) => bezet.set(d, [...(bezet.get(d) || []), [s, e]]);
+    mijn.forEach((r) => zet(r.date, r.startTime, r.endTime));
+    const vanaf = mijn.map((r) => r.date).sort()[0];
+    const eigenWerken = new Set(mijn.map((r) => r.projectId));
+    const groepen = new Map<string, T[]>();
+    alle.forEach((a) => {
+      if (a.employeeId !== emp || ids.has(a.id) || a.status !== "Ingepland" || !a.projectId || a.date < vanaf || eigenWerken.has(a.projectId)) return;
+      groepen.set(a.projectId, [...(groepen.get(a.projectId) || []), a]);
+    });
+    const volgorde = [...groepen.values()].map((l) => l.sort((x, y) => x.date.localeCompare(y.date) || x.startTime.localeCompare(y.startTime)))
+      .sort((x, y) => x[0].date.localeCompare(y[0].date) || x[0].startTime.localeCompare(y[0].startTime));
+    volgorde.forEach((regels) => {
+      const dagen = [...new Set(regels.map((r) => r.date))];
+      const botst = (d: string, rs: T[]) => rs.some((r) => (bezet.get(d) || []).some(([s, e]) => overlapt(s, e, r.startTime, r.endTime)));
+      let geraakt = false, vorige = "";
+      const naar = new Map<string, string>();
+      dagen.forEach((d) => {
+        const rs = regels.filter((r) => r.date === d);
+        if (!geraakt && !botst(d, rs)) { naar.set(d, d); vorige = d; return; }
+        geraakt = true;
+        let n = d > vorige ? d : shiftDate(vorige, 1);
+        for (let i = 0; i < 120 && ((!isWeekendStr(d) && isWeekendStr(n)) || rs.some((r) => geblokkeerd(r, n)) || botst(n, rs)); i++) n = shiftDate(n, 1);
+        naar.set(d, n);
+        vorige = n;
+      });
+      regels.forEach((r) => {
+        const nd = naar.get(r.date)!;
+        zet(nd, r.startTime, r.endTime);
+        if (nd !== r.date) uit.push({ ...r, date: nd, isFirstOfDay: false, volgorde: undefined });
+      });
+    });
+  });
+  return uit;
+}

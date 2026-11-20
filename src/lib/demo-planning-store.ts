@@ -16,6 +16,7 @@ import {
   type LoadAllResult,
   type PersonalNote,
   type UrenRegel,
+  type GereedMelding,
   type ProjectDocument,
   type ProjectMeta,
   type SettingsPathPatch,
@@ -430,4 +431,32 @@ export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
 }
 export async function deleteUren(id: string): Promise<void> {
   schrijfUren(leesUren().filter((x) => x.id !== id));
+}
+
+// ===== Gereedmeldingen (demo: foto als data-URL in de browser) =====
+const GEREED_KEY = "maasmond-demo-gereed";
+function leesGereed(): GereedMelding[] {
+  try { return JSON.parse(localStorage.getItem(GEREED_KEY) || "[]") as GereedMelding[]; } catch { return []; }
+}
+export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
+  return leesGereed().filter((g) => g.datum >= van && g.datum <= tot).sort((a, b) => b.tijd.localeCompare(a.tijd));
+}
+export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob, opmerking: string): Promise<GereedMelding> {
+  const { verkleinFoto, blobNaarDataUrl } = await import("./foto");
+  const klein = await verkleinFoto(foto, 900, 0.65);
+  const m: GereedMelding = { id: `gereed-${Date.now()}`, employeeId, projectId, datum, fotoPad: await blobNaarDataUrl(klein), opmerking, tijd: new Date().toISOString() };
+  const l = leesGereed().filter((g) => !(g.employeeId === employeeId && g.projectId === projectId && g.datum === datum));
+  l.push(m);
+  try { localStorage.setItem(GEREED_KEY, JSON.stringify(l)); }
+  catch { throw new Error("De demo-opslag in deze browser is vol; verwijder eerst oude gereedmeldingen."); }
+  return m;
+}
+export async function gereedFotoUrl(pad: string): Promise<string> {
+  return pad;
+}
+export async function intrekGereed(m: GereedMelding): Promise<void> {
+  localStorage.setItem(GEREED_KEY, JSON.stringify(leesGereed().filter((g) => g.id !== m.id)));
+}
+export async function uploadWerkplanPdf(_employeeId: string, _bestandsnaam: string, _pdf: Blob): Promise<string> {
+  return "";
 }
