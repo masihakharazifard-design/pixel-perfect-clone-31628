@@ -20,18 +20,16 @@ interface Dag {
   windstoten: number;
 }
 
-export type Soort = "regen" | "wind" | "koud" | "goed";
+export type Soort = "regen" | "wind" | "goed";
 export const ADVIES: Record<Soort, { kort: string; lang: string; kleur: string; bg: string }> = {
   regen: { kort: "Regen", lang: "Plan binnenschilderwerk en stoffering; geen buitenschilderwerk.", kleur: "#1E3A7B", bg: "#DCE6FA" },
   wind: { kort: "Harde wind", lang: "Geen zonwering buiten monteren en geen ladderwerk buiten.", kleur: "#8A5300", bg: "#FDEBC8" },
-  koud: { kort: "Koud", lang: "Buitenverf droogt slecht onder 5 °C; liever binnenwerk.", kleur: "#5134A6", bg: "#ECE6FC" },
-  goed: { kort: "Droog", lang: "Geschikt voor buitenschilderwerk en zonwering.", kleur: "#16774A", bg: "#D9F4E5" },
+  goed: { kort: "Droog", lang: "Geen regen: geschikt voor buitenschilderwerk en zonwering.", kleur: "#16774A", bg: "#D9F4E5" },
 };
 
 export function soortVan(d: Dag): Soort {
   if (d.regenKans >= 60 || d.regenMm >= 2) return "regen";
   if (d.windstoten >= 50) return "wind";
-  if (d.tmin < 5) return "koud";
   return "goed";
 }
 
@@ -119,7 +117,7 @@ export function WeerAdvies({ planning }: { planning: WeerPlanItem[] }) {
     setPlaats(p);
   };
 
-  // Buitenwerk dat op een natte, stormachtige of koude dag staat
+  // Buitenwerk dat op een natte of stormachtige dag staat
   const waarschuwingen = useMemo(() => {
     if (!weer) return [];
     const perDag = new Map(weer.dagen.map((d) => [d.datum, soortVan(d)]));
@@ -161,7 +159,7 @@ export function WeerAdvies({ planning }: { planning: WeerPlanItem[] }) {
       <div className="space-y-1.5">
         <p className="text-sm font-semibold text-[#23272F]">Planningssuggesties</p>
         {weer.dagen.filter((d) => soortVan(d) !== "goed").length === 0
-          ? <p className="text-sm text-[#5F6673]">De hele week droog en zacht: goed weer voor buitenwerk.</p>
+          ? <p className="text-sm text-[#5F6673]">De hele week droog: goed weer voor buitenwerk.</p>
           : weer.dagen.filter((d) => soortVan(d) !== "goed").map((d) => {
             const a = ADVIES[soortVan(d)];
             return <p key={d.datum} className="text-sm text-[#23272F]"><span className="font-semibold" style={{ color: a.kleur }}>{dagNaam(d.datum)} – {a.kort}:</span> {a.lang}</p>;

@@ -2884,7 +2884,6 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
     return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
   },[d,dEnd,multi]);
   const weekendInRange=allDays.length>1&&allDays.some(isWeekendStr);
-  const feestInRange=allDays.length>1?allDays.filter(x=>!isWeekendStr(x)&&feestdagOp(x)):[];
   const days=useMemo(()=>{
     const basis=inclWeekend?allDays:(()=>{const wd=allDays.filter(x=>!isWeekendStr(x));return wd.length?wd:allDays;})();
     if(allDays.length<=1)return basis;
@@ -2950,15 +2949,6 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
       {!inRange&&<p className="text-xs text-[#B3301F]">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#5F6673]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
       {sel&&<WeerBijInplannen werk={sel} dagen={days}/>}
-      {multi&&days.length>1&&(vrijCount>0||feestInRange.length>0)&&newPairs.length>0&&<div className="text-xs text-[#1E3A7B] rounded-[10px] bg-[#EEF1F5] px-3 py-2 space-y-0.5">
-        <p className="font-semibold">Vrije dagen worden overgeslagen; de dagen eromheen worden wel ingepland.</p>
-        {feestInRange.length>0&&<p>Feestdag: {feestInRange.map(x=>`${fmtDate(x)} (${feestdagOp(x)})`).join(", ")}</p>}
-        {[...new Set(nietDubbel.filter(x=>!newPairs.includes(x)).map(x=>x.employeeId))].map(eid=>{
-          const naam=employees.find(e=>e.id===eid)?.naam||"Medewerker";
-          const dgn=nietDubbel.filter(x=>x.employeeId===eid&&!newPairs.includes(x)).map(x=>fmtDate(x.day));
-          return <p key={eid}>{naam} is vrij of afwezig op {dgn.join(", ")}</p>;
-        })}
-      </div>}
       {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#23272F]">
         <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
         Ook op zaterdag en zondag inplannen
@@ -5141,7 +5131,7 @@ export default function PlanningApp(){
           toast.success("Wijziging ongedaan gemaakt.");
         }catch(e){fail("Ongedaan maken lukte niet:",e);}
       };
-      // Weer: buitenwerk ingepland op een dag met regen, harde wind of vorst? Dan direct een waarschuwing.
+      // Weer: buitenwerk ingepland op een dag met regen of harde wind? Dan direct een waarschuwing.
       const slecht=new Map<string,string>();
       upserts.forEach(u=>{
         if(u.status!=="Ingepland"||!u.projectId)return;
