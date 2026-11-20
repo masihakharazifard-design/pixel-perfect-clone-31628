@@ -250,6 +250,8 @@ export type Database = {
       }
       uren: {
         Row: {
+          beoordeeld_door_naam: string | null
+          beoordeeld_op: string | null
           created_at: string
           created_by: string | null
           datum: string
@@ -259,11 +261,15 @@ export type Database = {
           opmerking: string
           pauze_min: number
           project_id: string | null
+          soort: string
           start_tijd: string
+          status: string
           updated_at: string
           uren: number
         }
         Insert: {
+          beoordeeld_door_naam?: string | null
+          beoordeeld_op?: string | null
           created_at?: string
           created_by?: string | null
           datum: string
@@ -273,11 +279,15 @@ export type Database = {
           opmerking?: string
           pauze_min?: number
           project_id?: string | null
+          soort?: string
           start_tijd?: string
+          status?: string
           updated_at?: string
           uren?: number
         }
         Update: {
+          beoordeeld_door_naam?: string | null
+          beoordeeld_op?: string | null
           created_at?: string
           created_by?: string | null
           datum?: string
@@ -287,7 +297,9 @@ export type Database = {
           opmerking?: string
           pauze_min?: number
           project_id?: string | null
+          soort?: string
           start_tijd?: string
+          status?: string
           updated_at?: string
           uren?: number
         }
