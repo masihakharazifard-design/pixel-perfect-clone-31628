@@ -33,3 +33,18 @@ describe("werkdagen", () => {
     expect(shiftPlanRows([{ id: "a", date: "2026-11-12" }], "2026-11-12")).toEqual([]);
   });
 });
+
+import { verschuifMetSprong } from "./werkdagen";
+describe("verschuifMetSprong", () => {
+  it("springt over een vrije dag en houdt het aantal dagen gelijk", () => {
+    // ma 23 t/m wo 25 nov naar ma 30 nov; di 1 dec is de medewerker vrij
+    const rows = ["2026-11-23", "2026-11-24", "2026-11-25"].map((date, i) => ({ id: String(i), employeeId: "a", date }));
+    const uit = verschuifMetSprong(rows, "2026-11-30", (_r, d) => d === "2026-12-01");
+    expect(uit.map((r) => r.date)).toEqual(["2026-11-30", "2026-12-02", "2026-12-03"]);
+  });
+  it("springt ook over het weekend dat door het springen bereikt wordt", () => {
+    const rows = ["2026-11-23", "2026-11-24"].map((date, i) => ({ id: String(i), employeeId: "a", date }));
+    const uit = verschuifMetSprong(rows, "2026-11-26", (_r, d) => d === "2026-11-27");
+    expect(uit.map((r) => r.date)).toEqual(["2026-11-26", "2026-11-30"]);
+  });
+});

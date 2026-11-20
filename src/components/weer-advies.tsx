@@ -52,6 +52,10 @@ function onthoud(dagen: Dag[]) {
 export function weerOp(datum: string): Soort | null {
   return laatsteWeer?.get(datum) ?? null;
 }
+/** Alle bekende dagen (komende 7) met hun weersoort, op datum gesorteerd. */
+export function weerDagen(): [string, Soort][] {
+  return laatsteWeer ? [...laatsteWeer.entries()].sort((a, b) => a[0].localeCompare(b[0])) : [];
+}
 /** Verwachting op de achtergrond ophalen (voor de waarschuwingen bij het inplannen). */
 export async function laadWeer(): Promise<void> {
   let plaats = "Rotterdam";

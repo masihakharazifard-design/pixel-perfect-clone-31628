@@ -55,3 +55,34 @@ export function shiftPlanRows<T extends { date: string; isFirstOfDay?: boolean; 
     volgorde: undefined,
   }));
 }
+
+/**
+ * Als shiftPlanRows, maar per medewerker worden dagen waarop hij/zij vrij is (of een feestdag) overgesprongen:
+ * de planning "springt" naar de eerstvolgende beschikbare werkdag, zodat het aantal dagen gelijk blijft.
+ */
+export function verschuifMetSprong<T extends { date: string; employeeId: string; isFirstOfDay?: boolean; volgorde?: number }>(
+  rows: T[],
+  newStart: string,
+  geblokkeerd: (row: T, date: string) => boolean,
+): T[] {
+  const moved = shiftPlanRows(rows, newStart);
+  if (!moved.length) return [];
+  const perMw = new Map<string, number[]>();
+  rows.forEach((r, i) => perMw.set(r.employeeId, [...(perMw.get(r.employeeId) || []), i]));
+  perMw.forEach((idxs) => {
+    const oudeDagen = [...new Set(idxs.map((i) => rows[i].date))].sort();
+    const naar = new Map<string, string>();
+    let vorige = "";
+    oudeDagen.forEach((oud) => {
+      const i = idxs.find((k) => rows[k].date === oud)!;
+      const doel = moved[i].date;
+      const weekendBewust = isWeekendStr(doel);
+      let d = vorige && doel <= vorige ? shiftDate(vorige, 1) : doel;
+      for (let n = 0; n < 60 && ((!weekendBewust && isWeekendStr(d)) || geblokkeerd(moved[i], d)); n++) d = shiftDate(d, 1);
+      naar.set(oud, d);
+      vorige = d;
+    });
+    idxs.forEach((i) => { moved[i] = { ...moved[i], date: naar.get(rows[i].date)! }; });
+  });
+  return moved;
+}

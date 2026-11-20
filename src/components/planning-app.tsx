@@ -9,7 +9,7 @@ import {
   Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown, History
 } from "lucide-react";
 import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
-import { WeerAdvies, ADVIES, laadWeer, weerOp, type WeerPlanItem } from "@/components/weer-advies";
+import { WeerAdvies, ADVIES, laadWeer, weerOp, weerDagen, type WeerPlanItem } from "@/components/weer-advies";
 import UrenView from "@/components/uren-view";
 import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
 import { stuurWerkbon } from "@/lib/werkbon.functions";
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { feestdagenTussen, feestdagOp } from "@/lib/feestdagen";
-import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows } from "@/lib/werkdagen";
+import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows, verschuifMetSprong } from "@/lib/werkdagen";
 import { useAuth } from "@/components/auth-gate";
 const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
@@ -400,7 +400,7 @@ function buildProjectPlanRows(p:Project,empIds:string[],av:AvailEntry[],employee
   if(!empIds.length||!validDate(p.startdatum))return{rows:[],skipped:[]};
   const end=validDate(p.afloopdatum)?p.afloopdatum:p.startdatum;
   const all=getDatesInRange(new Date(p.startdatum),new Date(end));
-  const weekdays=all.filter(d=>weekdayIdx(d)<5);
+  const weekdays=all.filter(d=>weekdayIdx(d)<5&&!feestdagOp(d));
   const days=weekdays.length?weekdays:all;
   // Standaard werkdag (Instellingen, standaard 07:00–17:00)
   const st=defaultStartFor(p),et=WORKDAY_END;
@@ -443,7 +443,7 @@ function planningNaarPeriode(rows:AvailEntry[],nS:string,nE:string,av:AvailEntry
     const datums=new Set(binnen.map(r=>r.date));
     const laatste=binnen.length?[...datums].sort()[datums.size-1]:null;
     for(let d=laatste?shiftDate(laatste,1):nS;d<=nE;d=shiftDate(d,1)){
-      if(isWeekendStr(d)||datums.has(d)||isGeblokkeerd(av,empId,d,sjabloon.startTime,sjabloon.endTime,eigen))continue;
+      if(isWeekendStr(d)||feestdagOp(d)||datums.has(d)||isGeblokkeerd(av,empId,d,sjabloon.startTime,sjabloon.endTime,eigen))continue;
       ups.push({...sjabloon,id:"plan-"+nid(),date:d,isFirstOfDay:false,volgorde:undefined});
     }
   });
@@ -715,6 +715,29 @@ function isBuitenwerk(p?:Project|null):boolean{
 function werkLabel(id?:string|null):string{
   const p=getIndexedProject(id);if(!p)return "";
   return [p.werknummer,p.projectnaam].filter(Boolean).join(" – ");
+}
+
+// ===== Weer in het inplanvenster =====
+// Toont per gekozen dag (binnen de 7-daagse verwachting) het weer en, bij buitenwerk, een suggestie voor droge dagen.
+function WeerBijInplannen({werk,dagen}:{werk:Project;dagen:string[]}){
+  const bekend=dagen.map(d=>[d,weerOp(d)] as const).filter((x):x is readonly [string,NonNullable<ReturnType<typeof weerOp>>]=>!!x[1]);
+  if(!bekend.length)return null;
+  const buiten=isBuitenwerk(werk);
+  const slecht=bekend.filter(([,s])=>s!=="goed");
+  const kort=(d:string)=>new Date(d+"T12:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"});
+  const droog=weerDagen().filter(([d,s])=>s==="goed"&&d>=TODAY_STR&&!isWeekendStr(d)&&!feestdagOp(d)).map(([d])=>d);
+  return <div className={`rounded-[10px] px-3 py-2 space-y-1.5 text-xs ${buiten&&slecht.length?"bg-[#FEF3DC] border border-[#F6DCA5]":"bg-[#F4F6F9]"}`}>
+    <p className={`font-semibold flex items-center gap-1.5 ${buiten&&slecht.length?"text-[#7A4A00]":"text-[#23272F]"}`}>
+      {buiten&&slecht.length?<AlertTriangle className="w-3.5 h-3.5" aria-hidden="true"/>:null}
+      Weer{buiten?" (buitenwerk)":""}
+    </p>
+    <div className="flex flex-wrap gap-1">
+      {bekend.slice(0,10).map(([d,s])=><span key={d} title={ADVIES[s].lang} className="px-2 py-0.5 rounded-full font-medium" style={{backgroundColor:ADVIES[s].bg,color:ADVIES[s].kleur}}>{kort(d)}: {ADVIES[s].kort}</span>)}
+    </div>
+    {buiten&&slecht.length>0&&<p className="text-[#7A4A00]">Let op: {slecht.map(([d,s])=>`${kort(d)} ${ADVIES[s].kort.toLowerCase()}`).join(", ")}. Geen buitenschilderwerk of zonwering buiten op die dag{slecht.length>1?"en":""}; plan daar liever binnenwerk.{droog.filter(d=>!dagen.includes(d)).length>0?` Droge dagen: ${droog.filter(d=>!dagen.includes(d)).slice(0,4).map(kort).join(", ")}.`:""}</p>}
+    {buiten&&!slecht.length&&<p className="text-[#16774A]">Droog en geschikt voor buitenwerk.</p>}
+    {!buiten&&slecht.length>0&&<p className="text-[#5F6673]">Binnenwerk: het weer is geen probleem.</p>}
+  </div>;
 }
 
 // ===== Regio =====
@@ -2676,9 +2699,15 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   const blockRows=(id:string)=>blockRowsById.get(id)||projectPlans(availability,realId(id));
   const openReal=(vp:Project)=>{const real=projects.find(x=>x.id===realId(vp.id));onOpenProject(real||vp);};
   // Maand/kwartaal: blok verslepen = alle planningregels van het werk verschuiven (weekend blijft leeg).
+  // Verschuiven met sprong: dagen waarop de medewerker vrij/afwezig is (of een feestdag) worden overgeslagen,
+  // de planning gaat dan verder op de eerstvolgende beschikbare werkdag.
+  const verschuifBlok=(rows:AvailEntry[],naar:string)=>{
+    const eigen=rows.map(r=>r.id);
+    return verschuifMetSprong(rows,naar,(r,d)=>!!feestdagOp(d)||isGeblokkeerd(availability,r.employeeId,d,r.startTime,r.endTime,eigen));
+  };
   const handleDropProject=(id:string,newStart:Date)=>{
     if(isPlanBlock(id)){
-      const moved=shiftPlanRows(blockRows(id),toDateStr(newStart));
+      const moved=verschuifBlok(blockRows(id),toDateStr(newStart));
       if(moved.length){void onSaveManyPlanning(moved);vraagNotitie(realId(id),`Verschoven naar ${fmtDate(toDateStr(newStart))}`);}
       return;
     }
@@ -2704,7 +2733,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       if(!rows.length)return;
       const newDate=toDateStr(newStart);
       vraagNotitie(realId(id),`Verschoven naar ${fmtDate(newDate)}`);
-      if(new Set(rows.map(r=>r.date)).size>1){const moved=shiftPlanRows(rows,newDate);if(moved.length)void onSaveManyPlanning(moved);return;}
+      if(new Set(rows.map(r=>r.date)).size>1){const moved=verschuifBlok(rows,newDate);if(moved.length)void onSaveManyPlanning(moved);return;}
       const newStartMin=newStart.getHours()*60+newStart.getMinutes();
       void onSaveManyPlanning(rows.map(r=>{
         const dur=Math.max(15,toMin(r.endTime)-toMin(r.startTime));
@@ -2855,10 +2884,12 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
     return getDatesInRange(new Date(d+"T12:00"),new Date(dEnd+"T12:00"));
   },[d,dEnd,multi]);
   const weekendInRange=allDays.length>1&&allDays.some(isWeekendStr);
+  const feestInRange=allDays.length>1?allDays.filter(x=>!isWeekendStr(x)&&feestdagOp(x)):[];
   const days=useMemo(()=>{
-    if(inclWeekend)return allDays;
-    const wd=allDays.filter(x=>!isWeekendStr(x));
-    return wd.length?wd:allDays;
+    const basis=inclWeekend?allDays:(()=>{const wd=allDays.filter(x=>!isWeekendStr(x));return wd.length?wd:allDays;})();
+    if(allDays.length<=1)return basis;
+    const zonderFeest=basis.filter(x=>!feestdagOp(x));
+    return zonderFeest.length?zonderFeest:basis;
   },[allDays,inclWeekend]);
   const chosenEmployeeIds=multiEmployeeSelect?empIds:(emp?[emp]:[]);
   // Staat de medewerker op die dag al op ditzelfde werk in dit tijdvak? Dan wordt die dag overgeslagen (geen dubbele regel).
@@ -2918,6 +2949,16 @@ function PlanEmployeeModal({employees,availability,empId,date,endDate,minDate,ma
       {!timeOk&&<p className="text-xs text-[#B3301F]">De eindtijd moet na de begintijd liggen.</p>}
       {!inRange&&<p className="text-xs text-[#B3301F]">Kies een periode binnen de looptijd van het werk{minDate?` (${fmtDate(minDate)}`:" ("}{maxDate?` t/m ${fmtDate(maxDate)})`:")"}.</p>}
       {multi&&days.length>1&&<p className="text-xs text-[#5F6673]">{chosenEmployeeIds.length===1?"Deze medewerker wordt":`${chosenEmployeeIds.length} medewerkers worden`} op {days.length} dagen ({fmtDate(days[0])} t/m {fmtDate(days[days.length-1])}) op hetzelfde werk ingepland{!inclWeekend&&weekendInRange?" — zaterdag en zondag worden overgeslagen":""}.</p>}
+      {sel&&<WeerBijInplannen werk={sel} dagen={days}/>}
+      {multi&&days.length>1&&(vrijCount>0||feestInRange.length>0)&&newPairs.length>0&&<div className="text-xs text-[#1E3A7B] rounded-[10px] bg-[#EEF1F5] px-3 py-2 space-y-0.5">
+        <p className="font-semibold">Vrije dagen worden overgeslagen; de dagen eromheen worden wel ingepland.</p>
+        {feestInRange.length>0&&<p>Feestdag: {feestInRange.map(x=>`${fmtDate(x)} (${feestdagOp(x)})`).join(", ")}</p>}
+        {[...new Set(nietDubbel.filter(x=>!newPairs.includes(x)).map(x=>x.employeeId))].map(eid=>{
+          const naam=employees.find(e=>e.id===eid)?.naam||"Medewerker";
+          const dgn=nietDubbel.filter(x=>x.employeeId===eid&&!newPairs.includes(x)).map(x=>fmtDate(x.day));
+          return <p key={eid}>{naam} is vrij of afwezig op {dgn.join(", ")}</p>;
+        })}
+      </div>}
       {multi&&weekendInRange&&<label className="flex items-center gap-2 text-xs text-[#23272F]">
         <input type="checkbox" checked={inclWeekend} onChange={ev=>setInclWeekend(ev.target.checked)}/>
         Ook op zaterdag en zondag inplannen
@@ -3603,7 +3644,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
       // Doortrekken slaat zaterdag/zondag over; bestaande (bewust geplande) weekenddagen blijven staan.
       const fullSpan=getDatesInRange(new Date(start+"T12:00"),new Date(endDate+"T12:00"));
       // Nieuwe dagen waarop de medewerker vrij/afwezig is, worden overgeslagen
-      const kept=fullSpan.filter(d=>rows.some(r=>r.date===d)||(!isWeekendStr(d)&&!isGeblokkeerd(availability,row.employeeId,d,row.startTime,endTime,rows.map(r=>r.id))));
+      const kept=fullSpan.filter(d=>rows.some(r=>r.date===d)||(!isWeekendStr(d)&&!feestdagOp(d)&&!isGeblokkeerd(availability,row.employeeId,d,row.startTime,endTime,rows.map(r=>r.id))));
       const span=kept.length?kept:[start];
       span.forEach(d=>{
         const key=`${row.employeeId}|${row.projectId}|${reeks}|${d}|${row.startTime}|${endTime}`;
