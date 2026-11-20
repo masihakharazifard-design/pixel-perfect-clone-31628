@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
 import { WeerAdvies, ADVIES, laadWeer, weerOp, type WeerPlanItem } from "@/components/weer-advies";
+import UrenView from "@/components/uren-view";
+import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
+import { stuurWerkbon } from "@/lib/werkbon.functions";
 
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
@@ -33,7 +36,7 @@ const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.Tak
 
 
 // ===== TYPES =====
-type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"geschiedenis"|"gebruikers";
+type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"uren"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"geschiedenis"|"gebruikers";
 type Afdeling = "Stoffering"|"Schilderwerk"|"Zonwering";
 type ProjectStatus = "Offerte"|"Bevestigd"|"In uitvoering"|"Afgerond"|"Gefactureerd";
 type AvailStatus = "Beschikbaar"|"Ingepland"|"Bezet"|"Gereserveerd"|"Niet beschikbaar"|"Vakantie"|"Ziek"|"Vrij";
@@ -112,6 +115,10 @@ interface AppSettings {
   holidayColor?:string;
   fixedFreeSeries?:FixedFreeSeries[];
   employeePlanningOrder?:string[];
+  /** Werkbon mailen bij inplannen: uit (standaard), eerst vragen, of automatisch */
+  werkbonMail?:"uit"|"vragen"|"automatisch";
+  /** Werkbon alleen voor medewerkers van Schilderwerk (standaard aan) */
+  werkbonAlleenSchilders?:boolean;
 }
 
 // Centrale sortering van medewerkers volgens de handmatig gekozen planningvolgorde.
@@ -702,6 +709,12 @@ function isBuitenwerk(p?:Project|null):boolean{
   if(!p)return false;
   if(/buiten|gevel|kozijn|dakgoot|boeideel|zonwering|screen|markies|rolluik|luifel|terras|knikarm/i.test(`${p.projectnaam||""} ${p.opmerkingen||""}`))return true;
   const a=getAllAfds(p);return a.length===1&&a[0]==="Zonwering";
+}
+
+// Korte naam van een werk: "werknummer – projectnaam"
+function werkLabel(id?:string|null):string{
+  const p=getIndexedProject(id);if(!p)return "";
+  return [p.werknummer,p.projectnaam].filter(Boolean).join(" – ");
 }
 
 // ===== Regio =====
@@ -1644,7 +1657,7 @@ function EmployeeForm({initial,onSave,onCancel}:{initial:Partial<Employee>;onSav
 const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["dashboard",LayoutDashboard,"Dashboard"],["projecten",FolderOpen,"Werken"],
   ["agenda",CalendarDays,"Agenda"],["personeelsplanning",Users,"Personeelsplanning"],
-  ["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
+  ["uren",Clock,"Uren"],["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
 // Geschiedenis: alleen voor wie mag plannen (beheerder en planner)
@@ -1711,7 +1724,7 @@ function Sidebar({active,onNav,mobileOpen,onMobileClose}:{active:Nav;onNav:(n:Na
   </>;
 }
 function MobileTopBar({onOpenMenu,nav}:{onOpenMenu:()=>void;nav:Nav}){
-  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",geschiedenis:"Geschiedenis",gebruikers:"Gebruikersbeheer"};
+  const labels:Record<Nav,string>={dashboard:"Dashboard",projecten:"Werken",agenda:"Agenda",personeelsplanning:"Planning",uren:"Uren",medewerkers:"Medewerkers",notities:"Notities",facturatie:"Facturatie",instellingen:"Instellingen",geschiedenis:"Geschiedenis",gebruikers:"Gebruikersbeheer"};
   return <div className="md:hidden flex items-center gap-3 px-4 py-3 mm-topbalk flex-shrink-0 z-10">
     <button onClick={onOpenMenu} aria-label="Menu openen" className="p-1.5 rounded-[10px] text-[#5F6673] hover:text-[#23272F] hover:bg-[#F2F4F7] flex-shrink-0"><Menu className="w-5 h-5"/></button>
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -4500,7 +4513,19 @@ function MedewerkersView({employees,onAdd,onEdit,onDelete,onVacImport}:{
 function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:AppSettings;onSave:(s:AppSettings)=>void;projects?:Project[];employees?:Employee[]}){
   const [form,setForm]=useState<AppSettings>(settings);
   const [saved,setSaved]=useState(false);
-  const [activeTab,setActiveTab]=useState<"bedrijf"|"kleuren"|"projectleiders">("bedrijf");
+  const [activeTab,setActiveTab]=useState<"bedrijf"|"kleuren"|"projectleiders"|"werkbon">("bedrijf");
+  // Voorbeeld van de werkbon met een echt werk en een schilder uit de lijst
+  const werkbonVoorbeeld=useMemo(()=>{
+    if(activeTab!=="werkbon")return "";
+    const emp=employees.find(e=>e.afdeling==="Schilderwerk")||employees[0];
+    const p=projects.find(x=>getAllAfds(x).includes("Schilderwerk"))||projects[0];
+    return maakWerkbon({
+      medewerker:emp?.naam||"Jan de Schilder",
+      werk:{werknummer:p?.werknummer||"24001",projectnaam:p?.projectnaam||"Voorbeeldwerk",opdrachtgever:p?.opdrachtgever||"",adres:p?.straatObject||p?.adres||"",plaats:p?.plaatsObject||p?.plaats||"",projectleider:p?plName(p,employees):"",opmerkingen:p?.opmerkingen||"",afdeling:p?getAllAfds(p).join(", "):"Schilderwerk"},
+      dagen:[0,1,2].map(i=>({datum:addWorkdays(TODAY_STR,i+1),start:form.werkdagStart||"07:00",eind:form.werkdagEind||"17:00"})),
+      bedrijf:{naam:form.bedrijfsnaam,telefoon:form.telefoon,email:form.email},
+    }).html;
+  },[activeTab,employees,projects,form.bedrijfsnaam,form.telefoon,form.email,form.werkdagStart,form.werkdagEind]);
   // Projectleiders: lijst van afkorting → volledige naam (standaardlijst + eigen aanvullingen)
   const plRows=Object.entries({...DEFAULT_PL_NAMEN,...(form.projectleiderNamen||{})});
   const setPlName=(code:string,naam:string)=>setForm(p=>({...p,projectleiderNamen:{...(p.projectleiderNamen||{}),[code]:naam}}));
@@ -4535,8 +4560,31 @@ function InstellingenView({settings,onSave,projects=[],employees=[]}:{settings:A
       <p className="text-[#5F6673] text-xs md:text-sm">Bedrijfsinstellingen en voorkeuren</p>
     </div>
     <div className="flex gap-1 bg-[#F2F4F7] p-1 rounded-md w-fit">
-      {(["bedrijf","kleuren","projectleiders"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#23272F] shadow-sm":"text-[#5F6673] hover:text-[#23272F]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":t==="kleuren"?"Kleuren":"Projectleiders"}</button>)}
+      {(["bedrijf","kleuren","projectleiders","werkbon"] as const).map(t=><button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${activeTab===t?"bg-white text-[#23272F] shadow-sm":"text-[#5F6673] hover:text-[#23272F]"}`}>{t==="bedrijf"?"Bedrijfsgegevens":t==="kleuren"?"Kleuren":t==="werkbon"?"Werkbon":"Projectleiders"}</button>)}
     </div>
+    {activeTab==="werkbon"&&<div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 md:p-6 space-y-4">
+      <div>
+        <p className="font-semibold text-[#23272F]">Werkbon mailen bij inplannen</p>
+        <p className="text-sm text-[#5F6673]">Als een medewerker op een werk wordt ingepland, kan de app een werkbon naar zijn of haar e-mailadres sturen (uit Medewerkers). De werkbon bevat het werk, het adres en alle komende ingeplande dagen.</p>
+      </div>
+      <div className="space-y-2">
+        {([["uit","Uit","Er worden geen werkbonnen gemaild."],["vragen","Eerst vragen","Na het inplannen verschijnt een knop Mailen; pas als je daarop klikt, gaat de werkbon weg."],["automatisch","Automatisch","De werkbon wordt direct na het inplannen gemaild."]] as const).map(([v,l,uitleg])=>
+          <label key={v} className={`flex items-start gap-3 p-3 rounded-[10px] border cursor-pointer ${(form.werkbonMail||"uit")===v?"border-[#1E3A7B] bg-[#EEF1F5]":"border-[rgba(15,23,42,0.1)]"}`}>
+            <input type="radio" name="werkbonMail" checked={(form.werkbonMail||"uit")===v} onChange={()=>setForm(p=>({...p,werkbonMail:v}))} className="mt-1 accent-[#1E3A7B]"/>
+            <span><span className="block text-sm font-semibold text-[#23272F]">{l}</span><span className="block text-xs text-[#5F6673]">{uitleg}</span></span>
+          </label>)}
+      </div>
+      <label className="flex items-center gap-2 text-sm text-[#23272F]">
+        <input type="checkbox" checked={form.werkbonAlleenSchilders!==false} onChange={e=>setForm(p=>({...p,werkbonAlleenSchilders:e.target.checked}))} className="accent-[#1E3A7B]"/>
+        Alleen voor medewerkers van Schilderwerk
+      </label>
+      {(()=>{const zonder=employees.filter(e=>(form.werkbonAlleenSchilders===false||e.afdeling==="Schilderwerk")&&!e.email).map(e=>e.naam);
+        return zonder.length>0&&<p className="text-xs text-[#8A5300] bg-[#FEF3DC] rounded-[10px] px-3 py-2">Nog geen e-mailadres bij: {zonder.slice(0,12).join(", ")}{zonder.length>12?` en ${zonder.length-12} anderen`:""}. Vul dit in bij Medewerkers, anders krijgen zij geen werkbon.</p>;})()}
+      <div>
+        <p className="text-sm font-semibold text-[#23272F] mb-2">Voorbeeld (voorlopige opmaak)</p>
+        <iframe title="Voorbeeld werkbon" srcDoc={werkbonVoorbeeld} sandbox="" className="w-full h-[560px] rounded-[10px] border border-[rgba(15,23,42,0.1)] bg-[#EEF1F5]"/>
+      </div>
+    </div>}
     {activeTab==="projectleiders"&&<div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 md:p-6 space-y-3">
       <p className="text-sm text-[#5F6673]">In Excel staat bij "Projectl." vaak een afkorting. Overal in de planning wordt in plaats daarvan de volledige naam getoond. Laat de naam leeg om een afkorting niet meer te vertalen.</p>
       {onbekend.length>0&&<div className="rounded-[10px] border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-2">
@@ -4993,6 +5041,32 @@ export default function PlanningApp(){
 
   // Eén vaste route voor iedere planningwijziging: opslaan (met server-side
   // conflictcontrole) en pas daarna de state definitief bijwerken.
+  // Werkbonnen versturen: per medewerker + werk alle komende ingeplande dagen
+  const stuurWerkbonnen=async(paren:{employeeId:string;projectId:string}[],alle:AvailEntry[])=>{
+    let ok=0;const fouten:string[]=[];
+    for(const {employeeId,projectId} of paren){
+      const emp=employees.find(e=>e.id===employeeId);const wp=getIndexedProject(projectId);
+      if(!emp||!wp)continue;
+      const perDag=new Map<string,WerkbonDag>();
+      alle.forEach(a=>{
+        if(a.status!=="Ingepland"||a.employeeId!==employeeId||a.projectId!==projectId||a.date<TODAY_STR)return;
+        const d=perDag.get(a.date);
+        if(!d)perDag.set(a.date,{datum:a.date,start:a.startTime,eind:a.endTime});
+        else perDag.set(a.date,{datum:a.date,start:(d.start||"")<a.startTime?d.start:a.startTime,eind:(d.eind||"")>a.endTime?d.eind:a.endTime});
+      });
+      const dagen=[...perDag.values()].sort((a,b)=>a.datum.localeCompare(b.datum));
+      if(!dagen.length)continue;
+      if(!emp.email){fouten.push(`${emp.naam}: geen e-mailadres`);continue;}
+      if(DEMO_MODE){ok++;continue;}
+      try{
+        await stuurWerkbon({data:{employeeId,projectId,dagen,projectleider:plName(wp,employees)}});
+        ok++;
+      }catch(e){fouten.push(`${emp.naam}: ${e instanceof Error?e.message:String(e)}`);}
+    }
+    if(ok)toast.success(DEMO_MODE?`Demo: ${ok} werkbon${ok===1?"":"nen"} zou${ok===1?"":"den"} nu gemaild worden (in de demo wordt niets verstuurd).`:`${ok} werkbon${ok===1?"":"nen"} gemaild.`);
+    if(fouten.length)toast.error(`Werkbon niet verstuurd – ${fouten.slice(0,3).join("; ")}`,{duration:12000});
+  };
+
   const persistPlanning=async(nextAvail:AvailEntry[],upserts:AvailEntry[],removeIds:string[],actie:string,okMsg:string)=>{
     const prevAvail=avail,prevProjects=projects;
     const pids=[...new Set([...upserts.map(e=>e.projectId),
@@ -5034,6 +5108,26 @@ export default function PlanningApp(){
         const wp=getIndexedProject(u.projectId);if(!isBuitenwerk(wp))return;
         slecht.set(`${u.date}|${wp!.id}`,`${new Date(u.date+"T12:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"})}: ${ADVIES[w].kort.toLowerCase()} (${wp!.projectnaam||wp!.werknummer})`);
       });
+      // Werkbon: nieuw ingeplande medewerkers (optie in Instellingen) een werkbon mailen
+      const wbModus=settings.werkbonMail||"uit";
+      if(wbModus!=="uit"){
+        const paren=new Map<string,{employeeId:string;projectId:string}>();
+        upserts.forEach(u=>{
+          if(u.status!=="Ingepland"||!u.projectId||u.date<TODAY_STR)return;
+          const o=oudPerId.get(u.id);
+          if(o&&o.status==="Ingepland"&&o.date===u.date&&o.employeeId===u.employeeId&&o.projectId===u.projectId)return;
+          const emp=employees.find(e=>e.id===u.employeeId);if(!emp)return;
+          if(settings.werkbonAlleenSchilders!==false&&emp.afdeling!=="Schilderwerk")return;
+          paren.set(`${u.employeeId}|${u.projectId}`,{employeeId:u.employeeId,projectId:u.projectId});
+        });
+        if(paren.size){
+          const lijst=[...paren.values()];
+          const namen=[...new Set(lijst.map(x=>employees.find(e=>e.id===x.employeeId)?.naam||""))].filter(Boolean);
+          const verstuur=()=>{void stuurWerkbonnen(lijst,nextAvail);};
+          if(wbModus==="automatisch")verstuur();
+          else toast(`Werkbon mailen naar ${namen.slice(0,3).join(", ")}${namen.length>3?` en ${namen.length-3} anderen`:""}?`,{action:{label:"Mailen",onClick:verstuur},duration:15000});
+        }
+      }
       if(slecht.size)toast.warning(`Let op: ${[...slecht.values()].slice(0,3).join("; ")}. Geen buitenschilderwerk of zonwering buiten inplannen op deze dag${slecht.size>1?"en":""}.`,{duration:12000});
       if(terugZetten.length||weghalen.length)toast.success(okMsg||"Planning bijgewerkt.",{action:{label:"Ongedaan maken",onClick:()=>{void herstel();}},duration:8000});
       else if(okMsg)toast.success(okMsg);
@@ -5230,6 +5324,7 @@ export default function PlanningApp(){
           {nav==="projecten"&&<ProjectenView key={werkenPreset.join("|")||"alle"} initialProjStatus={werkenPreset} projects={viewProjects} employees={employees} onAdd={openNewProject} onEdit={openEditProject} onDelete={deleteProject} onOpen={openDetailProject} onImport={handleImport} onStatusChange={changeProjectStatus} dubbelAantal={dubbeleGroepen.reduce((n,g)=>n+g.length-1,0)} onDubbeleOpruimen={()=>dubbeleOpruimen()}/>}
           {nav==="agenda"&&<AgendaView projects={viewProjects} employees={employees} availability={avail} updateProject={updateProject} onOpenProject={openDetailProject} onCreateProject={openNewProject} onSaveManyPlanning={savePlanningMany}/>}
           {nav==="personeelsplanning"&&<PersoneelsplanningView employees={employees} availability={avail} settings={settings} onSaveSettings={handleSaveSettings} onSavePlanning={savePlanning} onSaveManyPlanning={savePlanningMany} onResizePlanning={savePlanningResize} onDeletePlanning={deletePlanning} onSaveAbsence={saveAbsence} onDeleteAbsence={deleteAbsence} onOpenProject={openDetailProject} onVacImport={()=>setShowVacImport(true)}/>}
+          {nav==="uren"&&<UrenView employees={employees} availability={avail} werkNaam={werkLabel} zoekWerken={q=>searchIndexedProjects(q,8).map(p=>({id:p.id,label:werkLabel(p.id)}))}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)}/>}
           {nav==="notities"&&<NotitiesView/>}
           {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}

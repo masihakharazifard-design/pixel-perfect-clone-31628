@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { Taak } from "@/lib/taken";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "@/lib/geschiedenis";
-import { EMPTY_META, type PersonalNote, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
+import { EMPTY_META, type PersonalNote, type UrenRegel, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
 
@@ -358,5 +358,43 @@ export async function saveTaak(taak: Taak): Promise<Taak> {
 
 export async function deleteTaak(id: string): Promise<void> {
   const { error } = await supabase.from("project_taken").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ===== Urenregistratie =====
+type UrenRow = {
+  id: string; employee_id: string; project_id: string | null; datum: string;
+  start_tijd: string; eind_tijd: string; pauze_min: number; uren: number | string; opmerking: string;
+};
+const UREN_COLS = "id, employee_id, project_id, datum, start_tijd, eind_tijd, pauze_min, uren, opmerking";
+// De tabel "uren" staat (nog) niet in de gegenereerde typen
+const urenTabel = () => (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> }).from("uren");
+const naarUren = (r: UrenRow): UrenRegel => ({
+  id: r.id, employeeId: r.employee_id, projectId: r.project_id, datum: r.datum,
+  start: r.start_tijd, eind: r.eind_tijd, pauze: r.pauze_min ?? 0, uren: Number(r.uren) || 0, opmerking: r.opmerking || "",
+});
+
+export async function loadUren(van: string, tot: string): Promise<UrenRegel[]> {
+  const { data, error } = await urenTabel().select(UREN_COLS).gte("datum", van).lte("datum", tot)
+    .order("datum", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as UrenRow[]).map(naarUren);
+}
+
+export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
+  const payload = {
+    employee_id: r.employeeId, project_id: r.projectId || null, datum: r.datum,
+    start_tijd: r.start, eind_tijd: r.eind, pauze_min: r.pauze, uren: r.uren, opmerking: r.opmerking,
+  };
+  const q = r.id
+    ? urenTabel().update(payload as never).eq("id", r.id).select(UREN_COLS).single()
+    : urenTabel().insert(payload as never).select(UREN_COLS).single();
+  const { data, error } = await q;
+  if (error) throw error;
+  return naarUren(data as unknown as UrenRow);
+}
+
+export async function deleteUren(id: string): Promise<void> {
+  const { error } = await urenTabel().delete().eq("id", id);
   if (error) throw error;
 }

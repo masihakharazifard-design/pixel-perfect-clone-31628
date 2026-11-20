@@ -15,6 +15,7 @@ import {
   EMPTY_META,
   type LoadAllResult,
   type PersonalNote,
+  type UrenRegel,
   type ProjectDocument,
   type ProjectMeta,
   type SettingsPathPatch,
@@ -406,4 +407,27 @@ export async function saveTaak(taak: Taak): Promise<Taak> {
 
 export async function deleteTaak(id: string): Promise<void> {
   writeTaken(readTaken().filter((t) => t.id !== id));
+}
+
+// ===== Urenregistratie (demo: lokale opslag) =====
+const UREN_KEY = "maasmond-demo-uren";
+function leesUren(): UrenRegel[] {
+  try { return JSON.parse(localStorage.getItem(UREN_KEY) || "[]") as UrenRegel[]; } catch { return []; }
+}
+function schrijfUren(l: UrenRegel[]): void {
+  localStorage.setItem(UREN_KEY, JSON.stringify(l));
+}
+export async function loadUren(van: string, tot: string): Promise<UrenRegel[]> {
+  return leesUren().filter((r) => r.datum >= van && r.datum <= tot).sort((a, b) => a.datum.localeCompare(b.datum));
+}
+export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
+  const l = leesUren();
+  const regel = { ...r, id: r.id || `uren-${Date.now()}-${Math.round(Math.random() * 1e6)}` };
+  const i = l.findIndex((x) => x.id === regel.id);
+  if (i >= 0) l[i] = regel; else l.push(regel);
+  schrijfUren(l);
+  return regel;
+}
+export async function deleteUren(id: string): Promise<void> {
+  schrijfUren(leesUren().filter((x) => x.id !== id));
 }

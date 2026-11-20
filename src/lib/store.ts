@@ -9,13 +9,15 @@ import type {
   ProjectMeta,
   SettingsPathPatch,
   SyncTable,
+  UrenRegel,
   WithId,
 } from "./store-types";
 
 export { EMPTY_META } from "./store-types";
 export type { GeschiedenisRegel } from "./geschiedenis";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
-export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel };
+export { berekenUren } from "./store-types";
 
 type Impl = typeof import("./planning-store");
 
@@ -156,4 +158,15 @@ export async function saveTaak(taak: Taak): Promise<Taak> {
 
 export async function deleteTaak(id: string): Promise<void> {
   return (await impl()).deleteTaak(id);
+}
+
+// ===== Urenregistratie =====
+export async function loadUren(van: string, tot: string): Promise<UrenRegel[]> {
+  return (await impl()).loadUren(van, tot);
+}
+export async function saveUren(r: UrenRegel): Promise<UrenRegel> {
+  return (await impl()).saveUren(r);
+}
+export async function deleteUren(id: string): Promise<void> {
+  return (await impl()).deleteUren(id);
 }

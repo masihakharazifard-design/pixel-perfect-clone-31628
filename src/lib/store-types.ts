@@ -43,3 +43,24 @@ export interface LoadAllResult<P, E, A, S> {
   settingsUpdatedAt: string | null;
   empty: boolean;
 }
+
+/** Gewerkte uren van een medewerker op een dag (urenregistratie). */
+export interface UrenRegel {
+  id: string;
+  employeeId: string;
+  projectId: string | null;
+  datum: string; // JJJJ-MM-DD
+  start: string; // UU:MM
+  eind: string; // UU:MM
+  pauze: number; // minuten
+  uren: number;
+  opmerking: string;
+}
+
+/** Netto uren: eindtijd min begintijd min pauze, afgerond op een kwartier. */
+export function berekenUren(start: string, eind: string, pauze: number): number {
+  const m = (t: string) => { const [h, mi] = t.split(":").map(Number); return (h || 0) * 60 + (mi || 0); };
+  const netto = m(eind) - m(start) - (pauze || 0);
+  if (!(netto > 0)) return 0;
+  return Math.min(24, Math.round(netto / 15) / 4);
+}
