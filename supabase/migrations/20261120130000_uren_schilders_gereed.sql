@@ -139,9 +139,8 @@ CREATE POLICY "gereed intrekken" ON public.werk_gereed FOR DELETE TO authenticat
   USING (public.can_plan() OR created_by = auth.uid());
 CREATE INDEX IF NOT EXISTS werk_gereed_datum_idx ON public.werk_gereed (datum);
 
--- Foto's: privé opslag, per gebruiker een eigen map
-INSERT INTO storage.buckets (id, name, public) VALUES ('gereed-fotos', 'gereed-fotos', false)
-  ON CONFLICT (id) DO NOTHING;
+-- Foto's: privé opslag "gereed-fotos" (de bucket zelf wordt via de opslagfunctie van Lovable Cloud
+-- aangemaakt, niet privé = public false), per gebruiker een eigen map
 DROP POLICY IF EXISTS "gereed foto upload" ON storage.objects;
 DROP POLICY IF EXISTS "gereed foto lezen" ON storage.objects;
 CREATE POLICY "gereed foto upload" ON storage.objects FOR INSERT TO authenticated
