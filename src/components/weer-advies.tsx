@@ -20,15 +20,15 @@ interface Dag {
   windstoten: number;
 }
 
-type Soort = "regen" | "wind" | "koud" | "goed";
-const ADVIES: Record<Soort, { kort: string; lang: string; kleur: string; bg: string }> = {
+export type Soort = "regen" | "wind" | "koud" | "goed";
+export const ADVIES: Record<Soort, { kort: string; lang: string; kleur: string; bg: string }> = {
   regen: { kort: "Regen", lang: "Plan binnenschilderwerk en stoffering; geen buitenschilderwerk.", kleur: "#1E3A7B", bg: "#DCE6FA" },
   wind: { kort: "Harde wind", lang: "Geen zonwering buiten monteren en geen ladderwerk buiten.", kleur: "#8A5300", bg: "#FDEBC8" },
   koud: { kort: "Koud", lang: "Buitenverf droogt slecht onder 5 °C; liever binnenwerk.", kleur: "#5134A6", bg: "#ECE6FC" },
   goed: { kort: "Droog", lang: "Geschikt voor buitenschilderwerk en zonwering.", kleur: "#16774A", bg: "#D9F4E5" },
 };
 
-function soortVan(d: Dag): Soort {
+export function soortVan(d: Dag): Soort {
   if (d.regenKans >= 60 || d.regenMm >= 2) return "regen";
   if (d.windstoten >= 50) return "wind";
   if (d.tmin < 5) return "koud";
@@ -43,10 +43,26 @@ function Icoon({ code, className }: { code: number; className?: string }) {
 const PLAATS_KEY = "maasmond-weer-plaats";
 const CACHE_KEY = "maasmond-weer-cache";
 
+// Laatst opgehaalde verwachting, voor waarschuwingen tijdens het inplannen (buiten het Dashboard)
+let laatsteWeer: Map<string, Soort> | null = null;
+function onthoud(dagen: Dag[]) {
+  laatsteWeer = new Map(dagen.map((d) => [d.datum, soortVan(d)]));
+}
+/** Weersoort op een datum (alleen de komende 7 dagen bekend), of null. */
+export function weerOp(datum: string): Soort | null {
+  return laatsteWeer?.get(datum) ?? null;
+}
+/** Verwachting op de achtergrond ophalen (voor de waarschuwingen bij het inplannen). */
+export async function laadWeer(): Promise<void> {
+  let plaats = "Rotterdam";
+  try { plaats = localStorage.getItem(PLAATS_KEY) || plaats; } catch { /* standaard */ }
+  try { await haalWeer(plaats); } catch { /* geen weer: dan ook geen waarschuwing */ }
+}
+
 async function haalWeer(plaats: string): Promise<{ naam: string; dagen: Dag[] }> {
   try {
     const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
-    if (c && c.plaats === plaats && Date.now() - c.tijd < 60 * 60 * 1000) return c.data;
+    if (c && c.plaats === plaats && Date.now() - c.tijd < 60 * 60 * 1000) { onthoud(c.data.dagen); return c.data; }
   } catch { /* geen cache */ }
   const geo = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(plaats)}&count=1&language=nl&countryCode=NL`)).json();
   const loc = geo?.results?.[0];
@@ -67,6 +83,7 @@ async function haalWeer(plaats: string): Promise<{ naam: string; dagen: Dag[] }>
     windstoten: Math.round(d.wind_gusts_10m_max[i] ?? 0),
   }));
   const data = { naam: loc.name as string, dagen };
+  onthoud(dagen);
   try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ plaats, tijd: Date.now(), data })); } catch { /* vol */ }
   return data;
 }

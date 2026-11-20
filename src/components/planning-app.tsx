@@ -9,7 +9,7 @@ import {
   Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown, History
 } from "lucide-react";
 import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
-import { WeerAdvies, type WeerPlanItem } from "@/components/weer-advies";
+import { WeerAdvies, ADVIES, laadWeer, weerOp, type WeerPlanItem } from "@/components/weer-advies";
 
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
@@ -696,6 +696,33 @@ function Input({label,value,onChange,type="text",placeholder="",required=false,c
       className="w-full px-3 py-2 bg-[#F2F4F7] border border-[rgba(15,23,42,0.1)] rounded-[10px] text-sm text-[#23272F] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40 focus:border-[#1E3A7B] placeholder-[#9AA1AD]" />
   </div>;
 }
+// ===== Buitenwerk (voor het weer) =====
+// Herkend aan de omschrijving (gevel, kozijn, zonwering…) of aan een werk dat alleen Zonwering is.
+function isBuitenwerk(p?:Project|null):boolean{
+  if(!p)return false;
+  if(/buiten|gevel|kozijn|dakgoot|boeideel|zonwering|screen|markies|rolluik|luifel|terras|knikarm/i.test(`${p.projectnaam||""} ${p.opmerkingen||""}`))return true;
+  const a=getAllAfds(p);return a.length===1&&a[0]==="Zonwering";
+}
+
+// ===== Regio =====
+// Regio van een werk: het veld "Regio / Vestiging" (of de Excel-kolom Vestiging); is die leeg, dan de plaats.
+function regioVan(p?:Project|null):string{
+  if(!p)return "";
+  return String(p.region||p.vestiging||p.plaatsObject||p.plaats||"").trim();
+}
+function regioOpties(projects:Iterable<Project|undefined|null>):string[]{
+  const s=new Set<string>();
+  for(const p of projects){const r=regioVan(p);if(r)s.add(r);}
+  return [...s].sort((a,b)=>a.localeCompare(b,"nl"));
+}
+function RegioFilter({value,onChange,opties,className=""}:{value:string;onChange:(v:string)=>void;opties:string[];className?:string}){
+  return <select value={value} onChange={e=>onChange(e.target.value)} title="Filter op regio" aria-label="Filter op regio"
+    className={`py-1.5 px-2 text-xs rounded-[10px] border focus:outline-none focus:ring-1 focus:ring-[#1E3A7B]/50 ${value?"border-[#1E3A7B] text-[#23272F] font-semibold bg-[#EEF1F5]":"border-[rgba(15,23,42,0.12)] text-[#5F6673] bg-white"} ${className}`}>
+    <option value="">Alle regio's</option>
+    {opties.map(o=><option key={o} value={o}>{o}</option>)}
+  </select>;
+}
+
 function Select({label,value,onChange,options,required=false,className=""}:{label?:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[];required?:boolean;className?:string}){
   return <div className={className}>
     {label&&<label className="block text-xs font-semibold text-[#5F6673] mb-1">{label}{required&&<span className="text-[#C2604D] ml-0.5">*</span>}</label>}
@@ -1733,8 +1760,7 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
     availability.forEach(a=>{
       if(a.status!=="Ingepland"||!a.projectId||a.date<TODAY_STR||a.date>tot)return;
       const wp=getIndexedProject(a.projectId);if(!wp)return;
-      const tekst=`${wp.projectnaam||""} ${wp.opmerkingen||""}`;
-      const buiten=/buiten|gevel|kozijn|dakgoot|boeideel|zonwering|screen|markies|rolluik|luifel|terras|knikarm/i.test(tekst)||(getAllAfds(wp).length===1&&getAllAfds(wp)[0]==="Zonwering");
+      const buiten=isBuitenwerk(wp);
       uit.push({datum:a.date,werk:`${wp.werknummer?wp.werknummer+" – ":""}${wp.projectnaam||""}`,buiten});
     });
     return uit;
@@ -2026,6 +2052,8 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
 
   // Zoekbalk: zoekt in alle belangrijke velden tegelijk (alle zoekwoorden moeten voorkomen)
   const [zoek,setZoek]=useState("");
+  const [regio,setRegio]=useState("");
+  const regios=useMemo(()=>regioOpties(projects),[projects]);
   const filtered=useMemo(()=>{
     const inc=(v:string,q:string)=>v.toLowerCase().includes(q.toLowerCase());
     const woorden=zoek.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -2044,9 +2072,10 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
       if(filters.ar.length&&!filters.ar.includes(p.ar||""))return false;
       if(filters.projStatus.length&&!filters.projStatus.includes(p.status))return false;
       if(filters.type.length&&!filters.type.includes(typeLabel(p)))return false;
+      if(regio&&regioVan(p)!==regio)return false;
       return true;
     });
-  },[projects,filters,zoek,employees]);
+  },[projects,filters,zoek,employees,regio]);
 
   // Paginering ná filteren, vóór het renderen van de rijen
   const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
@@ -2082,6 +2111,7 @@ function ProjectenView({projects,employees,onAdd,onEdit,onDelete,onOpen,onImport
         className="w-full pl-9 pr-9 py-2.5 text-sm bg-white border border-[rgba(15,23,42,0.12)] rounded-md text-[#23272F] focus:outline-none focus:ring-2 focus:ring-[#1E3A7B]/40"/>
       {zoek&&<button onClick={()=>{setZoek("");setPage(1);}} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6673] hover:text-[#23272F]" title="Zoekopdracht wissen"><X className="w-4 h-4"/></button>}
     </div>
+    {regios.length>0&&<div className="flex items-center gap-2"><RegioFilter value={regio} onChange={v=>{setRegio(v);setPage(1);}} opties={regios}/>{regio&&<button onClick={()=>setRegio("")} className="text-xs text-[#1E3A7B] font-semibold">Wis</button>}</div>}
     {showMobileFilters&&<div className="md:hidden bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-[#23272F]">Filteren</span>
@@ -2551,6 +2581,8 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
   const [date,setDate]=useState(new Date());
   const schoolRegions=["Noord","Midden","Zuid"];
   const [afdFilter,setAfdFilter]=useState<string>("");
+  const [regioFilter,setRegioFilter]=useState<string>("");
+  const agendaRegios=useMemo(()=>regioOpties(projects),[projects]);
   const [showWeekNumbers,setShowWeekNumbers]=useState(true);
   const year=date.getFullYear(),month=date.getMonth();
   const quarter=Math.floor(month/3);
@@ -2571,6 +2603,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
     if(!validDate(p.startdatum))return false;
     const afds=getAllAfds(p);
     if(afdFilter&&!afds.includes(afdFilter as Afdeling))return false;
+    if(regioFilter&&regioVan(p)!==regioFilter)return false;
     return true;
   }).map(p=>validDate(p.afloopdatum)?p:{...p,afloopdatum:(()=>{const d=new Date(p.startdatum);d.setHours(17,0,0,0);return d.toISOString();})()});
   // Elk werk staat maar één keer in de Agenda. Werken met hetzelfde werknummer (dubbel ingelezen
@@ -2708,6 +2741,7 @@ function AgendaView({projects,employees,availability,updateProject,onOpenProject
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={afdFilter} onChange={setAfdFilter} options={AFDS.map(a=>({value:a,label:a}))} className="w-32 md:w-36"/>
+        {agendaRegios.length>0&&<RegioFilter value={regioFilter} onChange={setRegioFilter} opties={agendaRegios}/>}
         <button onClick={()=>setShowWeekNumbers(p=>!p)} className={`px-2 py-0.5 text-xs rounded-[10px] font-medium transition-colors ${showWeekNumbers?"bg-[#EEF1F5] text-[#1E3A7B]":"text-[#5F6673] hover:bg-[#F2F4F7]"}`}>Wk#</button>
       </div>
 
@@ -3429,13 +3463,16 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   const rowsFor=(empId:string,ds:string)=>avIdx.forEmployeeDate(empId,ds).filter(a=>!!a.projectId&&a.status==="Ingepland").sort(byVolgorde);
   // ===== Filter op projectleider (alleen weergave) =====
   const [plFilter,setPlFilter]=useState("");
-  const plOk=(p?:Project|null)=>!plFilter||(!!p&&projectleiderKey(p,employees)===plFilter);
+  const [regioFilter,setRegioFilter]=useState("");
+  // Een blok telt mee als het werk door het projectleider- én het regiofilter komt
+  const plOk=(p?:Project|null)=>(!plFilter||(!!p&&projectleiderKey(p,employees)===plFilter))&&(!regioFilter||(!!p&&regioVan(p)===regioFilter));
   const {plOptions,plSchilder}=useMemo(()=>{
     const s=new Set<string>(),sw=new Set<string>();
     avIdx.planByProjectId.forEach((_rows,pid)=>{const p=getIndexedProject(pid);if(p){const n=projectleiderKey(p,employees);if(n){s.add(n);if(isSchilderwerk(p))sw.add(n);}}});
     const sort=(x:Set<string>)=>[...x].sort((a,b)=>a.localeCompare(b,"nl"));
     return {plOptions:sort(s),plSchilder:sort(sw)};
   },[avIdx,projVersion,employees]);
+  const planRegios=useMemo(()=>regioOpties([...avIdx.planByProjectId.keys()].map(pid=>getIndexedProject(pid))),[avIdx,projVersion]);
   const getEmpProjsDate=(empId:string,date:Date)=>{
     const ds=toDateStr(date);
     return rowsFor(empId,ds).map(a=>({row:a,proj:visProj(a.projectId)})).filter(x=>!!x.proj&&plOk(x.proj)) as {row:AvailEntry;proj:Project}[];
@@ -3823,11 +3860,12 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
   ),[periodStart?.getTime(),periodEnd?.getTime()]);
   // Met een projectleiderfilter: alleen medewerkers die in deze periode op een werk van die projectleider staan.
   const plEmpIds=useMemo(()=>{
-    if(!plFilter)return null;
+    if(!plFilter&&!regioFilter)return null;
     const s=new Set<string>();
-    planRows(avIdx.forDates(visibleDateStrings)).forEach(a=>{const p=visProj(a.projectId);if(p&&projectleiderKey(p,employees)===plFilter)s.add(a.employeeId);});
+    planRows(avIdx.forDates(visibleDateStrings)).forEach(a=>{const p=visProj(a.projectId);
+      if(p&&(!plFilter||projectleiderKey(p,employees)===plFilter)&&(!regioFilter||regioVan(p)===regioFilter))s.add(a.employeeId);});
     return s;
-  },[plFilter,avIdx,visibleDateStrings,visProj,employees]);
+  },[plFilter,regioFilter,avIdx,visibleDateStrings,visProj,employees]);
   const shownEmp=plEmpIds?visEmp.filter(e=>plEmpIds.has(e.id)):visEmp;
 
   // ===== Doorlopende meerdaagse balken =====
@@ -3965,9 +4003,11 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
           {plOptions.map(n=><option key={n} value={n}>{n}</option>)}
         </select>
         {plFilter&&<button onClick={()=>setPlFilter("")} className="text-xs text-[#1E3A7B] font-semibold">Wis</button>}
+        {planRegios.length>0&&<RegioFilter value={regioFilter} onChange={setRegioFilter} opties={planRegios}/>}
+        {regioFilter&&<button onClick={()=>setRegioFilter("")} className="text-xs text-[#1E3A7B] font-semibold">Wis regio</button>}
       </div>
     </div>
-    {plFilter&&shownEmp.length===0&&<p className="text-xs text-[#5F6673]">Geen medewerkers ingepland op werken van {plFilter} in deze periode.</p>}
+    {(plFilter||regioFilter)&&shownEmp.length===0&&<p className="text-xs text-[#5F6673]">Geen medewerkers ingepland op werken{plFilter?` van ${plFilter}`:""}{regioFilter?` in regio ${regioFilter}`:""} in deze periode.</p>}
 
     {view==="dag"&&<div className="space-y-3">
       {getDHol(toDateStr(refDate))&&<div className="rounded-lg px-4 py-2.5 text-sm font-semibold" style={{backgroundColor:withAlpha(holColor,0.1),borderLeft:`4px solid ${holColor}`,color:holColor}}>
@@ -4614,6 +4654,7 @@ function diffSettings(prev:AppSettings,next:AppSettings):{changes:Record<string,
 // ===== APP =====
 export default function PlanningApp(){
   const [nav,setNav]=useState<Nav>("dashboard");
+  useEffect(()=>{void laadWeer();},[]);
   // Slepen ook met de vinger (telefoon/tablet): lang drukken op een blok en dan slepen. Gewoon scrollen blijft werken.
   useEffect(()=>{if(!("ontouchstart" in window))return;let actief=true;
     void Promise.all([import("mobile-drag-drop"),import("mobile-drag-drop/scroll-behaviour"),import("mobile-drag-drop/default.css")]).then(([dnd,scroll])=>{
@@ -4985,6 +5026,15 @@ export default function PlanningApp(){
           toast.success("Wijziging ongedaan gemaakt.");
         }catch(e){fail("Ongedaan maken lukte niet:",e);}
       };
+      // Weer: buitenwerk ingepland op een dag met regen, harde wind of vorst? Dan direct een waarschuwing.
+      const slecht=new Map<string,string>();
+      upserts.forEach(u=>{
+        if(u.status!=="Ingepland"||!u.projectId)return;
+        const w=weerOp(u.date);if(!w||w==="goed")return;
+        const wp=getIndexedProject(u.projectId);if(!isBuitenwerk(wp))return;
+        slecht.set(`${u.date}|${wp!.id}`,`${new Date(u.date+"T12:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"})}: ${ADVIES[w].kort.toLowerCase()} (${wp!.projectnaam||wp!.werknummer})`);
+      });
+      if(slecht.size)toast.warning(`Let op: ${[...slecht.values()].slice(0,3).join("; ")}. Geen buitenschilderwerk of zonwering buiten inplannen op deze dag${slecht.size>1?"en":""}.`,{duration:12000});
       if(terugZetten.length||weghalen.length)toast.success(okMsg||"Planning bijgewerkt.",{action:{label:"Ongedaan maken",onClick:()=>{void herstel();}},duration:8000});
       else if(okMsg)toast.success(okMsg);
       return true;
