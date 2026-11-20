@@ -9,6 +9,7 @@ import {
   Tag, Star, UserCog, Eye, Briefcase, Clock, Menu, Download, Table2, LogOut, Palette, ChevronUp, GripVertical, FileDown, History
 } from "lucide-react";
 import GeschiedenisView, { GeschiedenisLijst } from "@/components/geschiedenis-view";
+import { WeerAdvies, type WeerPlanItem } from "@/components/weer-advies";
 
 import { toast } from "sonner";
 import { loadAll, upsertRow, upsertRows, deleteRow, deleteRows, loadProjectMetaBatch, listProjectDocuments, savePlanningRows, setProjectStatusDb, patchSettings, loadProjectMeta, saveProjectMeta, EMPTY_META, loadPersonalNotes, savePersonalNote, deletePersonalNote, resetDemoData, type PersonalNote, type ProjectMeta, type SettingsPathPatch } from "@/lib/store";
@@ -1708,6 +1709,36 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
   const avail=employees.filter(e=>{const avToday=availability.filter(a=>a.employeeId===e.id&&a.date===TODAY_STR);return avToday.length===0||avToday.some(a=>a.status==="Beschikbaar");});
   const conflicts=employees.filter(e=>{const ps=projects.filter(p=>p.medewerkers.includes(e.id)&&p.status==="In uitvoering");return ps.length>1;});
   const toFact=projects.filter(p=>p.status==="Afgerond");
+  // Werken met status O die nog nergens zijn ingepland, op deadline gesorteerd (verlopen eerst)
+  const nogInplannen=useMemo(()=>{
+    const gepland=new Set<string>();
+    availability.forEach(a=>{
+      if(!a.projectId||a.status!=="Ingepland")return;
+      gepland.add("id:"+a.projectId);
+      const wp=getIndexedProject(a.projectId);
+      const k=wp?werkKey(wp.werknummer):"";
+      if(k)gepland.add(k);
+    });
+    return projects
+      .filter(p=>String(p.statusExcel||"").trim().toUpperCase()==="O")
+      .filter(p=>{const k=werkKey(p.werknummer);return !gepland.has("id:"+p.id)&&!(k&&gepland.has(k));})
+      .map(p=>({p,deadline:validDate(p.afloopdatum)?datePart(p.afloopdatum):validDate(p.startdatum)?datePart(p.startdatum):""}))
+      .sort((a,b)=>(a.deadline||"9999").localeCompare(b.deadline||"9999")||String(a.p.werknummer).localeCompare(String(b.p.werknummer)));
+  },[projects,availability]);
+  const dagenTot=(ds:string)=>Math.round((new Date(ds+"T12:00").getTime()-new Date(TODAY_STR+"T12:00").getTime())/86400000);
+  // Ingepland werk van de komende 7 dagen, voor het weeradvies (buitenwerk herkennen aan afdeling en omschrijving)
+  const weerPlanning=useMemo<WeerPlanItem[]>(()=>{
+    const tot=shiftDate(TODAY_STR,7);
+    const uit:WeerPlanItem[]=[];
+    availability.forEach(a=>{
+      if(a.status!=="Ingepland"||!a.projectId||a.date<TODAY_STR||a.date>tot)return;
+      const wp=getIndexedProject(a.projectId);if(!wp)return;
+      const tekst=`${wp.projectnaam||""} ${wp.opmerkingen||""}`;
+      const buiten=/buiten|gevel|kozijn|dakgoot|boeideel|zonwering|screen|markies|rolluik|luifel|terras|knikarm/i.test(tekst)||(getAllAfds(wp).length===1&&getAllAfds(wp)[0]==="Zonwering");
+      uit.push({datum:a.date,werk:`${wp.werknummer?wp.werknummer+" – ":""}${wp.projectnaam||""}`,buiten});
+    });
+    return uit;
+  },[availability]);
   const stats=[
     {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#1E3A7B",bg:"#FFFFFF",nav:"projecten" as Nav},
     {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#26A69A",bg:"#D9F2EF",nav:"agenda" as Nav},
@@ -1728,6 +1759,32 @@ function Dashboard({projects,employees,availability,onNav,onOpenProject,onShowAc
         <p className="text-[32px] leading-[38px] font-semibold text-[#23272F]">{s.value}</p>
         <p className="text-xs text-[#5F6673] mt-0.5 leading-tight">{s.label}</p>
       </button>)}
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      {/* Nog in te plannen: status O, nergens ingepland, deadline in zicht of verlopen */}
+      <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden">
+        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(15,23,42,0.06)] flex items-center justify-between gap-3">
+          <h3 className="text-base leading-[22px] font-semibold text-[#23272F]">Nog in te plannen{nogInplannen.length>0&&<span className="ml-1.5 text-xs font-medium text-[#5F6673]">({nogInplannen.length})</span>}</h3>
+          <button onClick={()=>onNav("personeelsplanning")} className="text-xs text-[#1E3A7B] hover:underline">Naar personeelsplanning</button>
+        </div>
+        <div className="divide-y divide-[rgba(15,23,42,0.05)] max-h-[26rem] overflow-y-auto">
+          {nogInplannen.slice(0,50).map(({p,deadline})=>{
+            const n=deadline?dagenTot(deadline):null;
+            const label=n===null?"Geen deadline":n<0?`${-n} dag${n===-1?"":"en"} te laat`:n===0?"Deadline vandaag":`Nog ${n} dag${n===1?"":"en"}`;
+            const stijl=n===null?"bg-[#ECEFF4] text-[#475569]":n<=0?"bg-[#FCE1DC] text-[#A42A1E]":n<=14?"bg-[#FDEFD3] text-[#8A5300]":"bg-[#ECEFF4] text-[#475569]";
+            return <button key={p.id} onClick={()=>onOpenProject(p)} className="w-full px-4 md:px-5 py-2.5 flex items-center gap-3 hover:bg-[#F8F9FB] transition-colors text-left">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-[#23272F] text-sm truncate">{p.werknummer?`${p.werknummer} – `:""}{p.projectnaam}</p>
+                <p className="text-xs text-[#5F6673] truncate">{[getAllAfds(p).join(", "),p.plaats].filter(Boolean).join(" · ")}{deadline?` · deadline ${fmtDate(deadline)}`:""}</p>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${stijl}`}>{label}</span>
+            </button>;
+          })}
+          {nogInplannen.length===0&&<p className="px-5 py-8 text-center text-sm text-[#5F6673]">Alle werken met status O zijn ingepland.</p>}
+          {nogInplannen.length>50&&<p className="px-5 py-2 text-xs text-[#5F6673]">En nog {nogInplannen.length-50} werken.</p>}
+        </div>
+      </div>
+      <WeerAdvies planning={weerPlanning}/>
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden">
