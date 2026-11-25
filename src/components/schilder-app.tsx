@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Camera, CheckCircle2, CloudRain, Download, Loader2, LogOut, MapPin, X } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, ChevronLeft, ChevronRight, CloudRain, Download, FileText, Loader2, LogOut, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth-gate";
 import { gereedFotoUrl, loadAll, loadGereed, meldGereed, type GereedMelding } from "@/lib/store";
@@ -16,8 +16,8 @@ import { werkbonVoorWerk } from "@/lib/werkplan-gegevens";
 import { werkplanMetAanpassingen } from "@/components/werkplan-venster";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
-// Eigen omgeving voor schilders (rol "medewerker"): alleen de eigen planning met werkbonnen,
-// per dag gereed melden met een foto, en de eigen uren. De database geeft hen ook alleen die gegevens.
+// Eigen omgeving voor schilders, stoffeerders en onderaannemers: de eigen planning (lijst en agenda)
+// met werkplannen, per dag gereed melden met een foto, en de eigen uren. De database geeft hen ook alleen die gegevens.
 
 type Rec = Record<string, unknown> & { id: string };
 interface Regel { id: string; employeeId: string; date: string; startTime: string; endTime: string; status: string; projectId?: string }
@@ -38,7 +38,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   const [eigenAgenda, setEigenAgenda] = useState<Regel[]>([]);
   const [instellingen, setInstellingen] = useState<Record<string, unknown>>({});
   const [gereed, setGereed] = useState<GereedMelding[]>([]);
-  const [tab, setTab] = useState<"planning" | "uren">("planning");
+  const [tab, setTab] = useState<"planning" | "agenda" | "uren">("planning");
   const vandaag = ds(new Date());
   const van = plus(vandaag, -7), tot = plus(vandaag, 28);
 
@@ -167,11 +167,11 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   };
 
   // Werkbon schilder (pdf) voor elk werk van de komende twee weken
-  const werkplanPdf = async () => {
+  const werkplanPdf = async (alleenWerk?: string) => {
     if (!mij) return;
     const t = plus(vandaag, 13);
     const eerste = new Map<string, string>();
-    planning.filter((a) => a.date >= vandaag && a.date <= t).sort((a, b) => a.date.localeCompare(b.date))
+    planning.filter((a) => (alleenWerk ? a.projectId === alleenWerk : a.date >= vandaag && a.date <= t)).sort((a, b) => a.date.localeCompare(b.date))
       .forEach((a) => { if (!eerste.has(a.projectId!)) eerste.set(a.projectId!, a.date); });
     const datum = (x: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(str(x)) ? str(x).slice(0, 10) : "");
     const lijst = [...eerste.keys()].map((pid) => werkplanMetAanpassingen(werkbonVoorWerk(pid, planning, (id) => (id === mij.id ? str(mij.naam) : ""), () => {
@@ -180,7 +180,69 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         projectleider: p ? plNaam(str(p.projectleider)) : "", opmerking: str(p?.opmerkingen), startdatum: datum(p?.startdatum), opleverdatum: datum(p?.afloopdatum), omschrijving: str(p?.projectnaam) };
     }, str(mij.naam)), werken.get(pid)?.werkplan as Record<string, unknown> | undefined));
     if (!lijst.length) { toast("Je bent de komende twee weken nog nergens ingepland."); return; }
-    downloadBlob(maakWerkplanPdf(lijst, await logoDataUrl(maasmondLogo)), werkplanBestandsnaam(str(mij.naam), vandaag, t));
+    const bestand = alleenWerk ? `Werkplan ${str(werken.get(alleenWerk)?.werknummer) || "werk"}.pdf` : werkplanBestandsnaam(str(mij.naam), vandaag, t);
+    downloadBlob(maakWerkplanPdf(lijst, await logoDataUrl(maasmondLogo)), bestand);
+  };
+
+  // Omschrijving: uit het werkplan als die daar is aangepast, anders de naam van het werk
+  const omschrijvingVan = (p?: Rec) => (p ? str((p.werkplan as Record<string, unknown> | undefined)?.omschrijving) || str(p.projectnaam) : "");
+  const plaatsVan = (p?: Rec) => (p ? str(p.plaatsObject) || str(p.plaats) : "");
+
+  // Agenda: maandoverzicht van alle dagen waarop je ingepland staat
+  const [maand, setMaand] = useState(() => vandaag.slice(0, 7));
+  const [gekozenDag, setGekozenDag] = useState(vandaag);
+  const perDag = useMemo(() => {
+    const m = new Map<string, Regel[]>();
+    [...planning].sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((a) => {
+      const l = m.get(a.date) || [];
+      if (!l.some((x) => x.projectId === a.projectId)) m.set(a.date, [...l, a]);
+    });
+    return m;
+  }, [planning]);
+  const maandDagen = useMemo(() => {
+    const eerste = new Date(maand + "-01T12:00:00");
+    const start = new Date(eerste); start.setDate(1 - ((eerste.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return ds(d); });
+  }, [maand]);
+  const schuifMaand = (n: number) => { const d = new Date(maand + "-01T12:00:00"); d.setMonth(d.getMonth() + n); setMaand(ds(d).slice(0, 7)); };
+
+  // Eén werk op één dag: werknummer, datum, omschrijving, adres, werkplan en gereed melden
+  const kaart = (a: Regel, datum: string) => {
+    const p = werken.get(a.projectId!);
+    const adres = adresVan(p);
+    const g = gereed.find((x) => x.projectId === a.projectId && x.datum === datum);
+    const w = !g && wachtend.find((x) => x.projectId === a.projectId && x.datum === datum);
+    const regen = nat.has(`${a.projectId}|${datum}`);
+    return <article key={a.id} className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-base font-semibold text-[#23272F]">{p ? str(p.projectnaam) || "Werk" : "Werk"}</h3>
+        <span className="text-sm tabular-nums text-[#5F6673] whitespace-nowrap">{a.startTime}–{a.endTime}</span>
+      </div>
+      <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        {p && str(p.werknummer) && <><dt className="text-[#5F6673]">Werknummer</dt><dd className="text-[#23272F] font-semibold tabular-nums">{str(p.werknummer)}</dd></>}
+        <dt className="text-[#5F6673]">Datum</dt><dd className="text-[#23272F]">{datumLang(datum)}</dd>
+        {p && omschrijvingVan(p) && <><dt className="text-[#5F6673]">Omschrijving</dt><dd className="text-[#23272F]">{omschrijvingVan(p)}</dd></>}
+        {p && str(p.opdrachtgever) && <><dt className="text-[#5F6673]">Opdrachtgever</dt><dd className="text-[#23272F]">{str(p.opdrachtgever)}</dd></>}
+        {p && plNaam(str(p.projectleider)) && <><dt className="text-[#5F6673]">Projectleider</dt><dd className="text-[#23272F]">{plNaam(str(p.projectleider))}</dd></>}
+      </dl>
+      {adres && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adres)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-[#1E3A7B]"><MapPin className="w-4 h-4 shrink-0" />{adres}</a>}
+      {p && str(p.opmerkingen) && <p className="text-sm text-[#23272F] whitespace-pre-wrap bg-[#F4F6F9] rounded-[10px] px-3 py-2">{str(p.opmerkingen)}</p>}
+      {regen && <p className="text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2 flex items-center gap-1.5"><CloudRain className="w-4 h-4" aria-hidden="true" />Let op: het regent deze dag.</p>}
+      <button onClick={() => void werkplanPdf(a.projectId)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#1E3A7B] border border-[#1E3A7B]/30 bg-white hover:bg-[#F4F6F9] rounded-[10px] px-3 py-2.5">
+        <FileText className="w-4 h-4" />Werkplan (pdf)
+      </button>
+      {w ? <div className={`w-full text-sm rounded-[10px] px-3 py-2.5 ${w.pogingen >= MAX_POGINGEN ? "text-[#A42A1E] bg-[#FCE1DC]" : "text-[#7A4A00] bg-[#FEF3DC]"}`}>
+          {w.pogingen >= MAX_POGINGEN
+            ? <>Gereedmelding kon niet worden verstuurd ({w.laatsteFout || "onbekende fout"}). <button onClick={() => kiesFoto(a)} className="font-semibold underline">Opnieuw melden</button></>
+            : <>Foto bewaard op je telefoon. De gereedmelding wordt automatisch verstuurd zodra er weer verbinding is.</>}
+        </div>
+        : g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />Gereed gemeld om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · foto bekijken
+        </button>
+        : datum <= vandaag && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">
+          <Camera className="w-5 h-5" />Foto maken en gereed melden
+        </button>}
+    </article>;
   };
 
   return <div className="min-h-screen bg-[#EEF1F5]" style={{ fontFamily: "var(--font-ui)" }}>
@@ -195,11 +257,11 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         {!onTerug && <button onClick={() => void signOut()} className="flex items-center gap-1.5 text-sm text-[#5F6673] hover:text-[#23272F]"><LogOut className="w-4 h-4" />Uitloggen</button>}
       </div>
       <div className="max-w-2xl mx-auto px-4 pb-2 flex gap-1">
-        {(["planning", "uren"] as const).map((t) => <button key={t} onClick={() => setTab(t)}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === t ? "bg-[#1E3A7B] text-white" : "text-[#5F6673] hover:bg-[#F2F4F7]"}`}>{t === "planning" ? "Mijn planning" : "Uren"}</button>)}
+        {(["planning", "agenda", "uren"] as const).map((t) => <button key={t} onClick={() => setTab(t)}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === t ? "bg-[#1E3A7B] text-white" : "text-[#5F6673] hover:bg-[#F2F4F7]"}`}>{t === "planning" ? "Mijn planning" : t === "agenda" ? "Agenda" : "Uren"}</button>)}
       </div>
     </header>
-    <div className="max-w-2xl mx-auto"><FeedbackBalk pagina={tab === "planning" ? "Mijn planning" : "Uren"} kantoor={false} /></div>
+    <div className="max-w-2xl mx-auto"><FeedbackBalk pagina={tab === "planning" ? "Mijn planning" : tab === "agenda" ? "Agenda" : "Uren"} kantoor={false} /></div>
 
     <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
       {laden && <p className="py-10 flex items-center justify-center gap-2 text-sm text-[#5F6673]"><Loader2 className="w-4 h-4 animate-spin" />Planning laden…</p>}
@@ -207,43 +269,44 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
 
       {!laden && !fout && tab === "planning" && <>
         <div className="flex justify-end">
-          <button onClick={() => void werkplanPdf()} className="px-3 py-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F] flex items-center gap-1.5"><Download className="w-4 h-4" />Werkbon (pdf)</button>
+          <button onClick={() => void werkplanPdf()} className="px-3 py-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F] flex items-center gap-1.5"><Download className="w-4 h-4" />Alle werkplannen (2 weken)</button>
         </div>
         {dagen.length === 0 && <p className="bg-white rounded-lg p-6 text-center text-sm text-[#5F6673]">Je bent de komende weken nog nergens ingepland.</p>}
         {dagen.map(([datum, regels]) => <section key={datum} className="space-y-2">
           <h2 className={`text-sm font-semibold ${datum === vandaag ? "text-[#E0402F]" : "text-[#23272F]"}`}>{datum === vandaag ? "Vandaag – " : ""}{datumLang(datum)}</h2>
-          {regels.map((a) => {
-            const p = werken.get(a.projectId!);
-            const adres = adresVan(p);
-            const g = gereed.find((x) => x.projectId === a.projectId && x.datum === datum);
-            const w = !g && wachtend.find((x) => x.projectId === a.projectId && x.datum === datum);
-            const regen = nat.has(`${a.projectId}|${datum}`);
-            return <article key={a.id} className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-base font-semibold text-[#23272F]">{werkLabel(a.projectId) || "Werk"}</h3>
-                <span className="text-sm tabular-nums text-[#5F6673] whitespace-nowrap">{a.startTime}–{a.endTime}</span>
-              </div>
-              {adres && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adres)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-[#1E3A7B]"><MapPin className="w-4 h-4 shrink-0" />{adres}</a>}
-              <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-                {p && str(p.opdrachtgever) && <><dt className="text-[#5F6673]">Opdrachtgever</dt><dd className="text-[#23272F]">{str(p.opdrachtgever)}</dd></>}
-                {p && plNaam(str(p.projectleider)) && <><dt className="text-[#5F6673]">Projectleider</dt><dd className="text-[#23272F]">{plNaam(str(p.projectleider))}</dd></>}
-              </dl>
-              {p && str(p.opmerkingen) && <p className="text-sm text-[#23272F] whitespace-pre-wrap bg-[#F4F6F9] rounded-[10px] px-3 py-2">{str(p.opmerkingen)}</p>}
-              {regen && <p className="text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2 flex items-center gap-1.5"><CloudRain className="w-4 h-4" aria-hidden="true" />Let op: het regent deze dag.</p>}
-              {w ? <div className={`w-full text-sm rounded-[10px] px-3 py-2.5 ${w.pogingen >= MAX_POGINGEN ? "text-[#A42A1E] bg-[#FCE1DC]" : "text-[#7A4A00] bg-[#FEF3DC]"}`}>
-                  {w.pogingen >= MAX_POGINGEN
-                    ? <>Gereedmelding kon niet worden verstuurd ({w.laatsteFout || "onbekende fout"}). <button onClick={() => kiesFoto(a)} className="font-semibold underline">Opnieuw melden</button></>
-                    : <>Foto bewaard op je telefoon. De gereedmelding wordt automatisch verstuurd zodra er weer verbinding is.</>}
-                </div>
-                : g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
-                  <CheckCircle2 className="w-5 h-5 shrink-0" />Gereed gemeld om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · foto bekijken
-                </button>
-                : datum <= vandaag && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">
-                  <Camera className="w-5 h-5" />Foto maken en gereed melden
-                </button>}
-            </article>;
-          })}
+          {regels.map((a) => kaart(a, datum))}
         </section>)}
+      </>}
+
+      {!laden && !fout && tab === "agenda" && <>
+        <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-3">
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => schuifMaand(-1)} className="p-2 rounded-[10px] text-[#5F6673] hover:bg-[#F2F4F7]" aria-label="Vorige maand"><ChevronLeft className="w-5 h-5" /></button>
+            <h2 className="text-base font-semibold text-[#23272F] capitalize">{new Date(maand + "-01T12:00:00").toLocaleDateString("nl-NL", { month: "long", year: "numeric" })}</h2>
+            <button onClick={() => schuifMaand(1)} className="p-2 rounded-[10px] text-[#5F6673] hover:bg-[#F2F4F7]" aria-label="Volgende maand"><ChevronRight className="w-5 h-5" /></button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-[#5F6673] mb-1">
+            {["ma", "di", "wo", "do", "vr", "za", "zo"].map((d) => <div key={d}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {maandDagen.map((d) => {
+              const l = perDag.get(d) || [];
+              const andereMaand = d.slice(0, 7) !== maand;
+              return <button key={d} onClick={() => setGekozenDag(d)} aria-label={`${datumLang(d)}${l.length ? `, ${l.length} werk` : ""}`}
+                className={`min-h-[64px] min-w-0 rounded-[10px] p-1 text-left flex flex-col gap-0.5 border ${d === gekozenDag ? "border-[#1E3A7B] ring-1 ring-[#1E3A7B]" : "border-transparent"} ${l.length ? "bg-[#E5ECF8]" : "bg-[#F7F8FA]"} ${andereMaand ? "opacity-40" : ""}`}>
+                <span className={`text-xs tabular-nums ${d === vandaag ? "font-bold text-[#E0402F]" : "text-[#23272F]"}`}>{Number(d.slice(8))}</span>
+                {l.slice(0, 2).map((a) => { const p = werken.get(a.projectId!); return <span key={a.id} className="text-[10px] leading-tight text-[#1E3A7B] font-semibold truncate w-full">{plaatsVan(p) || "Werk"}<span className="block font-normal text-[#5F6673] truncate tabular-nums">{str(p?.werknummer)}</span></span>; })}
+                {l.length > 2 && <span className="text-[10px] text-[#5F6673]">+{l.length - 2}</span>}
+              </button>;
+            })}
+          </div>
+        </div>
+        <section className="space-y-2">
+          <h2 className={`text-sm font-semibold ${gekozenDag === vandaag ? "text-[#E0402F]" : "text-[#23272F]"}`}>{gekozenDag === vandaag ? "Vandaag – " : ""}{datumLang(gekozenDag)}</h2>
+          {(perDag.get(gekozenDag) || []).length === 0
+            ? <p className="bg-white rounded-lg p-4 text-sm text-[#5F6673]">Op deze dag sta je nergens ingepland.</p>
+            : (perDag.get(gekozenDag) || []).map((a) => kaart(a, gekozenDag))}
+        </section>
       </>}
 
       {!laden && !fout && tab === "uren" && mij && <div>
