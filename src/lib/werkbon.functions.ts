@@ -119,10 +119,12 @@ export const mailGereedAanProjectleider = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Eerst met de rechten van de gebruiker lezen: zo kan alleen wie de melding mag zien, de mail laten versturen
     const gereedTabel = (context.supabase as unknown as { from: (t: string) => ReturnType<typeof context.supabase.from> }).from("werk_gereed");
-    const { data: g, error } = await gereedTabel.select("employee_id, project_id, datum, foto_pad, opmerking, created_by").eq("id", data.gereedId).maybeSingle();
+    const { data: g, error } = await gereedTabel.select("soort, employee_id, project_id, datum, foto_pad, opmerking, created_by").eq("id", data.gereedId).maybeSingle();
     if (error) throw error;
-    const melding = g as unknown as { employee_id: string; project_id: string; datum: string; foto_pad: string; opmerking: string; created_by: string } | null;
+    const melding = g as unknown as { soort?: string | null; employee_id: string; project_id: string; datum: string; foto_pad: string | null; opmerking: string; created_by: string } | null;
     if (!melding || melding.created_by !== context.userId) throw new Error("Gereedmelding niet gevonden.");
+    // Alleen als het hele werk gereed is; een dagfoto geeft geen e-mail
+    if (melding.soort !== "gereed") return { verstuurd: false as const, reden: "Dagfoto: geen e-mail." };
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { verstuurd: false as const, reden: "E-mail is op deze server niet ingesteld." };
 
@@ -142,25 +144,31 @@ export const mailGereedAanProjectleider = createServerFn({ method: "POST" })
     const naar = projectleiderEmail(p.projectleider, lijst, namen);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(naar)) return { verstuurd: false as const, reden: "Geen e-mailadres van de projectleider bekend." };
 
-    const foto = await supabaseAdmin.storage.from("gereed-fotos").createSignedUrl(melding.foto_pad, 60 * 60 * 24 * 7);
-    const fotoUrl = foto.data?.signedUrl || "";
+    // Foto: die bij de gereedmelding, anders de laatste dagfoto van dit werk
+    let fotoPad = melding.foto_pad || "";
+    if (!fotoPad) {
+      const laatste = await (supabaseAdmin as unknown as { from: (t: string) => ReturnType<typeof supabaseAdmin.from> }).from("werk_gereed")
+        .select("foto_pad").eq("project_id", melding.project_id).eq("soort", "dag").order("created_at", { ascending: false }).limit(1).maybeSingle();
+      fotoPad = str((laatste.data as { foto_pad?: string | null } | null)?.foto_pad);
+    }
+    const fotoUrl = fotoPad ? (await supabaseAdmin.storage.from("gereed-fotos").createSignedUrl(fotoPad, 60 * 60 * 24 * 7)).data?.signedUrl || "" : "";
     const schilder = lijst.find((e) => e.id === melding.employee_id)?.naam || "Een medewerker";
     const werk = [str(p.werknummer), str(p.projectnaam)].filter(Boolean).join(" – ") || "een werk";
     const adres = [str(p.straatObject) || str(p.adres), str(p.plaatsObject) || str(p.plaats)].filter(Boolean).join(", ");
     const dag = new Date(melding.datum + "T12:00:00").toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
     const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
-    const onderwerp = `Gereed gemeld: ${werk} (${dag})`;
+    const onderwerp = `Werk gereed: ${werk}`;
     const html = `<!doctype html><html lang="nl"><body style="margin:0;background:#EEF1F5;font-family:Aptos,'Segoe UI',Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0"><tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
 <tr><td style="background:#1E3A7B;padding:18px 24px;color:#fff;font-size:20px;font-weight:bold">Werk gereed gemeld</td></tr>
 <tr><td style="padding:20px 24px;font-size:15px;color:#23272F;line-height:1.5">Beste ${esc(projectleiderNaam(p.projectleider, lijst, namen) || "projectleider")},<br><br>
-<b>${esc(schilder)}</b> heeft <b>${esc(werk)}</b> gereed gemeld voor ${esc(dag)}.${adres ? `<br>Adres: ${esc(adres)}` : ""}
+<b>${esc(schilder)}</b> heeft gemeld dat <b>${esc(werk)}</b> helemaal klaar is (gemeld op ${esc(dag)}).${adres ? `<br>Adres: ${esc(adres)}` : ""}
 ${melding.opmerking ? `<br><br>Opmerking: ${esc(melding.opmerking)}` : ""}</td></tr>
-${fotoUrl ? `<tr><td style="padding:0 24px 8px"><a href="${esc(fotoUrl)}"><img src="${esc(fotoUrl)}" alt="Foto van het werk" width="552" style="width:100%;max-width:552px;border-radius:8px;display:block"></a></td></tr>
+${fotoUrl ? `<tr><td style="padding:0 24px 8px"><a href="${esc(fotoUrl)}"><img src="${esc(fotoUrl)}" alt="Laatste foto van het werk" width="552" style="width:100%;max-width:552px;border-radius:8px;display:block"></a></td></tr>
 <tr><td style="padding:4px 24px 20px;font-size:12px;color:#5F6673">De foto is 7 dagen via deze link te openen; daarna staat hij nog in Maasmond Planning.</td></tr>` : ""}
 </table></td></tr></table></body></html>`;
-    const tekst = [`Werk gereed gemeld`, "", `${schilder} heeft ${werk} gereed gemeld voor ${dag}.`, ...(adres ? [`Adres: ${adres}`] : []), ...(melding.opmerking ? ["", `Opmerking: ${melding.opmerking}`] : []), ...(fotoUrl ? ["", `Foto: ${fotoUrl}`] : [])].join("\n");
+    const tekst = [`Werk gereed gemeld`, "", `${schilder} heeft gemeld dat ${werk} helemaal klaar is (gemeld op ${dag}).`, ...(adres ? [`Adres: ${adres}`] : []), ...(melding.opmerking ? ["", `Opmerking: ${melding.opmerking}`] : []), ...(fotoUrl ? ["", `Foto: ${fotoUrl}`] : [])].join("\n");
     const sleutelMail = `gereed-${data.gereedId}`;
     await sendLovableEmail(
       { to: naar, from: { name: str(s.bedrijfsnaam) || "Maasmond Planning", address: `noreply@${AFZENDER_DOMEIN}` }, sender_domain: AFZENDER_DOMEIN,

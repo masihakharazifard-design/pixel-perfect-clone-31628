@@ -18,6 +18,7 @@ import {
   type UrenRegel,
   type UrenStatus,
   type GereedMelding,
+  type GereedSoort,
   type FeedbackItem,
   type FeedbackStatus,
   type ProjectDocument,
@@ -447,13 +448,17 @@ function leesGereed(): GereedMelding[] {
   try { return JSON.parse(localStorage.getItem(GEREED_KEY) || "[]") as GereedMelding[]; } catch { return []; }
 }
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
-  return leesGereed().filter((g) => g.datum >= van && g.datum <= tot).sort((a, b) => b.tijd.localeCompare(a.tijd));
+  return leesGereed().map((g) => ({ ...g, soort: g.soort || "dag" }) as GereedMelding).filter((g) => g.datum >= van && g.datum <= tot).sort((a, b) => b.tijd.localeCompare(a.tijd));
 }
-export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob, opmerking: string): Promise<GereedMelding> {
+export async function loadWerkGereed(): Promise<GereedMelding[]> {
+  return leesGereed().filter((g) => g.soort === "gereed").sort((a, b) => b.tijd.localeCompare(a.tijd));
+}
+export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob | null, opmerking: string, soort: GereedSoort = "dag"): Promise<GereedMelding> {
   const { verkleinFoto, blobNaarDataUrl } = await import("./foto");
-  const klein = await verkleinFoto(foto, 900, 0.65);
-  const m: GereedMelding = { id: `gereed-${Date.now()}`, employeeId, projectId, datum, fotoPad: await blobNaarDataUrl(klein), opmerking, tijd: new Date().toISOString() };
-  const l = leesGereed().filter((g) => !(g.employeeId === employeeId && g.projectId === projectId && g.datum === datum));
+  const fotoPad = foto ? await blobNaarDataUrl(await verkleinFoto(foto, 900, 0.65)) : "";
+  const m: GereedMelding = { id: `gereed-${Date.now()}`, soort, employeeId, projectId, datum, fotoPad, opmerking, tijd: new Date().toISOString() };
+  const zelfde = (g: GereedMelding) => (g.soort || "dag") === soort && g.employeeId === employeeId && g.projectId === projectId && (soort === "gereed" || g.datum === datum);
+  const l = leesGereed().map((g) => ({ ...g, soort: g.soort || "dag" }) as GereedMelding).filter((g) => !zelfde(g));
   l.push(m);
   try { localStorage.setItem(GEREED_KEY, JSON.stringify(l)); }
   catch { throw new Error("De demo-opslag in deze browser is vol; verwijder eerst oude gereedmeldingen."); }

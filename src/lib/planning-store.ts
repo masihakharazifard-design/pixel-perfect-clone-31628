@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { Taak } from "@/lib/taken";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "@/lib/geschiedenis";
-import { EMPTY_META, type PersonalNote, type UrenRegel, type UrenStatus, type GereedMelding, type FeedbackItem, type FeedbackStatus, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
+import { EMPTY_META, type PersonalNote, type UrenRegel, type UrenStatus, type GereedMelding, type GereedSoort, type FeedbackItem, type FeedbackStatus, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
 
@@ -432,11 +432,11 @@ export async function deleteUren(id: string): Promise<void> {
 
 // ===== Gereedmeldingen (met foto) =====
 const GEREED_BUCKET = "gereed-fotos";
-type GereedRow = { id: string; employee_id: string; project_id: string; datum: string; foto_pad: string; opmerking: string; created_at: string };
-const GEREED_COLS = "id, employee_id, project_id, datum, foto_pad, opmerking, created_at";
+type GereedRow = { id: string; soort?: string | null; employee_id: string; project_id: string; datum: string; foto_pad: string | null; opmerking: string; created_at: string };
+const GEREED_COLS = "id, soort, employee_id, project_id, datum, foto_pad, opmerking, created_at";
 const gereedTabel = () => (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> }).from("werk_gereed");
 const naarGereed = (r: GereedRow): GereedMelding => ({
-  id: r.id, employeeId: r.employee_id, projectId: r.project_id, datum: r.datum, fotoPad: r.foto_pad, opmerking: r.opmerking || "", tijd: r.created_at,
+  id: r.id, soort: r.soort === "gereed" ? "gereed" : "dag", employeeId: r.employee_id, projectId: r.project_id, datum: r.datum, fotoPad: r.foto_pad || "", opmerking: r.opmerking || "", tijd: r.created_at,
 });
 
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
@@ -445,17 +445,27 @@ export async function loadGereed(van: string, tot: string): Promise<GereedMeldin
   return ((data ?? []) as unknown as GereedRow[]).map(naarGereed);
 }
 
-export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob, opmerking: string): Promise<GereedMelding> {
+/** Alle gereedmeldingen (het hele werk is klaar), ongeacht de datum. */
+export async function loadWerkGereed(): Promise<GereedMelding[]> {
+  const { data, error } = await gereedTabel().select(GEREED_COLS).eq("soort", "gereed").order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as GereedRow[]).map(naarGereed);
+}
+
+export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob | null, opmerking: string, soort: GereedSoort = "dag"): Promise<GereedMelding> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
   if (!uid) throw new Error("Niet ingelogd");
-  const pad = `${uid}/${datum}-${projectId.replace(/[^A-Za-z0-9_-]/g, "_")}-${Date.now()}.jpg`;
-  const up = await supabase.storage.from(GEREED_BUCKET).upload(pad, foto, { contentType: "image/jpeg", upsert: false });
-  if (up.error) throw up.error;
+  let pad: string | null = null;
+  if (foto) {
+    pad = `${uid}/${datum}-${projectId.replace(/[^A-Za-z0-9_-]/g, "_")}-${Date.now()}.jpg`;
+    const up = await supabase.storage.from(GEREED_BUCKET).upload(pad, foto, { contentType: "image/jpeg", upsert: false });
+    if (up.error) throw up.error;
+  }
   const { data, error } = await gereedTabel()
-    .insert({ employee_id: employeeId, project_id: projectId, datum, foto_pad: pad, opmerking } as never)
+    .insert({ soort, employee_id: employeeId, project_id: projectId, datum, foto_pad: pad, opmerking } as never)
     .select(GEREED_COLS).single();
-  if (error) { await supabase.storage.from(GEREED_BUCKET).remove([pad]); throw error; }
+  if (error) { if (pad) await supabase.storage.from(GEREED_BUCKET).remove([pad]); throw error; }
   return naarGereed(data as unknown as GereedRow);
 }
 
@@ -468,7 +478,7 @@ export async function gereedFotoUrl(pad: string): Promise<string> {
 export async function intrekGereed(m: GereedMelding): Promise<void> {
   const { error } = await gereedTabel().delete().eq("id", m.id);
   if (error) throw error;
-  await supabase.storage.from(GEREED_BUCKET).remove([m.fotoPad]);
+  if (m.fotoPad) await supabase.storage.from(GEREED_BUCKET).remove([m.fotoPad]);
 }
 
 // ===== Werkplan-PDF: opslaan en een downloadlink maken (30 dagen geldig) =====

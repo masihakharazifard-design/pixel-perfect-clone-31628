@@ -13,6 +13,7 @@ import type {
   UrenStatus,
   UrenSoort,
   GereedMelding,
+  GereedSoort,
   FeedbackItem,
   FeedbackStatus,
   WithId,
@@ -21,7 +22,7 @@ import type {
 export { EMPTY_META } from "./store-types";
 export type { GeschiedenisRegel } from "./geschiedenis";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
-export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, UrenStatus, UrenSoort, GereedMelding, FeedbackItem, FeedbackStatus };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, UrenStatus, UrenSoort, GereedMelding, GereedSoort, FeedbackItem, FeedbackStatus };
 export { berekenUren } from "./store-types";
 
 type Impl = typeof import("./planning-store");
@@ -183,8 +184,11 @@ export async function zetUrenStatus(ids: string[], status: UrenStatus, door?: st
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
   return (await impl()).loadGereed(van, tot);
 }
-export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob, opmerking: string): Promise<GereedMelding> {
-  return (await impl()).meldGereed(employeeId, projectId, datum, foto, opmerking);
+export async function loadWerkGereed(): Promise<GereedMelding[]> {
+  return (await impl()).loadWerkGereed();
+}
+export async function meldGereed(employeeId: string, projectId: string, datum: string, foto: Blob | null, opmerking: string, soort: GereedSoort = "dag"): Promise<GereedMelding> {
+  return (await impl()).meldGereed(employeeId, projectId, datum, foto, opmerking, soort);
 }
 export async function gereedFotoUrl(pad: string): Promise<string> {
   return (await impl()).gereedFotoUrl(pad);

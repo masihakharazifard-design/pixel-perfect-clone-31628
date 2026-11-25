@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Camera, CheckCircle2, ChevronLeft, ChevronRight, CloudRain, Download, FileText, Loader2, LogOut, MapPin, X } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Flag, ChevronLeft, ChevronRight, CloudRain, Download, FileText, Loader2, LogOut, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth-gate";
-import { gereedFotoUrl, loadAll, loadGereed, meldGereed, type GereedMelding } from "@/lib/store";
+import { gereedFotoUrl, loadAll, loadGereed, loadWerkGereed, meldGereed, type GereedMelding, type GereedSoort } from "@/lib/store";
 import { verkleinFoto } from "@/lib/foto";
 import { datumLang } from "@/lib/werkbon";
 import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
@@ -17,7 +17,7 @@ import { werkplanMetAanpassingen } from "@/components/werkplan-venster";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
 // Eigen omgeving voor schilders, stoffeerders en onderaannemers: de eigen planning (lijst en agenda)
-// met werkplannen, per dag gereed melden met een foto, en de eigen uren. De database geeft hen ook alleen die gegevens.
+// met werkplannen, elke werkdag een dagfoto, één keer "werk gereed" als het hele werk klaar is, en de eigen uren. De database geeft hen ook alleen die gegevens.
 
 type Rec = Record<string, unknown> & { id: string };
 interface Regel { id: string; employeeId: string; date: string; startTime: string; endTime: string; status: string; projectId?: string }
@@ -37,7 +37,8 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   const [planning, setPlanning] = useState<Regel[]>([]);
   const [eigenAgenda, setEigenAgenda] = useState<Regel[]>([]);
   const [instellingen, setInstellingen] = useState<Record<string, unknown>>({});
-  const [gereed, setGereed] = useState<GereedMelding[]>([]);
+  const [gereed, setGereed] = useState<GereedMelding[]>([]); // dagfoto's
+  const [werkGereed, setWerkGereed] = useState<GereedMelding[]>([]); // hele werk klaar
   const [tab, setTab] = useState<"planning" | "agenda" | "uren">("planning");
   const vandaag = ds(new Date());
   const van = plus(vandaag, -7), tot = plus(vandaag, 28);
@@ -58,7 +59,9 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         const mijnRegels = (d.availability as unknown as Regel[]).filter((a) => a.employeeId === ik.id);
         setEigenAgenda(mijnRegels);
         setPlanning(mijnRegels.filter((a) => a.status === "Ingepland" && a.projectId));
-        setGereed((await loadGereed(van, tot)).filter((g) => g.employeeId === ik.id));
+        const [dag, klaar] = await Promise.all([loadGereed(van, tot), loadWerkGereed()]);
+        setGereed(dag.filter((g) => g.soort === "dag" && g.employeeId === ik.id));
+        setWerkGereed(klaar.filter((g) => g.employeeId === ik.id));
       } catch (e) {
         if (!weg) setFout(`Je planning kon niet worden geladen: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
@@ -106,7 +109,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     return () => { weg = true; };
   }, [dagen, werken, vandaag]);
 
-  const [melden, setMelden] = useState<{ regel: Regel; foto: Blob; voorbeeld: string } | null>(null);
+  const [melden, setMelden] = useState<{ soort: GereedSoort; regel: Regel; foto: Blob | null; voorbeeld: string } | null>(null);
   const [opmerking, setOpmerking] = useState("");
   const [bezig, setBezig] = useState(false);
   const fotoInput = useRef<HTMLInputElement>(null);
@@ -116,14 +119,18 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     if (!f || !kiesVoor) return;
     const klein = await verkleinFoto(f);
     setOpmerking("");
-    setMelden({ regel: kiesVoor, foto: klein, voorbeeld: URL.createObjectURL(klein) });
+    setMelden({ soort: "dag", regel: kiesVoor, foto: klein, voorbeeld: URL.createObjectURL(klein) });
     if (fotoInput.current) fotoInput.current.value = "";
   };
-  // Gereed gemeld: de projectleider krijgt een e-mail (lukt dat niet, dan blijft de melding gewoon staan)
-  const meldEnMail = async (employeeId: string, projectId: string, datum: string, foto: Blob, opm: string) => {
-    const g = await meldGereed(employeeId, projectId, datum, foto, opm);
-    setGereed((cur) => [g, ...cur.filter((x) => !(x.projectId === g.projectId && x.datum === g.datum))]);
-    if (!DEMO_MODE) void mailGereedAanProjectleider({ data: { gereedId: g.id } }).catch(() => { /* mail is een extraatje */ });
+  const meldGereedWerk = (r: Regel) => { setOpmerking(""); setMelden({ soort: "gereed", regel: r, foto: null, voorbeeld: "" }); };
+  // Dagfoto opslaan, of het hele werk gereed melden (dan krijgt de projectleider een e-mail)
+  const meldEnMail = async (soort: GereedSoort, employeeId: string, projectId: string, datum: string, foto: Blob | null, opm: string) => {
+    const g = await meldGereed(employeeId, projectId, datum, foto, opm, soort);
+    if (soort === "dag") setGereed((cur) => [g, ...cur.filter((x) => !(x.projectId === g.projectId && x.datum === g.datum))]);
+    else {
+      setWerkGereed((cur) => [g, ...cur.filter((x) => x.projectId !== g.projectId)]);
+      if (!DEMO_MODE) void mailGereedAanProjectleider({ data: { gereedId: g.id } }).catch(() => { /* mail is een extraatje */ });
+    }
     return g;
   };
 
@@ -131,7 +138,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   const [wachtend, setWachtend] = useState<WachtendeMelding[]>(() => leesWachtrij());
   const verwerk = useCallback(async () => {
     if (!leesWachtrij().length || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
-    const { over } = await verwerkWachtrij((m, foto) => meldEnMail(m.employeeId, m.projectId, m.datum, foto, m.opmerking));
+    const { over } = await verwerkWachtrij((m, foto) => meldEnMail(m.soort || "dag", m.employeeId, m.projectId, m.datum, foto, m.opmerking));
     setWachtend(over);
   }, []);
   useEffect(() => {
@@ -145,18 +152,17 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
   const bevestig = async () => {
     if (!melden || !mij) return;
     setBezig(true);
-    const { regel, foto, voorbeeld } = melden;
+    const { soort, regel, foto, voorbeeld } = melden;
+    const sluit = () => { if (voorbeeld) URL.revokeObjectURL(voorbeeld); setMelden(null); };
     try {
-      await meldEnMail(mij.id, regel.projectId!, regel.date, foto, opmerking.trim());
-      URL.revokeObjectURL(voorbeeld);
-      setMelden(null);
+      await meldEnMail(soort, mij.id, regel.projectId!, regel.date, foto, opmerking.trim());
+      sluit();
     } catch {
       // Geen bereik of een storing: foto bewaren en later automatisch versturen
       try {
-        await zetInWachtrij({ employeeId: mij.id, projectId: regel.projectId!, datum: regel.date, opmerking: opmerking.trim(), foto });
+        await zetInWachtrij({ soort, employeeId: mij.id, projectId: regel.projectId!, datum: regel.date, opmerking: opmerking.trim(), foto });
         setWachtend(leesWachtrij());
-        URL.revokeObjectURL(voorbeeld);
-        setMelden(null);
+        sluit();
       } catch (e2) {
         toast.error(e2 instanceof Error ? e2.message : String(e2));
       }
@@ -211,7 +217,9 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     const p = werken.get(a.projectId!);
     const adres = adresVan(p);
     const g = gereed.find((x) => x.projectId === a.projectId && x.datum === datum);
-    const w = !g && wachtend.find((x) => x.projectId === a.projectId && x.datum === datum);
+    const w = !g && wachtend.find((x) => (x.soort || "dag") === "dag" && x.projectId === a.projectId && x.datum === datum);
+    const klaar = werkGereed.find((x) => x.projectId === a.projectId);
+    const klaarWacht = !klaar && wachtend.find((x) => x.soort === "gereed" && x.projectId === a.projectId);
     const regen = nat.has(`${a.projectId}|${datum}`);
     return <article key={a.id} className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 space-y-2">
       <div className="flex items-start justify-between gap-3">
@@ -234,13 +242,20 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
       {w ? <div className={`w-full text-sm rounded-[10px] px-3 py-2.5 ${w.pogingen >= MAX_POGINGEN ? "text-[#A42A1E] bg-[#FCE1DC]" : "text-[#7A4A00] bg-[#FEF3DC]"}`}>
           {w.pogingen >= MAX_POGINGEN
             ? <>Gereedmelding kon niet worden verstuurd ({w.laatsteFout || "onbekende fout"}). <button onClick={() => kiesFoto(a)} className="font-semibold underline">Opnieuw melden</button></>
-            : <>Foto bewaard op je telefoon. De gereedmelding wordt automatisch verstuurd zodra er weer verbinding is.</>}
+            : <>Dagfoto bewaard op je telefoon. Hij wordt automatisch verstuurd zodra er weer verbinding is.</>}
         </div>
         : g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />Gereed gemeld om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · foto bekijken
+          <CheckCircle2 className="w-5 h-5 shrink-0" />Dagfoto gemaakt om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · bekijken
         </button>
         : datum <= vandaag && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">
-          <Camera className="w-5 h-5" />Foto maken en gereed melden
+          <Camera className="w-5 h-5" />Dagfoto maken (einde van de dag)
+        </button>}
+      {klaar ? <p className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5">
+          <Flag className="w-5 h-5 shrink-0" />Werk gereed gemeld op {new Date(klaar.tijd).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
+        </p>
+        : klaarWacht ? <p className="w-full text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2.5">Gereedmelding bewaard op je telefoon. Hij wordt automatisch verstuurd zodra er weer verbinding is.</p>
+        : datum <= vandaag && <button onClick={() => meldGereedWerk(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#16774A] border border-[#16774A]/40 bg-white hover:bg-[#F2FBF6] rounded-[10px] px-3 py-2.5">
+          <Flag className="w-4 h-4" />Werk is helemaal klaar: gereed melden
         </button>}
     </article>;
   };
@@ -318,19 +333,21 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     <input ref={fotoInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fotoGekozen(e.target.files?.[0])} />
 
     {melden && <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !bezig && setMelden(null)}>
-      <div role="dialog" aria-label="Gereed melden" onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-lg p-4 space-y-3 max-h-[92vh] overflow-y-auto">
+      <div role="dialog" aria-label={melden.soort === "dag" ? "Dagfoto" : "Werk gereed melden"} onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-lg p-4 space-y-3 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#23272F]">Gereed melden</h2>
+          <h2 className="text-lg font-semibold text-[#23272F]">{melden.soort === "dag" ? "Dagfoto" : "Werk gereed melden"}</h2>
           <button onClick={() => setMelden(null)} disabled={bezig} className="p-1 text-[#5F6673]" aria-label="Sluiten"><X className="w-5 h-5" /></button>
         </div>
-        <p className="text-sm text-[#5F6673]">{werkLabel(melden.regel.projectId)} · {datumLang(melden.regel.date)}</p>
-        <img src={melden.voorbeeld} alt="Foto van het werk" className="w-full max-h-[50vh] object-contain rounded-[10px] bg-[#F4F6F9]" />
-        <button onClick={() => kiesFoto(melden.regel)} disabled={bezig} className="text-sm text-[#1E3A7B] font-semibold">Andere foto kiezen</button>
+        <p className="text-sm text-[#5F6673]">{werkLabel(melden.regel.projectId)}{melden.soort === "dag" ? ` · ${datumLang(melden.regel.date)}` : ""}</p>
+        {melden.soort === "dag" ? <>
+          <img src={melden.voorbeeld} alt="Foto van het werk" className="w-full max-h-[50vh] object-contain rounded-[10px] bg-[#F4F6F9]" />
+          <button onClick={() => kiesFoto(melden.regel)} disabled={bezig} className="text-sm text-[#1E3A7B] font-semibold">Andere foto kiezen</button>
+        </> : <p className="text-sm text-[#23272F] bg-[#F4F6F9] rounded-[10px] px-3 py-2.5">Is het hele werk klaar? De projectleider krijgt dan een e-mail. Meld alleen gereed als er niets meer gedaan hoeft te worden.</p>}
         <label className="block text-sm text-[#5F6673]">Opmerking (niet verplicht)
-          <input value={opmerking} onChange={(e) => setOpmerking(e.target.value)} placeholder="Bijv. tweede laag morgen" className="w-full mt-1 px-3 py-2 text-sm border border-[rgba(15,23,42,0.15)] rounded-[10px] text-[#23272F] outline-none focus:border-[#1E3A7B]" />
+          <input value={opmerking} onChange={(e) => setOpmerking(e.target.value)} placeholder={melden.soort === "dag" ? "Bijv. tweede laag morgen" : "Bijv. nog één deur bijwerken"} className="w-full mt-1 px-3 py-2 text-sm border border-[rgba(15,23,42,0.15)] rounded-[10px] text-[#23272F] outline-none focus:border-[#1E3A7B]" />
         </label>
         <button onClick={() => void bevestig()} disabled={bezig} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1E3A7B] hover:bg-[#172E63] rounded-[10px] px-3 py-3 disabled:opacity-60">
-          {bezig ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}Gereed
+          {bezig ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}{melden.soort === "dag" ? "Dagfoto opslaan" : "Werk gereed melden"}
         </button>
       </div>
     </div>}

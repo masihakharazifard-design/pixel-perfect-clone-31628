@@ -73,13 +73,16 @@ export function berekenUren(start: string, eind: string, pauze: number): number 
   return Math.min(24, Math.round(netto / 15) / 4);
 }
 
-/** Gereedmelding van een medewerker voor een werk op een dag, met foto. */
+/** "dag" = dagfoto aan het eind van een werkdag; "gereed" = het hele werk is klaar. */
+export type GereedSoort = "dag" | "gereed";
+/** Dagfoto of gereedmelding van een medewerker voor een werk. */
 export interface GereedMelding {
   id: string;
+  soort: GereedSoort;
   employeeId: string;
   projectId: string;
   datum: string; // JJJJ-MM-DD
-  fotoPad: string;
+  fotoPad: string; // leeg bij een gereedmelding zonder foto
   opmerking: string;
   tijd: string; // ISO-tijdstip van melden
 }

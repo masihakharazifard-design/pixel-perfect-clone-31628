@@ -1,14 +1,16 @@
-// Wachtrij voor gereedmeldingen die niet verstuurd konden worden (bijv. geen bereik op de bouwplaats).
+// Wachtrij voor dagfoto's en gereedmeldingen die niet verstuurd konden worden (bijv. geen bereik op de bouwplaats).
 // De (verkleinde) foto wordt in de browser bewaard en later automatisch opnieuw verstuurd.
 import { blobNaarDataUrl } from "./foto";
+import type { GereedSoort } from "./store-types";
 
 export interface WachtendeMelding {
   id: string;
+  soort?: GereedSoort; // ontbreekt bij oude items = dagfoto
   employeeId: string;
   projectId: string;
   datum: string;
   opmerking: string;
-  foto: string; // data-URL (jpeg)
+  foto: string; // data-URL (jpeg); leeg bij een gereedmelding zonder foto
   pogingen: number;
   laatsteFout?: string;
 }
@@ -23,10 +25,10 @@ function schrijf(l: WachtendeMelding[]): void {
   localStorage.setItem(SLEUTEL, JSON.stringify(l));
 }
 
-/** Melding in de wachtrij zetten (vervangt een eerdere voor hetzelfde werk en dezelfde dag). */
-export async function zetInWachtrij(m: { employeeId: string; projectId: string; datum: string; opmerking: string; foto: Blob }): Promise<WachtendeMelding> {
-  const item: WachtendeMelding = { id: `w-${Date.now()}`, employeeId: m.employeeId, projectId: m.projectId, datum: m.datum, opmerking: m.opmerking, foto: await blobNaarDataUrl(m.foto), pogingen: 0 };
-  const l = leesWachtrij().filter((x) => !(x.employeeId === m.employeeId && x.projectId === m.projectId && x.datum === m.datum));
+/** Melding in de wachtrij zetten (vervangt een eerdere van dezelfde soort voor hetzelfde werk en dezelfde dag). */
+export async function zetInWachtrij(m: { soort: GereedSoort; employeeId: string; projectId: string; datum: string; opmerking: string; foto: Blob | null }): Promise<WachtendeMelding> {
+  const item: WachtendeMelding = { id: `w-${Date.now()}`, soort: m.soort, employeeId: m.employeeId, projectId: m.projectId, datum: m.datum, opmerking: m.opmerking, foto: m.foto ? await blobNaarDataUrl(m.foto) : "", pogingen: 0 };
+  const l = leesWachtrij().filter((x) => !((x.soort || "dag") === m.soort && x.employeeId === m.employeeId && x.projectId === m.projectId && (m.soort === "gereed" || x.datum === m.datum)));
   try { schrijf([...l, item]); }
   catch { throw new Error("De foto kon niet op dit toestel worden bewaard (geheugen vol). Probeer het opnieuw als je bereik hebt."); }
   return item;
@@ -42,12 +44,12 @@ export function dataUrlNaarBlob(u: string): Blob {
 }
 
 /** Alle wachtende meldingen opnieuw proberen; geslaagde worden uit de wachtrij gehaald. */
-export async function verwerkWachtrij<T>(verstuur: (m: WachtendeMelding, foto: Blob) => Promise<T>): Promise<{ gelukt: T[]; over: WachtendeMelding[] }> {
+export async function verwerkWachtrij<T>(verstuur: (m: WachtendeMelding, foto: Blob | null) => Promise<T>): Promise<{ gelukt: T[]; over: WachtendeMelding[] }> {
   const gelukt: T[] = [];
   const over: WachtendeMelding[] = [];
   for (const m of leesWachtrij()) {
     if (m.pogingen >= MAX_POGINGEN) { over.push(m); continue; }
-    try { gelukt.push(await verstuur(m, dataUrlNaarBlob(m.foto))); }
+    try { gelukt.push(await verstuur(m, m.foto ? dataUrlNaarBlob(m.foto) : null)); }
     catch (e) { over.push({ ...m, pogingen: m.pogingen + 1, laatsteFout: e instanceof Error ? e.message : String(e) }); }
   }
   try { schrijf(over); } catch { /* laat staan */ }
