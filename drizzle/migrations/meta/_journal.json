@@ -71,6 +71,13 @@
       "when": 1795614644945,
       "tag": "0009_gereed_alleen_projectleider",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795614797512,
+      "tag": "0010_rol_rechten_alleen_leden",
+      "breakpoints": true
     }
   ]
 }
