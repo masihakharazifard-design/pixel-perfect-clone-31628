@@ -68,10 +68,10 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF auth.uid() IS NOT NULL
      AND NEW.status IN ('goedgekeurd', 'afgekeurd')
-     AND CASE WHEN TG_OP = 'INSERT'
+     AND (CASE WHEN TG_OP = 'INSERT'
               -- opslaan via upsert van een regel die al zo stond, is geen nieuwe goedkeuring
               THEN NOT EXISTS (SELECT 1 FROM public.uren u WHERE u.id = NEW.id AND u.status = NEW.status)
-              ELSE NEW.status IS DISTINCT FROM OLD.status END
+              ELSE NEW.status IS DISTINCT FROM OLD.status END)
      AND NOT public.heeft_recht('urenAccorderen') THEN
     RAISE EXCEPTION 'Je mag geen uren goedkeuren of afkeuren.';
   END IF;
