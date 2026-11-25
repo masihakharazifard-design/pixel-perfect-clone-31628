@@ -281,6 +281,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rol_rechten: {
+        Row: {
+          rechten: Json
+          rol: string
+          updated_at: string
+        }
+        Insert: {
+          rechten?: Json
+          rol: string
+          updated_at?: string
+        }
+        Update: {
+          rechten?: Json
+          rol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       uren: {
         Row: {
           beoordeeld_door_naam: string | null
@@ -430,6 +448,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      heeft_recht: { Args: { _recht: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_member: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
@@ -482,6 +501,11 @@ export type Database = {
         | "projectleider"
         | "financieel"
         | "medewerker"
+        | "vestigingsmanager"
+        | "hoofddirectie"
+        | "werkvoorbereider"
+        | "stoffeerder"
+        | "onderaannemer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -615,6 +639,11 @@ export const Constants = {
         "projectleider",
         "financieel",
         "medewerker",
+        "vestigingsmanager",
+        "hoofddirectie",
+        "werkvoorbereider",
+        "stoffeerder",
+        "onderaannemer",
       ],
     },
   },
