@@ -16,7 +16,7 @@ import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { LoginAchtergrond } from "@/components/login-achtergrond";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 import { isAllowedLoginEmail } from "@/lib/login-access";
-import { ROLLEN, rechtenVoor, type RechtenPerRol } from "@/lib/rechten";
+import { OUDE_RECHTEN, ROLLEN, rechtenVoor, type RechtenPerRol } from "@/lib/rechten";
 import { loadRolRechten } from "@/lib/store";
 
 // Terugkomst van Microsoft (via de Lovable-aanmeldservice): de inloggegevens staan in het adres
@@ -341,7 +341,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
 
     void bepaalRollen().then(async (gevonden) => {
       // Rechten per rol (bestaat de tabel nog niet, dan gelden de standaardrechten)
-      const tabel = gevonden.length ? await loadRolRechten().catch(() => ({})) : {};
+      const tabel = gevonden.length ? await loadRolRechten().catch(() => OUDE_RECHTEN) : {};
       if (cancelled) return;
       setRechtenTabel(tabel);
       setRoles(gevonden);

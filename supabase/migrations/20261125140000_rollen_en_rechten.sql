@@ -58,3 +58,25 @@ CREATE OR REPLACE FUNCTION public.can_plan()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT public.heeft_recht('plannen')
 $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.rol_rechten TO authenticated;
+GRANT ALL ON public.rol_rechten TO service_role;
+
+-- ============ 4. Uren goedkeuren of afkeuren alleen met het recht "urenAccorderen" ============
+CREATE OR REPLACE FUNCTION public.controleer_uren_accorderen()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NOT NULL
+     AND NEW.status IN ('goedgekeurd', 'afgekeurd')
+     AND CASE WHEN TG_OP = 'INSERT'
+              -- opslaan via upsert van een regel die al zo stond, is geen nieuwe goedkeuring
+              THEN NOT EXISTS (SELECT 1 FROM public.uren u WHERE u.id = NEW.id AND u.status = NEW.status)
+              ELSE NEW.status IS DISTINCT FROM OLD.status END
+     AND NOT public.heeft_recht('urenAccorderen') THEN
+    RAISE EXCEPTION 'Je mag geen uren goedkeuren of afkeuren.';
+  END IF;
+  RETURN NEW;
+END; $$;
+DROP TRIGGER IF EXISTS uren_accorderen_controle ON public.uren;
+CREATE TRIGGER uren_accorderen_controle BEFORE INSERT OR UPDATE ON public.uren
+  FOR EACH ROW EXECUTE FUNCTION public.controleer_uren_accorderen();

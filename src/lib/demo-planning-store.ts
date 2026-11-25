@@ -450,6 +450,7 @@ function leesGereed(): GereedMelding[] {
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
   return leesGereed().map((g) => ({ ...g, soort: g.soort || "dag" }) as GereedMelding).filter((g) => g.datum >= van && g.datum <= tot).sort((a, b) => b.tijd.localeCompare(a.tijd));
 }
+export const isDubbeleMelding = (_e: unknown) => false;
 export async function loadWerkGereed(): Promise<GereedMelding[]> {
   return leesGereed().filter((g) => g.soort === "gereed").sort((a, b) => b.tijd.localeCompare(a.tijd));
 }

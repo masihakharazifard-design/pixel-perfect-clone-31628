@@ -184,6 +184,9 @@ export async function zetUrenStatus(ids: string[], status: UrenStatus, door?: st
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
   return (await impl()).loadGereed(van, tot);
 }
+export async function isDubbeleMelding(e: unknown): Promise<boolean> {
+  return (await impl()).isDubbeleMelding(e);
+}
 export async function loadWerkGereed(): Promise<GereedMelding[]> {
   return (await impl()).loadWerkGereed();
 }

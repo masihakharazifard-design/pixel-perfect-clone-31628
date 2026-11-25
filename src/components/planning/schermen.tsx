@@ -152,12 +152,13 @@ export function Dashboard({projects,employees,availability,onNav,onOpenProject,o
       .sort((a,b)=>(a.deadline||"9999").localeCompare(b.deadline||"9999")||String(a.p.werknummer).localeCompare(String(b.p.werknummer)));
   },[projects,availability]);
   const dagenTot=(ds:string)=>Math.round((new Date(ds+"T12:00").getTime()-new Date(TODAY_STR+"T12:00").getTime())/86400000);
+  const magFactureren=useAuth().rechten.facturatie;
   const stats=[
     {label:"Actieve werken",value:active.length,icon:FolderOpen,color:"#1E3A7B",bg:"#FFFFFF",nav:"projecten" as Nav},
     {label:"Werken deze week",value:thisWeek.length,icon:CalendarDays,color:"#26A69A",bg:"#D9F2EF",nav:"agenda" as Nav},
     {label:"Beschikbare medewerkers",value:avail.length,icon:UserCheck,color:"#22A06B",bg:"#D9F4E5",nav:"personeelsplanning" as Nav},
     {label:"Planningconflicten",value:conflicts.length,icon:AlertTriangle,color:"#E08A12",bg:"#FDEFD3",nav:"personeelsplanning" as Nav},
-    {label:"Te factureren",value:toFact.length,icon:Receipt,color:"#E0402F",bg:"#FCE1DC",nav:"facturatie" as Nav},
+    ...(magFactureren?[{label:"Te factureren",value:toFact.length,icon:Receipt,color:"#E0402F",bg:"#FCE1DC",nav:"facturatie" as Nav}]:[]),
   ];
   return <div className="p-4 md:p-6 space-y-4 md:space-y-6">
     <div>

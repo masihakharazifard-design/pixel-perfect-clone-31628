@@ -666,7 +666,7 @@ function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void})
           {nav==="uren"&&<UrenView employees={employees} availability={avail} werkNaam={werkLabel} zoekWerken={q=>searchIndexedProjects(q,8).map(p=>({id:p.id,label:werkLabel(p.id)}))}/>}
           {nav==="medewerkers"&&<MedewerkersView employees={employees} onAdd={()=>{setEditEmployee({});setIsNewEmployee(true);}} onEdit={e=>{setEditEmployee(e);setIsNewEmployee(false);}} onDelete={deleteEmployee} onVacImport={()=>setShowVacImport(true)} onAlsSchilder={onAlsSchilder}/>}
           {nav==="notities"&&<NotitiesView/>}
-          {nav==="facturatie"&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
+          {nav==="facturatie"&&mijnRechten.facturatie&&<FacturatieView provider={facturatieProvider} accentOf={facturatieAccent} statusClassOf={facturatieStatusClass} dataVersion={facturatieDataVersion} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="instellingen"&&<InstellingenView settings={settings} onSave={handleSaveSettings} projects={projects} employees={employees}/>}
           {nav==="geschiedenis"&&<GeschiedenisView projects={projects} employees={employees} onOpenProject={id=>{const p=getIndexedProject(id);if(p)openDetailProject(p);}}/>}
           {nav==="gebruikers"&&<Suspense fallback={<div className="p-6 text-sm text-[#5F6673]">Laden…</div>}><GebruikersbeheerView/></Suspense>}

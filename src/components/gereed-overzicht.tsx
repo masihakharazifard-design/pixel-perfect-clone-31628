@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Camera, Flag, Loader2 } from "lucide-react";
-import { gereedFotoUrl, loadGereed, type GereedMelding } from "@/lib/store";
+import { gereedFotoUrl, intrekGereed, loadGereed, type GereedMelding } from "@/lib/store";
+import { toast } from "sonner";
 import { useAuth } from "@/components/auth-gate";
 
 // Dashboard: dagfoto's en gereedmeldingen (hele werk klaar) van de afgelopen twee weken.
@@ -10,7 +11,13 @@ const ds = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.get
 
 export default function GereedOverzicht({ werkNaam, naamVan }: { werkNaam: (id: string) => string; naamVan: (id: string) => string }) {
   const [lijst, setLijst] = useState<(GereedMelding & { url?: string })[] | null>(null);
-  const { roles } = useAuth();
+  const { roles, rechten } = useAuth();
+  // Gereedmelding intrekken (bijv. als er toch nog werk moet gebeuren); de schilder kan daarna opnieuw gereed melden
+  const trekIn = async (g: GereedMelding) => {
+    if (!window.confirm(`Gereedmelding van ${werkNaam(g.projectId) || "dit werk"} intrekken?`)) return;
+    try { await intrekGereed(g); setLijst((l) => (l || []).filter((x) => x.id !== g.id)); }
+    catch (e) { toast.error(`Intrekken lukte niet: ${e instanceof Error ? e.message : String(e)}`); }
+  };
   useEffect(() => {
     let weg = false;
     const tot = ds(new Date()), d = new Date(); d.setDate(d.getDate() - 14);
@@ -39,6 +46,7 @@ export default function GereedOverzicht({ werkNaam, naamVan }: { werkNaam: (id: 
             <p className="text-xs font-semibold text-[#23272F] truncate">{werkNaam(g.projectId) || "Werk"}</p>
             <p className="text-xs text-[#5F6673] truncate flex items-center gap-1">{g.soort === "gereed" ? <Flag className="w-3.5 h-3.5 text-[#16774A] shrink-0" aria-label="Werk gereed" /> : <Camera className="w-3.5 h-3.5 text-[#5F6673] shrink-0" aria-label="Dagfoto" />}{naamVan(g.employeeId)} · {new Date(g.datum + "T12:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}</p>
             {g.opmerking && <p className="text-xs text-[#5F6673] truncate">{g.opmerking}</p>}
+            {g.soort === "gereed" && rechten.plannen && <button onClick={(e) => { e.preventDefault(); void trekIn(g); }} className="mt-1 text-xs font-semibold text-[#A42A1E] hover:underline">Intrekken</button>}
           </div>
         </a>)}
       </div>}

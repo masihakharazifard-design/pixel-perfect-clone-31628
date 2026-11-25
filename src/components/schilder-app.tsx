@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Camera, CheckCircle2, Flag, ChevronLeft, ChevronRight, CloudRain, Download, FileText, Loader2, LogOut, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth-gate";
-import { gereedFotoUrl, loadAll, loadGereed, loadWerkGereed, meldGereed, type GereedMelding, type GereedSoort } from "@/lib/store";
+import { gereedFotoUrl, isDubbeleMelding, loadAll, loadGereed, loadWerkGereed, meldGereed, type GereedMelding, type GereedSoort } from "@/lib/store";
 import { verkleinFoto } from "@/lib/foto";
 import { datumLang } from "@/lib/werkbon";
 import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
@@ -136,11 +136,25 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
 
   // Wachtrij: meldingen die door slecht bereik niet verstuurd konden worden, later automatisch opnieuw
   const [wachtend, setWachtend] = useState<WachtendeMelding[]>(() => leesWachtrij());
+  const bezigMetWachtrij = useRef(false);
   const verwerk = useCallback(async () => {
-    if (!leesWachtrij().length || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
-    const { over } = await verwerkWachtrij((m, foto) => meldEnMail(m.soort || "dag", m.employeeId, m.projectId, m.datum, foto, m.opmerking));
-    setWachtend(over);
-  }, []);
+    if (bezigMetWachtrij.current || !leesWachtrij().length || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+    bezigMetWachtrij.current = true;
+    try {
+      let dubbel = false;
+      const { over } = await verwerkWachtrij(async (m, foto) => {
+        try { return await meldEnMail(m.soort || "dag", m.employeeId, m.projectId, m.datum, foto, m.opmerking); }
+        catch (e) { if (await isDubbeleMelding(e)) { dubbel = true; return null; } throw e; }
+      });
+      setWachtend(over);
+      // Was hij eerder al aangekomen? Dan de lijsten opnieuw ophalen
+      if (dubbel && mij) {
+        const [dag, klaar] = await Promise.all([loadGereed(van, tot), loadWerkGereed()]);
+        setGereed(dag.filter((g) => g.soort === "dag" && g.employeeId === mij.id));
+        setWerkGereed(klaar.filter((g) => g.employeeId === mij.id));
+      }
+    } finally { bezigMetWachtrij.current = false; }
+  }, [mij, van, tot]);
   useEffect(() => {
     void verwerk();
     const opnieuw = () => void verwerk();
@@ -153,14 +167,16 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     if (!melden || !mij) return;
     setBezig(true);
     const { soort, regel, foto, voorbeeld } = melden;
+    const datum = soort === "gereed" ? vandaag : regel.date; // gereed = vandaag gemeld
     const sluit = () => { if (voorbeeld) URL.revokeObjectURL(voorbeeld); setMelden(null); };
     try {
-      await meldEnMail(soort, mij.id, regel.projectId!, regel.date, foto, opmerking.trim());
+      await meldEnMail(soort, mij.id, regel.projectId!, datum, foto, opmerking.trim());
       sluit();
-    } catch {
+    } catch (e) {
+      if (await isDubbeleMelding(e)) { sluit(); toast(soort === "dag" ? "Er staat voor deze dag al een dagfoto." : "Dit werk was al gereed gemeld."); return; }
       // Geen bereik of een storing: foto bewaren en later automatisch versturen
       try {
-        await zetInWachtrij({ soort, employeeId: mij.id, projectId: regel.projectId!, datum: regel.date, opmerking: opmerking.trim(), foto });
+        await zetInWachtrij({ soort, employeeId: mij.id, projectId: regel.projectId!, datum, opmerking: opmerking.trim(), foto });
         setWachtend(leesWachtrij());
         sluit();
       } catch (e2) {
@@ -247,16 +263,19 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
         : g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
           <CheckCircle2 className="w-5 h-5 shrink-0" />Dagfoto gemaakt om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · bekijken
         </button>
-        : datum <= vandaag && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">
+        : datum <= vandaag && !onTerug && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">
           <Camera className="w-5 h-5" />Dagfoto maken (einde van de dag)
         </button>}
       {klaar ? <p className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5">
           <Flag className="w-5 h-5 shrink-0" />Werk gereed gemeld op {new Date(klaar.tijd).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
         </p>
-        : klaarWacht ? <p className="w-full text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2.5">Gereedmelding bewaard op je telefoon. Hij wordt automatisch verstuurd zodra er weer verbinding is.</p>
-        : datum <= vandaag && <button onClick={() => meldGereedWerk(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#16774A] border border-[#16774A]/40 bg-white hover:bg-[#F2FBF6] rounded-[10px] px-3 py-2.5">
+        : klaarWacht ? (klaarWacht.pogingen >= MAX_POGINGEN
+          ? <div className="w-full text-sm text-[#A42A1E] bg-[#FCE1DC] rounded-[10px] px-3 py-2.5">Gereedmelding kon niet worden verstuurd ({klaarWacht.laatsteFout || "onbekende fout"}). {!onTerug && <button onClick={() => meldGereedWerk(a)} className="font-semibold underline">Opnieuw melden</button>}</div>
+          : <p className="w-full text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2.5">Gereedmelding bewaard op je telefoon. Hij wordt automatisch verstuurd zodra er weer verbinding is.</p>)
+        : datum <= vandaag && !onTerug && <button onClick={() => meldGereedWerk(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#16774A] border border-[#16774A]/40 bg-white hover:bg-[#F2FBF6] rounded-[10px] px-3 py-2.5">
           <Flag className="w-4 h-4" />Werk is helemaal klaar: gereed melden
         </button>}
+      {onTerug && datum <= vandaag && !g && !klaar && <p className="text-xs text-[#5F6673]">Voorbeeld: hier ziet de medewerker de knoppen "Dagfoto maken" en "Werk is helemaal klaar: gereed melden".</p>}
     </article>;
   };
 

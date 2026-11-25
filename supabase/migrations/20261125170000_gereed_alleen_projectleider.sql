@@ -15,11 +15,13 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
   ), pl AS (
     SELECT trim(coalesce(p.data->>'projectleider', '')) AS raw FROM public.projects p WHERE p.id = _pid
   ), namen AS (
-    SELECT upper(trim(k)) AS code, trim(v) AS naam
-    FROM public.app_settings s, jsonb_each_text(coalesce(s.data->'projectleiderNamen', '{}'::jsonb)) AS x(k, v)
-    WHERE s.id = 'default'
+    -- Instellingen gaan voor de standaardlijst; lege namen tellen niet
+    SELECT upper(trim(k)) AS code, trim(v) AS naam, 0 AS prio
+    FROM public.app_settings s,
+         jsonb_each_text(CASE WHEN jsonb_typeof(s.data->'projectleiderNamen') = 'object' THEN s.data->'projectleiderNamen' ELSE '{}'::jsonb END) AS x(k, v)
+    WHERE s.id = 'default' AND trim(coalesce(v, '')) <> ''
     UNION ALL
-    SELECT * FROM (VALUES ('RV', 'Ronald Voermans'), ('CB', 'Cris Bruin'), ('DDH', 'Dennis de Haan'),
+    SELECT code, naam, 1 FROM (VALUES ('RV', 'Ronald Voermans'), ('CB', 'Cris Bruin'), ('DDH', 'Dennis de Haan'),
                           ('RSC', 'Rick Schwickard'), ('RDE', 'Rick Deltenre')) AS d(code, naam)
   )
   SELECT EXISTS (
@@ -28,7 +30,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
       AND (pl.raw = ik.id
         OR (ik.email <> '' AND lower(pl.raw) = ik.email)
         OR (ik.naam <> '' AND lower(pl.raw) = ik.naam)
-        OR (ik.naam <> '' AND lower(coalesce((SELECT n.naam FROM namen n WHERE n.code = upper(pl.raw) LIMIT 1), '')) = ik.naam))
+        OR (ik.naam <> '' AND lower(coalesce((SELECT n.naam FROM namen n WHERE n.code = upper(pl.raw) ORDER BY n.prio LIMIT 1), '')) = ik.naam))
   )
 $$;
 REVOKE EXECUTE ON FUNCTION public.is_projectleider_van(text) FROM PUBLIC, anon;

@@ -51,6 +51,9 @@ export const STANDAARD_RECHTEN: Record<AppRole, Rechten> = {
   onderaannemer: ja(false, false, false, false),
 };
 
+/** Zolang de rechtentabel nog niet in de database staat, gelden de oude regels: alleen beheerder en planner plannen. */
+export const OUDE_RECHTEN: RechtenPerRol = { projectleider: ja(true, false, true, true) };
+
 /** Rechten van iemand met deze rollen (een recht telt als één van de rollen het heeft). */
 export function rechtenVoor(rollen: AppRole[], tabel: RechtenPerRol): Rechten {
   const uit = ja(false, false, false, false);

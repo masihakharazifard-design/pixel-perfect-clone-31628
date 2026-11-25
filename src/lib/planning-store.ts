@@ -434,13 +434,19 @@ export async function deleteUren(id: string): Promise<void> {
 const GEREED_BUCKET = "gereed-fotos";
 type GereedRow = { id: string; soort?: string | null; employee_id: string; project_id: string; datum: string; foto_pad: string | null; opmerking: string; created_at: string };
 const GEREED_COLS = "id, soort, employee_id, project_id, datum, foto_pad, opmerking, created_at";
+// Oude database (zonder kolom "soort"): alles is dan een dagfoto
+const GEREED_COLS_OUD = "id, employee_id, project_id, datum, foto_pad, opmerking, created_at";
+const geenSoortKolom = (e: { message?: string; code?: string } | null) => !!e && (e.code === "42703" || /soort/.test(e.message || ""));
+/** Bestaat de melding al (unieke sleutel)? Dan is hij eerder al goed aangekomen. */
+export const isDubbeleMelding = (e: unknown) => (e as { code?: string } | null)?.code === "23505";
 const gereedTabel = () => (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> }).from("werk_gereed");
 const naarGereed = (r: GereedRow): GereedMelding => ({
   id: r.id, soort: r.soort === "gereed" ? "gereed" : "dag", employeeId: r.employee_id, projectId: r.project_id, datum: r.datum, fotoPad: r.foto_pad || "", opmerking: r.opmerking || "", tijd: r.created_at,
 });
 
 export async function loadGereed(van: string, tot: string): Promise<GereedMelding[]> {
-  const { data, error } = await gereedTabel().select(GEREED_COLS).gte("datum", van).lte("datum", tot).order("created_at", { ascending: false });
+  let { data, error } = await gereedTabel().select(GEREED_COLS).gte("datum", van).lte("datum", tot).order("created_at", { ascending: false });
+  if (geenSoortKolom(error)) ({ data, error } = await gereedTabel().select(GEREED_COLS_OUD).gte("datum", van).lte("datum", tot).order("created_at", { ascending: false }));
   if (error) throw error;
   return ((data ?? []) as unknown as GereedRow[]).map(naarGereed);
 }
@@ -448,6 +454,7 @@ export async function loadGereed(van: string, tot: string): Promise<GereedMeldin
 /** Alle gereedmeldingen (het hele werk is klaar), ongeacht de datum. */
 export async function loadWerkGereed(): Promise<GereedMelding[]> {
   const { data, error } = await gereedTabel().select(GEREED_COLS).eq("soort", "gereed").order("created_at", { ascending: false });
+  if (geenSoortKolom(error)) return [];
   if (error) throw error;
   return ((data ?? []) as unknown as GereedRow[]).map(naarGereed);
 }
@@ -462,11 +469,16 @@ export async function meldGereed(employeeId: string, projectId: string, datum: s
     const up = await supabase.storage.from(GEREED_BUCKET).upload(pad, foto, { contentType: "image/jpeg", upsert: false });
     if (up.error) throw up.error;
   }
-  const { data, error } = await gereedTabel()
-    .insert({ soort, employee_id: employeeId, project_id: projectId, datum, foto_pad: pad, opmerking } as never)
-    .select(GEREED_COLS).single();
+  // Zonder .select(): wie als kantoor "bekijk als schilder" gebruikt, mag de rij niet altijd teruglezen
+  const id = crypto.randomUUID();
+  const rij = { id, soort, employee_id: employeeId, project_id: projectId, datum, foto_pad: pad, opmerking };
+  let { error } = await gereedTabel().insert(rij as never);
+  if (geenSoortKolom(error) && soort === "dag") {
+    const { soort: _weg, ...oud } = rij; // eslint-disable-line @typescript-eslint/no-unused-vars
+    ({ error } = await gereedTabel().insert(oud as never));
+  } else if (geenSoortKolom(error)) error = { ...error!, message: "Gereed melden kan pas als de database is bijgewerkt. Vraag het kantoor." };
   if (error) { if (pad) await supabase.storage.from(GEREED_BUCKET).remove([pad]); throw error; }
-  return naarGereed(data as unknown as GereedRow);
+  return naarGereed({ ...rij, created_at: new Date().toISOString() });
 }
 
 export async function gereedFotoUrl(pad: string): Promise<string> {
