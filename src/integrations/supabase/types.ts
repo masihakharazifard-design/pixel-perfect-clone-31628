@@ -107,6 +107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          auteur_id: string | null
+          auteur_naam: string
+          created_at: string
+          id: string
+          pagina: string
+          status: string
+          tekst: string
+          updated_at: string
+        }
+        Insert: {
+          auteur_id?: string | null
+          auteur_naam?: string
+          created_at?: string
+          id?: string
+          pagina?: string
+          status?: string
+          tekst: string
+          updated_at?: string
+        }
+        Update: {
+          auteur_id?: string | null
+          auteur_naam?: string
+          created_at?: string
+          id?: string
+          pagina?: string
+          status?: string
+          tekst?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       personal_notes: {
         Row: {
           created_at: string
