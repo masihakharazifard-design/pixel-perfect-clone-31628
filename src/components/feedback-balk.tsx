@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { geefFeedback, loadFeedback, zetFeedbackStatus, type FeedbackItem, type FeedbackStatus } from "@/lib/store";
@@ -13,7 +13,7 @@ const STIJL: Record<FeedbackStatus, string> = {
   opgelost: "bg-[#D9F4E5] text-[#16774A]",
 };
 
-export default function FeedbackBalk({ pagina, kantoor }: { pagina: string; kantoor: boolean }) {
+export default function FeedbackBalk({ pagina, kantoor, extra }: { pagina: string; kantoor: boolean; extra?: ReactNode }) {
   const [tekst, setTekst] = useState("");
   const [bezig, setBezig] = useState(false);
   const [open, setOpen] = useState(false);
@@ -48,6 +48,7 @@ export default function FeedbackBalk({ pagina, kantoor }: { pagina: string; kant
 
   return <div className="flex-shrink-0 border-b border-[rgba(15,23,42,0.06)] bg-white/70">
     <div className="px-3 md:px-5 py-2 flex items-center gap-2">
+      {extra}
       <MessageSquarePlus className="w-4 h-4 text-[#5F6673] shrink-0" aria-hidden="true" />
       <form onSubmit={(e) => { e.preventDefault(); void versturen(); }} className="flex-1 min-w-0 flex items-center gap-2">
         <input value={tekst} onChange={(e) => setTekst(e.target.value)} maxLength={2000}

@@ -6,10 +6,13 @@ import { gereedFotoUrl, loadAll, loadGereed, meldGereed, type GereedMelding } fr
 import { verkleinFoto } from "@/lib/foto";
 import { datumLang } from "@/lib/werkbon";
 import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
-import { laadWeer, weerOp } from "@/components/weer-advies";
+import { regentOp } from "@/components/weer-advies";
+import { DEMO_MODE } from "@/lib/demo-mode";
+import { mailGereedAanProjectleider } from "@/lib/werkbon.functions";
+import { leesWachtrij, verwerkWachtrij, zetInWachtrij, MAX_POGINGEN, type WachtendeMelding } from "@/lib/gereed-wachtrij";
 import UrenView from "@/components/uren-view";
 import FeedbackBalk from "@/components/feedback-balk";
-import { werkbonVoorWerk } from "@/components/werkplan-dialoog";
+import { werkbonVoorWerk } from "@/lib/werkplan-gegevens";
 import { werkplanMetAanpassingen } from "@/components/werkplan-venster";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
@@ -23,7 +26,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const ds = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const plus = (s: string, n: number) => { const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n); return ds(d); };
 const str = (x: unknown) => (x == null ? "" : String(x));
-const BUITEN = /buiten|gevel|kozijn|dakgoot|boeideel|zonwering|screen|markies|rolluik|luifel|terras|knikarm/i;
 
 export default function SchilderApp({ employeeId, onTerug }: { employeeId?: string; onTerug?: () => void }) {
   const { user, signOut } = useAuth();
@@ -42,7 +44,6 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
 
   useEffect(() => {
     let weg = false;
-    void laadWeer();
     (async () => {
       try {
         const d = await loadAll<Rec, Rec, Rec, Record<string, unknown>>();
@@ -89,6 +90,22 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     return [...m.entries()].filter(([d, l]) => d >= vandaag || l.some((a) => !gereed.some((g) => g.projectId === a.projectId && g.datum === d)));
   }, [planning, gereed, van, tot, vandaag]);
 
+  // Regen op de plaats van het werk (per ingeplande dag)
+  const [nat, setNat] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let weg = false;
+    (async () => {
+      const s = new Set<string>();
+      for (const [d, l] of dagen) for (const a of l) {
+        const p = werken.get(a.projectId!);
+        const plaats = p ? (str(p.plaatsObject) || str(p.plaats)).trim() : "";
+        if (plaats && d >= vandaag && (await regentOp(plaats, d))) s.add(`${a.projectId}|${d}`);
+      }
+      if (!weg) setNat(s);
+    })();
+    return () => { weg = true; };
+  }, [dagen, werken, vandaag]);
+
   const [melden, setMelden] = useState<{ regel: Regel; foto: Blob; voorbeeld: string } | null>(null);
   const [opmerking, setOpmerking] = useState("");
   const [bezig, setBezig] = useState(false);
@@ -102,16 +119,47 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     setMelden({ regel: kiesVoor, foto: klein, voorbeeld: URL.createObjectURL(klein) });
     if (fotoInput.current) fotoInput.current.value = "";
   };
+  // Gereed gemeld: de projectleider krijgt een e-mail (lukt dat niet, dan blijft de melding gewoon staan)
+  const meldEnMail = async (employeeId: string, projectId: string, datum: string, foto: Blob, opm: string) => {
+    const g = await meldGereed(employeeId, projectId, datum, foto, opm);
+    setGereed((cur) => [g, ...cur.filter((x) => !(x.projectId === g.projectId && x.datum === g.datum))]);
+    if (!DEMO_MODE) void mailGereedAanProjectleider({ data: { gereedId: g.id } }).catch(() => { /* mail is een extraatje */ });
+    return g;
+  };
+
+  // Wachtrij: meldingen die door slecht bereik niet verstuurd konden worden, later automatisch opnieuw
+  const [wachtend, setWachtend] = useState<WachtendeMelding[]>(() => leesWachtrij());
+  const verwerk = useCallback(async () => {
+    if (!leesWachtrij().length || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+    const { over } = await verwerkWachtrij((m, foto) => meldEnMail(m.employeeId, m.projectId, m.datum, foto, m.opmerking));
+    setWachtend(over);
+  }, []);
+  useEffect(() => {
+    void verwerk();
+    const opnieuw = () => void verwerk();
+    window.addEventListener("online", opnieuw);
+    const t = setInterval(opnieuw, 60000);
+    return () => { window.removeEventListener("online", opnieuw); clearInterval(t); };
+  }, [verwerk]);
+
   const bevestig = async () => {
     if (!melden || !mij) return;
     setBezig(true);
+    const { regel, foto, voorbeeld } = melden;
     try {
-      const g = await meldGereed(mij.id, melden.regel.projectId!, melden.regel.date, melden.foto, opmerking.trim());
-      setGereed((cur) => [g, ...cur.filter((x) => !(x.projectId === g.projectId && x.datum === g.datum))]);
-      URL.revokeObjectURL(melden.voorbeeld);
+      await meldEnMail(mij.id, regel.projectId!, regel.date, foto, opmerking.trim());
+      URL.revokeObjectURL(voorbeeld);
       setMelden(null);
-    } catch (e) {
-      toast.error(`Gereed melden lukte niet: ${e instanceof Error ? e.message : String(e)}`);
+    } catch {
+      // Geen bereik of een storing: foto bewaren en later automatisch versturen
+      try {
+        await zetInWachtrij({ employeeId: mij.id, projectId: regel.projectId!, datum: regel.date, opmerking: opmerking.trim(), foto });
+        setWachtend(leesWachtrij());
+        URL.revokeObjectURL(voorbeeld);
+        setMelden(null);
+      } catch (e2) {
+        toast.error(e2 instanceof Error ? e2.message : String(e2));
+      }
     } finally { setBezig(false); }
   };
   const toonFoto = async (g: GereedMelding) => {
@@ -168,7 +216,8 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
             const p = werken.get(a.projectId!);
             const adres = adresVan(p);
             const g = gereed.find((x) => x.projectId === a.projectId && x.datum === datum);
-            const regen = p && BUITEN.test(`${str(p.projectnaam)} ${str(p.opmerkingen)}`) && weerOp(datum) === "regen";
+            const w = !g && wachtend.find((x) => x.projectId === a.projectId && x.datum === datum);
+            const regen = nat.has(`${a.projectId}|${datum}`);
             return <article key={a.id} className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] p-4 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-base font-semibold text-[#23272F]">{werkLabel(a.projectId) || "Werk"}</h3>
@@ -181,7 +230,12 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
               </dl>
               {p && str(p.opmerkingen) && <p className="text-sm text-[#23272F] whitespace-pre-wrap bg-[#F4F6F9] rounded-[10px] px-3 py-2">{str(p.opmerkingen)}</p>}
               {regen && <p className="text-sm text-[#7A4A00] bg-[#FEF3DC] rounded-[10px] px-3 py-2 flex items-center gap-1.5"><CloudRain className="w-4 h-4" aria-hidden="true" />Let op: het regent deze dag.</p>}
-              {g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
+              {w ? <div className={`w-full text-sm rounded-[10px] px-3 py-2.5 ${w.pogingen >= MAX_POGINGEN ? "text-[#A42A1E] bg-[#FCE1DC]" : "text-[#7A4A00] bg-[#FEF3DC]"}`}>
+                  {w.pogingen >= MAX_POGINGEN
+                    ? <>Gereedmelding kon niet worden verstuurd ({w.laatsteFout || "onbekende fout"}). <button onClick={() => kiesFoto(a)} className="font-semibold underline">Opnieuw melden</button></>
+                    : <>Foto bewaard op je telefoon. De gereedmelding wordt automatisch verstuurd zodra er weer verbinding is.</>}
+                </div>
+                : g ? <button onClick={() => void toonFoto(g)} className="w-full flex items-center gap-2 text-sm text-[#16774A] bg-[#D9F4E5] rounded-[10px] px-3 py-2.5 text-left">
                   <CheckCircle2 className="w-5 h-5 shrink-0" />Gereed gemeld om {new Date(g.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} · foto bekijken
                 </button>
                 : datum <= vandaag && <button onClick={() => kiesFoto(a)} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#E0402F] hover:bg-[#C73526] rounded-[10px] px-3 py-3">

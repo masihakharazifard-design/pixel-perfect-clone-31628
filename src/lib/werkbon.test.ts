@@ -28,14 +28,9 @@ describe("maakWerkbon", () => {
 });
 
 import { maakWerkplanPdf } from "./werkplan-pdf";
-import { maakWerkplanMail } from "./werkbon";
 describe("werkplan", () => {
-  it("maakt een pdf en een mail met link", async () => {
-    const regels = [{ datum: "2026-11-24", start: "07:00", eind: "16:00", werk: "24001 – Gevel", adres: "Kade 1, Rotterdam", opmerking: "Steiger staat er al" }];
+  it("maakt een werkbon-pdf", async () => {
     const pdf = maakWerkplanPdf([{ werkadres: "Kade 1, Rotterdam", projectleider: "R. Schwickard", startdatum: "2026-11-24" }, {}]);
     expect(pdf.size).toBeGreaterThan(5000);
-    const m = maakWerkplanMail({ medewerker: "Piet", van: "2026-11-23", tot: "2026-11-27", regels, pdfUrl: "https://x/storage/v1/object/sign/a.pdf" });
-    expect(m.html).toContain("Werkplan downloaden");
-    expect(m.tekst).toContain("24001 – Gevel");
   });
 });

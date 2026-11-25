@@ -1,36 +1,74 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Cloud, CloudDrizzle, CloudLightning, CloudRain, CloudSnow, CloudSun, Loader2, MapPin, Sun, Wind } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Cloud, CloudDrizzle, CloudLightning, CloudRain, CloudSnow, CloudSun, Loader2, MapPin, Sun } from "lucide-react";
 
-// Weer en planningsadvies: 7-daagse verwachting van Open-Meteo (gratis, zonder account of sleutel)
-// met per dag een advies, plus waarschuwingen voor buitenwerk dat op een natte of stormachtige dag staat.
+// Weer via Open-Meteo (gratis, zonder account). Elke plaats in Nederland is te kiezen; voor een werk
+// wordt het weer van de plaats van het werkadres gebruikt. Regen = kans ≥ 60% of ≥ 2 mm.
 
-export interface WeerPlanItem {
-  datum: string; // JJJJ-MM-DD
-  werk: string; // weergavenaam
-  buiten: boolean; // buitenwerk (gevel, kozijn, zonwering…)
+export interface Plaats { naam: string; provincie: string; lat: number; lon: number }
+export interface WeerDag { datum: string; code: number; tmin: number; tmax: number; regenMm: number; regenKans: number; regen: boolean }
+
+const PLAATS_KEY = "maasmond-weer-plaats";
+const CACHE_KEY = "maasmond-weer-v2";
+const DAGEN = 14;
+
+/** Plaatsen in Nederland zoeken (voor de keuzelijst). */
+export async function zoekPlaatsen(q: string): Promise<Plaats[]> {
+  const s = q.trim();
+  if (s.length < 2) return [];
+  const r = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(s)}&count=8&language=nl&countryCode=NL`)).json();
+  return ((r?.results || []) as { name: string; admin1?: string; latitude: number; longitude: number }[])
+    .map((x) => ({ naam: x.name, provincie: x.admin1 || "", lat: x.latitude, lon: x.longitude }));
 }
 
-interface Dag {
-  datum: string;
-  code: number;
-  tmin: number;
-  tmax: number;
-  regenMm: number;
-  regenKans: number;
-  windstoten: number;
+// Cache per plaats (1 uur), zowel in het geheugen als in de sessie
+const geheugen = new Map<string, { tijd: number; plaats: Plaats; dagen: WeerDag[] }>();
+const sleutel = (p: string) => p.trim().toLowerCase();
+function uitSessie(): Record<string, { tijd: number; plaats: Plaats; dagen: WeerDag[] }> {
+  try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}"); } catch { return {}; }
+}
+const bezig = new Map<string, Promise<{ plaats: Plaats; dagen: WeerDag[] } | null>>();
+
+/** Weersverwachting (14 dagen) voor een plaatsnaam in Nederland; null als de plaats niet bestaat. */
+export function weerVoor(plaatsnaam: string): Promise<{ plaats: Plaats; dagen: WeerDag[] } | null> {
+  const k = sleutel(plaatsnaam);
+  if (!k) return Promise.resolve(null);
+  const vers = (c?: { tijd: number }) => !!c && Date.now() - c.tijd < 60 * 60 * 1000;
+  const g = geheugen.get(k);
+  if (vers(g)) return Promise.resolve(g!);
+  const s = uitSessie()[k];
+  if (vers(s)) { geheugen.set(k, s); return Promise.resolve(s); }
+  if (bezig.has(k)) return bezig.get(k)!;
+  const p = (async () => {
+    try {
+      // "Zwolle (Gelderland)": provincie gebruiken om de juiste plaats te kiezen
+      const m = plaatsnaam.match(/^(.*?)\s*\((.+)\)\s*$/);
+      const opties = await zoekPlaatsen(m ? m[1] : plaatsnaam);
+      const plaats = (m && opties.find((o) => o.provincie.toLowerCase() === m[2].trim().toLowerCase())) || opties[0];
+      if (!plaats) return null;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${plaats.lat}&longitude=${plaats.lon}`
+        + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max"
+        + `&timezone=Europe%2FAmsterdam&forecast_days=${DAGEN}`;
+      const d = (await (await fetch(url)).json())?.daily;
+      if (!d?.time) return null;
+      const dagen: WeerDag[] = d.time.map((t: string, i: number) => {
+        const regenMm = Math.round((d.precipitation_sum[i] ?? 0) * 10) / 10, regenKans = d.precipitation_probability_max[i] ?? 0;
+        return { datum: t, code: d.weather_code[i] ?? 0, tmin: Math.round(d.temperature_2m_min[i] ?? 0), tmax: Math.round(d.temperature_2m_max[i] ?? 0), regenMm, regenKans, regen: regenKans >= 60 || regenMm >= 2 };
+      });
+      const item = { tijd: Date.now(), plaats, dagen };
+      geheugen.set(k, item);
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...uitSessie(), [k]: item })); } catch { /* vol */ }
+      return item;
+    } catch { return null; } finally { bezig.delete(k); }
+  })();
+  bezig.set(k, p);
+  return p;
 }
 
-export type Soort = "regen" | "wind" | "goed";
-export const ADVIES: Record<Soort, { kort: string; lang: string; kleur: string; bg: string }> = {
-  regen: { kort: "Regen", lang: "Plan binnenschilderwerk en stoffering; geen buitenschilderwerk.", kleur: "#1E3A7B", bg: "#DCE6FA" },
-  wind: { kort: "Harde wind", lang: "Geen zonwering buiten monteren en geen ladderwerk buiten.", kleur: "#8A5300", bg: "#FDEBC8" },
-  goed: { kort: "Droog", lang: "Geen regen: geschikt voor buitenschilderwerk en zonwering.", kleur: "#16774A", bg: "#D9F4E5" },
-};
-
-export function soortVan(d: Dag): Soort {
-  if (d.regenKans >= 60 || d.regenMm >= 2) return "regen";
-  if (d.windstoten >= 50) return "wind";
-  return "goed";
+/** Regent het op die dag in die plaats? null = onbekend (plaats niet gevonden of buiten de verwachting). */
+export async function regentOp(plaatsnaam: string, datum: string): Promise<boolean | null> {
+  const w = await weerVoor(plaatsnaam);
+  const d = w?.dagen.find((x) => x.datum === datum);
+  return d ? d.regen : null;
 }
 
 function Icoon({ code, className }: { code: number; className?: string }) {
@@ -38,138 +76,62 @@ function Icoon({ code, className }: { code: number; className?: string }) {
   return <I className={className} aria-hidden="true" />;
 }
 
-const PLAATS_KEY = "maasmond-weer-plaats";
-const CACHE_KEY = "maasmond-weer-cache";
-
-// Laatst opgehaalde verwachting, voor waarschuwingen tijdens het inplannen (buiten het Dashboard)
-let laatsteWeer: Map<string, Soort> | null = null;
-function onthoud(dagen: Dag[]) {
-  laatsteWeer = new Map(dagen.map((d) => [d.datum, soortVan(d)]));
-}
-/** Weersoort op een datum (alleen de komende 7 dagen bekend), of null. */
-export function weerOp(datum: string): Soort | null {
-  return laatsteWeer?.get(datum) ?? null;
-}
-/** Alle bekende dagen (komende 7) met hun weersoort, op datum gesorteerd. */
-export function weerDagen(): [string, Soort][] {
-  return laatsteWeer ? [...laatsteWeer.entries()].sort((a, b) => a[0].localeCompare(b[0])) : [];
-}
-/** Verwachting op de achtergrond ophalen (voor de waarschuwingen bij het inplannen). */
-export async function laadWeer(): Promise<void> {
-  let plaats = "Rotterdam";
-  try { plaats = localStorage.getItem(PLAATS_KEY) || plaats; } catch { /* standaard */ }
-  try { await haalWeer(plaats); } catch { /* geen weer: dan ook geen waarschuwing */ }
-}
-
-async function haalWeer(plaats: string): Promise<{ naam: string; dagen: Dag[] }> {
-  try {
-    const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
-    if (c && c.plaats === plaats && Date.now() - c.tijd < 60 * 60 * 1000) { onthoud(c.data.dagen); return c.data; }
-  } catch { /* geen cache */ }
-  const geo = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(plaats)}&count=1&language=nl&countryCode=NL`)).json();
-  const loc = geo?.results?.[0];
-  if (!loc) throw new Error(`Plaats "${plaats}" niet gevonden`);
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}`
-    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max"
-    + "&timezone=Europe%2FAmsterdam&forecast_days=7";
-  const w = await (await fetch(url)).json();
-  const d = w?.daily;
-  if (!d?.time) throw new Error("Geen weersverwachting ontvangen");
-  const dagen: Dag[] = d.time.map((t: string, i: number) => ({
-    datum: t,
-    code: d.weather_code[i] ?? 0,
-    tmin: Math.round(d.temperature_2m_min[i] ?? 0),
-    tmax: Math.round(d.temperature_2m_max[i] ?? 0),
-    regenMm: Math.round((d.precipitation_sum[i] ?? 0) * 10) / 10,
-    regenKans: d.precipitation_probability_max[i] ?? 0,
-    windstoten: Math.round(d.wind_gusts_10m_max[i] ?? 0),
-  }));
-  const data = { naam: loc.name as string, dagen };
-  onthoud(dagen);
-  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ plaats, tijd: Date.now(), data })); } catch { /* vol */ }
-  return data;
-}
-
-export function WeerAdvies({ planning }: { planning: WeerPlanItem[] }) {
-  const [plaats, setPlaats] = useState(() => {
-    try { return localStorage.getItem(PLAATS_KEY) || "Rotterdam"; } catch { return "Rotterdam"; }
-  });
-  const [invoer, setInvoer] = useState(plaats);
-  const [weer, setWeer] = useState<{ naam: string; dagen: Dag[] } | null>(null);
-  const [fout, setFout] = useState("");
-  const [laden, setLaden] = useState(true);
-
-  useEffect(() => {
-    let weg = false;
-    setLaden(true);
-    setFout("");
-    haalWeer(plaats)
-      .then((w) => { if (!weg) setWeer(w); })
-      .catch((e) => { if (!weg) setFout(e instanceof Error ? e.message : "Weer kon niet worden geladen"); })
-      .finally(() => { if (!weg) setLaden(false); });
-    return () => { weg = true; };
-  }, [plaats]);
-
-  const zetPlaats = () => {
-    const p = invoer.trim();
-    if (!p || p === plaats) return;
-    try { localStorage.setItem(PLAATS_KEY, p); } catch { /* geen opslag */ }
-    setPlaats(p);
+/** Plaats kiezen uit heel Nederland (zoeken terwijl je typt). */
+export function PlaatsKiezer({ waarde, onKies }: { waarde: string; onKies: (p: string) => void }) {
+  const [tekst, setTekst] = useState(waarde);
+  const [opties, setOpties] = useState<Plaats[]>([]);
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => setTekst(waarde), [waarde]);
+  const typ = (v: string) => {
+    setTekst(v); setOpen(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void zoekPlaatsen(v).then(setOpties).catch(() => setOpties([])); }, 250);
   };
-
-  // Buitenwerk dat op een natte of stormachtige dag staat
-  const waarschuwingen = useMemo(() => {
-    if (!weer) return [];
-    const perDag = new Map(weer.dagen.map((d) => [d.datum, soortVan(d)]));
-    const gezien = new Set<string>();
-    return planning
-      .filter((p) => p.buiten && perDag.has(p.datum) && perDag.get(p.datum) !== "goed")
-      .filter((p) => { const k = p.datum + p.werk; if (gezien.has(k)) return false; gezien.add(k); return true; })
-      .map((p) => ({ ...p, soort: perDag.get(p.datum) as Soort }))
-      .sort((a, b) => a.datum.localeCompare(b.datum));
-  }, [weer, planning]);
-
-  const dagNaam = (ds: string) => new Date(ds + "T12:00").toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
-
-  return <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden">
-    <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(15,23,42,0.06)] flex items-center justify-between gap-3 flex-wrap">
-      <h3 className="text-base leading-[22px] font-semibold text-[#23272F]">Weer en planningsadvies</h3>
-      <form onSubmit={(e) => { e.preventDefault(); zetPlaats(); }} className="flex items-center gap-1.5">
-        <MapPin className="w-3.5 h-3.5 text-[#5F6673]" aria-hidden="true" />
-        <input value={invoer} onChange={(e) => setInvoer(e.target.value)} onBlur={zetPlaats} aria-label="Plaats voor het weer"
-          className="w-32 px-2 py-1 text-xs border border-[rgba(15,23,42,0.15)] rounded-[10px] text-[#23272F] outline-none focus:border-[#1E3A7B]" />
-      </form>
+  const kies = (p: Plaats) => { const t = p.provincie ? `${p.naam} (${p.provincie})` : p.naam; setTekst(t); setOpen(false); onKies(t); };
+  return <div className="relative">
+    <div className="flex items-center gap-1.5">
+      <MapPin className="w-3.5 h-3.5 text-[#5F6673]" aria-hidden="true" />
+      <input value={tekst} onChange={(e) => typ(e.target.value)} onFocus={() => tekst.length >= 2 && setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        aria-label="Plaats voor het weer" placeholder="Zoek een plaats"
+        className="w-40 px-2 py-1 text-xs border border-[rgba(15,23,42,0.15)] rounded-[10px] text-[#23272F] outline-none focus:border-[#1E3A7B]" />
     </div>
-    {laden && <div className="px-5 py-8 flex items-center gap-2 text-sm text-[#5F6673]"><Loader2 className="w-4 h-4 animate-spin" />Weersverwachting laden…</div>}
-    {!laden && fout && <p className="px-5 py-6 text-sm text-[#A42A1E]">{fout}</p>}
-    {!laden && weer && <div className="p-4 md:p-5 space-y-4">
-      <div className="grid grid-cols-7 gap-1.5">
-        {weer.dagen.map((d) => {
-          const s = soortVan(d), a = ADVIES[s];
-          return <div key={d.datum} className="rounded-[12px] px-1 py-2 text-center" style={{ backgroundColor: a.bg }} title={`${dagNaam(d.datum)}: ${a.kort} – ${a.lang}`}>
-            <p className="text-[11px] font-semibold text-[#23272F]">{new Date(d.datum + "T12:00").toLocaleDateString("nl-NL", { weekday: "short" })}</p>
-            <Icoon code={d.code} className="w-5 h-5 mx-auto my-1 text-[#23272F]" />
-            <p className="text-[11px] tabular-nums text-[#23272F]">{d.tmax}°/{d.tmin}°</p>
-            <p className="text-[10px] tabular-nums text-[#5F6673]">{d.regenKans}% · {d.regenMm} mm</p>
-            {d.windstoten >= 50 && <p className="text-[10px] text-[#8A5300] flex items-center justify-center gap-0.5"><Wind className="w-3 h-3" aria-hidden="true" />{d.windstoten}</p>}
-            <p className="text-[10px] font-semibold mt-0.5" style={{ color: a.kleur }}>{a.kort}</p>
-          </div>;
-        })}
-      </div>
-      <div className="space-y-1.5">
-        <p className="text-sm font-semibold text-[#23272F]">Planningssuggesties</p>
-        {weer.dagen.filter((d) => soortVan(d) !== "goed").length === 0
-          ? <p className="text-sm text-[#5F6673]">De hele week droog: goed weer voor buitenwerk.</p>
-          : weer.dagen.filter((d) => soortVan(d) !== "goed").map((d) => {
-            const a = ADVIES[soortVan(d)];
-            return <p key={d.datum} className="text-sm text-[#23272F]"><span className="font-semibold" style={{ color: a.kleur }}>{dagNaam(d.datum)} – {a.kort}:</span> {a.lang}</p>;
-          })}
-      </div>
-      {waarschuwingen.length > 0 && <div className="rounded-[12px] border border-[#F6DCA5] bg-[#FEF3DC] p-3 space-y-1">
-        <p className="text-sm font-semibold text-[#7A4A00] flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Buitenwerk op een slechte dag ({waarschuwingen.length})</p>
-        {waarschuwingen.slice(0, 8).map((w) => <p key={w.datum + w.werk} className="text-xs text-[#7A4A00]">{dagNaam(w.datum)} ({ADVIES[w.soort].kort.toLowerCase()}): <b>{w.werk}</b> — overweeg binnenwerk die dag.</p>)}
-      </div>}
-      <p className="text-[11px] text-[#9AA1AD]">Weer voor {weer.naam} · bron: Open-Meteo</p>
+    {open && opties.length > 0 && <div className="absolute right-0 z-20 mt-1 w-56 bg-white border border-[rgba(15,23,42,0.1)] rounded-[10px] shadow-lg overflow-hidden">
+      {opties.map((p) => <button key={`${p.naam}-${p.lat}`} onMouseDown={(e) => e.preventDefault()} onClick={() => kies(p)}
+        className="w-full text-left px-3 py-1.5 text-sm hover:bg-[#F4F6F9]"><span className="text-[#23272F]">{p.naam}</span>{p.provincie && <span className="text-xs text-[#5F6673]"> · {p.provincie}</span>}</button>)}
     </div>}
+  </div>;
+}
+
+/** Weerstrook: 7 dagen voor een plaats, met regen of droog. */
+export function WeerStrook({ plaats, dagen = 7 }: { plaats: string; dagen?: number }) {
+  const [w, setW] = useState<{ plaats: Plaats; dagen: WeerDag[] } | null | undefined>(undefined);
+  useEffect(() => { let weg = false; setW(undefined); void weerVoor(plaats).then((x) => { if (!weg) setW(x); }); return () => { weg = true; }; }, [plaats]);
+  if (w === undefined) return <p className="py-4 flex items-center gap-2 text-sm text-[#5F6673]"><Loader2 className="w-4 h-4 animate-spin" />Weersverwachting laden…</p>;
+  if (!w) return <p className="py-2 text-sm text-[#5F6673]">Geen weer gevonden voor "{plaats}".</p>;
+  return <div className="space-y-1.5">
+    <div className="grid grid-cols-7 gap-1.5">
+      {w.dagen.slice(0, dagen).map((d) => <div key={d.datum} className={`rounded-[12px] px-1 py-2 text-center ${d.regen ? "bg-[#DCE6FA]" : "bg-[#D9F4E5]"}`}>
+        <p className="text-[11px] font-semibold text-[#23272F]">{new Date(d.datum + "T12:00").toLocaleDateString("nl-NL", { weekday: "short" })}</p>
+        <Icoon code={d.code} className="w-5 h-5 mx-auto my-1 text-[#23272F]" />
+        <p className="text-[11px] tabular-nums text-[#23272F]">{d.tmax}°/{d.tmin}°</p>
+        <p className="text-[10px] tabular-nums text-[#5F6673]">{d.regenKans}% · {d.regenMm} mm</p>
+        <p className={`text-[10px] font-semibold mt-0.5 ${d.regen ? "text-[#1E3A7B]" : "text-[#16774A]"}`}>{d.regen ? "Regen" : "Droog"}</p>
+      </div>)}
+    </div>
+    <p className="text-[11px] text-[#9AA1AD]">Weer voor {w.plaats.naam}{w.plaats.provincie ? ` (${w.plaats.provincie})` : ""} · bron: Open-Meteo</p>
+  </div>;
+}
+
+/** Dashboard: weer voor een zelf gekozen plaats in Nederland. */
+export function WeerAdvies() {
+  const [plaats, setPlaats] = useState(() => { try { return localStorage.getItem(PLAATS_KEY) || "Rotterdam"; } catch { return "Rotterdam"; } });
+  const kies = (p: string) => { try { localStorage.setItem(PLAATS_KEY, p); } catch { /* geen opslag */ } setPlaats(p); };
+  return <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)]">
+    <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(15,23,42,0.06)] flex items-center justify-between gap-3 flex-wrap">
+      <h3 className="text-base leading-[22px] font-semibold text-[#23272F]">Weer</h3>
+      <PlaatsKiezer waarde={plaats} onKies={kies} />
+    </div>
+    <div className="p-4 md:p-5"><WeerStrook plaats={plaats} /></div>
   </div>;
 }
