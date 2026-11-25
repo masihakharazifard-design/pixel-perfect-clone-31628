@@ -14,6 +14,14 @@ export interface WerkbonVerzoek {
   dagen: WerkbonDag[];
   /** Weergavenaam projectleider zoals de app hem toont (afkorting al omgezet) */
   projectleider?: string;
+  /** Downloadlink naar de werkbon-pdf uit onze eigen opslag */
+  pdfUrl?: string;
+}
+
+/** Alleen een (getekende) downloadlink uit de eigen Supabase-opslag accepteren. */
+function eigenOpslagLink(u: unknown): string | undefined {
+  const basis = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  return typeof u === "string" && basis && u.startsWith(basis + "/storage/v1/object/sign/") ? u : undefined;
 }
 
 function controleer(d: unknown): WerkbonVerzoek {
@@ -32,6 +40,7 @@ function controleer(d: unknown): WerkbonVerzoek {
     projectId: v.projectId.slice(0, 200),
     dagen,
     projectleider: typeof v.projectleider === "string" ? v.projectleider.slice(0, 120) : undefined,
+    pdfUrl: eigenOpslagLink(v.pdfUrl),
   };
 }
 
@@ -74,6 +83,7 @@ export const stuurWerkbon = createServerFn({ method: "POST" })
         afdeling: afdelingen,
       },
       dagen: data.dagen,
+      pdfUrl: data.pdfUrl,
       bedrijf: { naam: str(s.bedrijfsnaam) || "Maasmond", telefoon: str(s.telefoon), email: str(s.email) },
     });
 

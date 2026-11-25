@@ -14,7 +14,7 @@ import UrenView from "@/components/uren-view";
 import SchilderApp from "@/components/schilder-app";
 import GereedOverzicht from "@/components/gereed-overzicht";
 import { werkbonVoorWerk } from "@/components/werkplan-dialoog";
-import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
+import WerkplanVenster, { type WerkplanAanpassingen } from "@/components/werkplan-venster";
 import FeedbackBalk from "@/components/feedback-balk";
 import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
 import { stuurWerkbon } from "@/lib/werkbon.functions";
@@ -58,6 +58,8 @@ interface Project {
   calculatiecode?:string; vestiging?:string; straatObject?:string; plaatsObject?:string; opmerkingen?:string; ar?:string; statusExcel?:string;
   medewerkers:string[]; status:ProjectStatus; notities:string;
   uurprijs:number; uren:number; region?:string; benodigdeMedewerkers?:number; teamKleur?:string;
+  /** Eigen aanpassingen aan het werkplan (werkbon schilder), bovenop wat de app zelf invult */
+  werkplan?:Record<string,unknown>;
   /** Alleen voor agendablokken: dit project staat die dag als eerste uit te voeren. */
   eersteVanDag?:boolean;
 }
@@ -1456,9 +1458,10 @@ async function printKlantPlanning(project:Project,allProjects:Project[],employee
 }
 
 type ProjTab="overzicht"|"opmerkingen"|"taken"|"planning"|"medewerkers"|"documenten"|"facturatie"|"notities"|"geschiedenis";
-function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose,onAddEmployees}:{
+function ProjectDetail({project,employees,allProjects=[],availability=[],teamColors={},badgeColors={},projectColors={},onEdit,onDelete,onClose,onAddEmployees,onSaveWerkplan}:{
   project:Project;employees:Employee[];allProjects?:Project[];availability?:AvailEntry[];teamColors?:Record<string,string>;badgeColors?:Record<string,string>;projectColors?:Record<string,string>;
   onEdit:()=>void;onDelete:(id:string)=>void;onClose:()=>void;onAddEmployees?:(rows:AvailEntry[])=>Promise<boolean>;
+  onSaveWerkplan?:(aanp:WerkplanAanpassingen)=>Promise<void>;
 }){
   const dc=useDC();
   const [addOpen,setAddOpen]=useState(false);
@@ -1513,11 +1516,23 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   const [pdfBezig,setPdfBezig]=useState(false);
   // Dag-voor-dag agenda van dit ene werk als echte PDF (download, geen printvenster).
   // Werkplan (werkbon schilder) van dit werk als pdf
-  const downloadWerkplan=async()=>{
-    const logo=await logoDataUrl(maasmondLogo);
-            const info=()=>({werk:project.projectnaam,werknummer:project.werknummer,opdrachtgever:project.opdrachtgever,adres:[project.straatObject||project.adres,project.plaatsObject||project.plaats].filter(Boolean).join(", "),projectleider:plName(project,employees),opmerking:project.opmerkingen||"",startdatum:validDate(project.startdatum)?datePart(project.startdatum):"",opleverdatum:validDate(project.afloopdatum)?datePart(project.afloopdatum):"",omschrijving:[project.projectnaam,getAllAfds(project).join(", ")].filter(Boolean).join(" – ")});
-            downloadBlob(maakWerkplanPdf([werkbonVoorWerk(project.id,availability,id=>employees.find(e=>e.id===id)?.naam||"",info,String(user?.user_metadata?.full_name||user?.email?.split("@")[0]||""))],logo),werkplanBestandsnaam(project.werknummer||project.projectnaam||"werk"));
-  };
+  // Werkplan (werkbon schilder): automatisch ingevuld, te bewerken, te downloaden en te mailen
+  const [werkplanOpen,setWerkplanOpen]=useState(false);
+  const {user:wpGebruiker}=useAuth();
+  const werkplanBasis=useMemo(()=>{
+    const info=()=>({werk:project.projectnaam,werknummer:project.werknummer,opdrachtgever:project.opdrachtgever,adres:[project.straatObject||project.adres,project.plaatsObject||project.plaats].filter(Boolean).join(", "),projectleider:plName(project,employees),opmerking:project.opmerkingen||"",startdatum:validDate(project.startdatum)?datePart(project.startdatum):"",opleverdatum:validDate(project.afloopdatum)?datePart(project.afloopdatum):"",omschrijving:[project.projectnaam,getAllAfds(project).join(", ")].filter(Boolean).join(" – ")});
+    return werkbonVoorWerk(project.id,availability,id=>employees.find(e=>e.id===id)?.naam||"",info,String(wpGebruiker?.user_metadata?.full_name||wpGebruiker?.email?.split("@")[0]||""));
+  },[project,availability,employees,wpGebruiker]);
+  const werkplanIngepland=useMemo(()=>{
+    const per=new Map<string,AvailEntry[]>();
+    availability.filter(a=>a.projectId===project.id&&a.status==="Ingepland").forEach(a=>per.set(a.employeeId,[...(per.get(a.employeeId)||[]),a]));
+    return [...per.entries()].map(([id,rows])=>{
+      const e=employees.find(x=>x.id===id);
+      const komend=rows.filter(a=>a.date>=TODAY_STR);
+      const dagen=(komend.length?komend:rows).sort((a,b)=>a.date.localeCompare(b.date)).map(a=>({datum:a.date,start:a.startTime,eind:a.endTime}));
+      return {id,naam:e?.naam||"Medewerker",email:e?.email||"",afdeling:e?.afdeling,dagen};
+    }).sort((a,b)=>a.naam.localeCompare(b.naam,"nl"));
+  },[availability,project.id,employees]);
   const exportPlanningPdf=async()=>{
     if(pdfBezig)return;
     setPdfBezig(true);
@@ -1548,7 +1563,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   const assigned=getProjectAssignedEmployees(werkIdsVan(project),availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const {roles,user}=useAuth();
+  const {roles}=useAuth();
   const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities",...(magGeschiedenis(roles)?["geschiedenis" as ProjTab]:[])];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities",geschiedenis:"Geschiedenis"};
   const afds=getAllAfds(project);
@@ -1568,8 +1583,11 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
             <p className="text-[#5F6673] text-sm">{project.werknummer}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {werkplanOpen&&<WerkplanVenster projectId={project.id} titel={[project.werknummer,project.projectnaam].filter(Boolean).join(" – ")} basis={werkplanBasis} opgeslagen={project.werkplan as WerkplanAanpassingen|undefined}
+              ingepland={werkplanIngepland} projectleider={plName(project,employees)} onSluit={()=>setWerkplanOpen(false)}
+              onOpslaan={async a=>{if(!onSaveWerkplan)throw new Error("Opslaan is hier niet mogelijk.");await onSaveWerkplan(a);}}/>}
             {onAddEmployees&&<Btn size="sm" onClick={()=>{setAddKey(k=>k+1);setAddOpen(true);}}><Plus className="w-3.5 h-3.5"/><span className="hidden sm:inline">Medewerker toevoegen</span></Btn>}
-            <Btn size="sm" variant="secondary" onClick={()=>void downloadWerkplan()}><FileDown className="w-3.5 h-3.5"/>Werkplan<span className="hidden sm:inline">&nbsp;downloaden</span></Btn>
+            <Btn size="sm" variant="secondary" onClick={()=>setWerkplanOpen(true)}><FileDown className="w-3.5 h-3.5"/>Werkplan</Btn>
             <Btn size="sm" variant="secondary" onClick={onEdit}><Pencil className="w-3.5 h-3.5"/><span className="hidden sm:inline">Bewerken</span></Btn>
             <Btn size="sm" variant="secondary" onClick={()=>void printKlantPlanning(project,allProjects,employees)}><FileDown className="w-3.5 h-3.5"/><span className="hidden sm:inline">Planning opdrachtgever</span></Btn>
             <Btn size="sm" variant="danger" onClick={()=>setConfirmDel(true)}><Trash2 className="w-3.5 h-3.5"/><span className="hidden sm:inline">Verwijderen</span></Btn>
@@ -5404,7 +5422,7 @@ function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void})
           <ProjectForm initial={editProject} employees={employees} projects={projects} availability={avail} onSave={saveProject} onCancel={()=>{setEditProject(null);setIsNewProject(false);}}/>
         </Modal>
       )}
-      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(viewProjects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)} onAddEmployees={savePlanningMany}/>}
+      {detailProject&&<ProjectDetail project={viewProjects.find(p=>p.id===detailProject.id)||detailProject} employees={employees} allProjects={projects} availability={avail} teamColors={settings.teamColors||{}} badgeColors={settings.badgeColors||{}} projectColors={settings.projectColors||{}} onEdit={()=>openEditProject(viewProjects.find(p=>p.id===detailProject.id)||detailProject)} onDelete={deleteProject} onClose={()=>setDetailProject(null)} onAddEmployees={savePlanningMany} onSaveWerkplan={a=>updateProject(detailProject.id,{werkplan:a as Record<string,unknown>})}/>}
       {(isNewEmployee||editEmployee)&&editEmployee!==null&&(
         <Modal title={isNewEmployee?"Nieuwe medewerker":"Medewerker bewerken"} onClose={()=>{setEditEmployee(null);setIsNewEmployee(false);}}>
           <EmployeeForm initial={editEmployee} onSave={saveEmployee} onCancel={()=>{setEditEmployee(null);setIsNewEmployee(false);}}/>

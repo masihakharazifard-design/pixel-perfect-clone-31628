@@ -17,7 +17,39 @@ export interface WerkplanWerk {
   planning?: string[]; // regels als "di 1 december: Jan, Piet"
   invuldatum?: string; // JJJJ-MM-DD
   behandeldDoor?: string;
+  // Velden die je in het werkplanvenster zelf kunt invullen
+  adresOpdrachtgever?: string;
+  postcodePlaats?: string;
+  contactpersoon?: string;
+  telefoonContact?: string;
+  telefoonProjectleider?: string;
+  uitvoerder?: string;
+  telefoonUitvoerder?: string;
+  voorman?: string;
+  telefoonVoorman?: string;
+  planningPerFase?: string;
+  aantalObjecten?: string;
+  ruimtes?: string;
+  inkoopordernummer?: string;
+  route?: string;
+  afwijkingen?: string;
+  onderaannemers?: { bedrijf?: string; contact?: string; telefoon?: string }[];
 }
+
+/** Alle tekstvelden van het werkplan met hun label (voor het bewerkvenster). */
+export const WERKPLAN_VELDEN: [keyof WerkplanWerk, string, "kort" | "lang" | "datum"][] = [
+  ["werknummer", "Werknummer", "kort"], ["invuldatum", "Invuldatum", "datum"], ["behandeldDoor", "Behandeld door", "kort"],
+  ["opdrachtgever", "Opdrachtgever", "kort"], ["adresOpdrachtgever", "Adres opdrachtgever", "kort"], ["postcodePlaats", "Postcode / Plaats", "kort"],
+  ["contactpersoon", "Contactpersoon op locatie", "kort"], ["telefoonContact", "Telefoon contactpersoon", "kort"],
+  ["projectleider", "Projectleider", "kort"], ["telefoonProjectleider", "Telefoon projectleider", "kort"],
+  ["uitvoerder", "Uitvoerder", "kort"], ["telefoonUitvoerder", "Telefoon uitvoerder", "kort"],
+  ["voorman", "Voorman", "kort"], ["telefoonVoorman", "Telefoon voorman", "kort"],
+  ["uitvoeringDoor", "Uitvoering door", "kort"], ["startdatum", "Startdatum", "datum"], ["opleverdatum", "Geplande opleverdatum", "datum"],
+  ["planningPerFase", "Planning per fase", "kort"], ["aantalObjecten", "Aantal woningen/objecten", "kort"], ["ruimtes", "Ruimte(s)", "kort"],
+  ["werkadres", "Werkadres", "kort"], ["inkoopordernummer", "Inkoopordernummer", "kort"],
+  ["omschrijving", "Omschrijving werkzaamheden", "lang"], ["bijzonderheden", "Bijzonderheden (zoals kleuren)", "lang"],
+  ["route", "Route / Werkvolgorde", "lang"], ["afwijkingen", "Afwijkingen (communiceren met de projectleider)", "lang"],
+];
 
 const W = 210, H = 297, M = 16, ONDER = H - 18;
 const BLAUW: [number, number, number] = [30, 58, 123];
@@ -99,7 +131,7 @@ export function maakWerkplanPdf(werken: WerkplanWerk[], logo?: string): Blob {
     y += h + 6;
   };
   // Tabel met kopregel en lege rijen
-  const tabel = (koppen: string[], breedtes: number[], rijen: number, rijH = 8) => {
+  const tabel = (koppen: string[], breedtes: number[], rijen: number, rijH = 8, inhoud: string[][] = []) => {
     const kopTekst = koppen.map((k, i) => doc.setFontSize(9).splitTextToSize(k, breedtes[i] - 3) as string[]);
     const hKop = Math.max(7.5, ...kopTekst.map((l) => l.length * 4 + 3.5));
     const teken = (yy: number, metKop: boolean) => {
@@ -116,7 +148,12 @@ export function maakWerkplanPdf(werken: WerkplanWerk[], logo?: string): Blob {
     for (let r = 0; r < rijen; r++) {
       if (y + rijH > ONDER) { nieuwePagina(); teken(y, true); y += hKop; }
       let x = M;
-      breedtes.forEach((b) => { doc.rect(x, y, b, rijH); x += b; });
+      breedtes.forEach((b, i) => {
+        doc.rect(x, y, b, rijH);
+        const v = inhoud[r]?.[i];
+        if (v) { doc.setFontSize(9); tekst(doc.splitTextToSize(v, b - 3)[0], x + 1.5, y + rijH / 2 + 1.4, { s: 9 }); }
+        x += b;
+      });
       y += rijH;
     }
     y += 5;
@@ -167,22 +204,22 @@ export function maakWerkplanPdf(werken: WerkplanWerk[], logo?: string): Blob {
     linksRij("Invuldatum", datumNl(werk.invuldatum));
     linksRij("Behandeld door", werk.behandeldDoor || "", 11);
     linksRij("Opdrachtgever", werk.opdrachtgever || "");
-    linksRij("Adres");
-    linksRij("Postcode / Plaats", "", 11);
-    linksRij("Contactpersoon op locatie");
-    linksRij("Telefoon", "", 11);
+    linksRij("Adres", werk.adresOpdrachtgever || "");
+    linksRij("Postcode / Plaats", werk.postcodePlaats || "", 11);
+    linksRij("Contactpersoon op locatie", werk.contactpersoon || "");
+    linksRij("Telefoon", werk.telefoonContact || "", 11);
     y = Math.max(y, 35 + BEDRIJF.length * 3.7 + 4);
 
-    rij([["Projectleider", werk.projectleider || ""], ["Telefoon", ""]]);
-    rij([["Uitvoerder", ""], ["Telefoon", ""]]);
-    rij([["Voorman", ""], ["Telefoon", ""]], 11);
+    rij([["Projectleider", werk.projectleider || ""], ["Telefoon", werk.telefoonProjectleider || ""]]);
+    rij([["Uitvoerder", werk.uitvoerder || ""], ["Telefoon", werk.telefoonUitvoerder || ""]]);
+    rij([["Voorman", werk.voorman || ""], ["Telefoon", werk.telefoonVoorman || ""]], 11);
     rij([["Uitvoering door", werk.uitvoeringDoor || ""]]);
     rij([["Startdatum", datumNl(werk.startdatum)], ["Geplande opleverdatum", datumNl(werk.opleverdatum), 40]]);
-    rij([["Planning per fase", ""]], 11);
-    rij([["Aantal woningen/objecten", ""]]);
-    rij([["Ruimte(s)", ""]], 11);
+    rij([["Planning per fase", werk.planningPerFase || ""]], 11);
+    rij([["Aantal woningen/objecten", werk.aantalObjecten || ""]]);
+    rij([["Ruimte(s)", werk.ruimtes || ""]], 11);
     rij([["Werkadres", werk.werkadres || ""]]);
-    rij([["Inkoopordernummer", ""]], 10);
+    rij([["Inkoopordernummer", werk.inkoopordernummer || ""]], 10);
 
     vak("Omschrijving werkzaamheden:", 42, undefined, werk.omschrijving);
     vak("Bijzonderheden (zoals kleuren):", 28, undefined, werk.bijzonderheden);
@@ -193,11 +230,12 @@ export function maakWerkplanPdf(werken: WerkplanWerk[], logo?: string): Blob {
     y += 10;
 
     kopje("Onderaannemers:");
-    tabel(["Bedrijf", "Contactpersoon", "Telefoonnummer"], [70, 62, W - 2 * M - 132], 5);
+    tabel(["Bedrijf", "Contactpersoon", "Telefoonnummer"], [70, 62, W - 2 * M - 132], 5, 8, (werk.onderaannemers || []).map((o) => [o.bedrijf || "", o.contact || "", o.telefoon || ""]));
     vak("Planning:", 34, undefined, (werk.planning || []).join("\n"));
-    vak("Route / Werkvolgorde", 40, "Per straat of woonblok. Bijvoorbeeld: Week 1 – Straat A, Straat B; Week 2 – Straat C; Week 3 – Straat D.");
+    vak("Route / Werkvolgorde", 40, "Per straat of woonblok. Bijvoorbeeld: Week 1 – Straat A, Straat B; Week 2 – Straat C; Week 3 – Straat D.", werk.route);
     ruimte(12);
     tekst("Eventuele afwijkingen direct communiceren met de projectleider:", M, y);
+    if (werk.afwijkingen) tekst(doc.splitTextToSize(werk.afwijkingen, W - 2 * M)[0], M, y + 6, { b: true });
     lijnKleur(LIJN); doc.line(M, y + 7, W - M, y + 7);
     y += 14;
 
@@ -241,7 +279,7 @@ export function maakWerkplanPdf(werken: WerkplanWerk[], logo?: string): Blob {
     nieuwePagina();
     tekst("Sponningenlijst", M, y + 2, { b: true, s: 13 });
     y += 10;
-    const sponning: Record<string, string> = { Project: werk.werknummer || "", "Adres / Complex": werk.werkadres || "", Uitvoerder: "" };
+    const sponning: Record<string, string> = { Project: werk.werknummer || "", "Adres / Complex": werk.werkadres || "", Uitvoerder: werk.uitvoerder || "" };
     for (const l of Object.keys(sponning)) { veld(l, sponning[l], M, W - M - 40, 36); y += 8; }
     y += 2;
     tabel(["Woningadres", "Onderdeel", "Buiten/ binnen", "Reden niet uitgevoerd"], [52, 42, 26, W - 2 * M - 120], 22, 8.5);

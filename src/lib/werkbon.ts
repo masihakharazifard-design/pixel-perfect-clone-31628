@@ -24,6 +24,8 @@ export interface WerkbonInvoer {
   werk: WerkbonWerk;
   dagen: WerkbonDag[];
   bedrijf?: { naam?: string; telefoon?: string; email?: string };
+  /** Downloadlink naar de werkbon-pdf (werkplan) */
+  pdfUrl?: string;
 }
 
 const esc = (s: unknown) =>
@@ -67,6 +69,7 @@ export function maakWerkbon(inv: WerkbonInvoer): { onderwerp: string; html: stri
 <tr><td style="padding:12px 24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
 ${regels.map(([k, v]) => `<tr><td style="${td};width:130px;color:#5F6673">${esc(k)}</td><td style="${td};font-weight:600">${k === "Adres" && kaart ? `<a href="${kaart}" style="color:#1E3A7B">${esc(v)}</a>` : esc(v)}</td></tr>`).join("\n")}
 </table></td></tr>
+${inv.pdfUrl ? `<tr><td style="padding:8px 24px 4px"><a href="${esc(inv.pdfUrl)}" style="display:inline-block;background:#E0402F;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 16px;border-radius:8px">Werkplan downloaden (pdf)</a></td></tr>` : ""}
 <tr><td style="padding:12px 24px 0;font-size:15px;font-weight:bold;color:#23272F">Ingeplande dagen</td></tr>
 <tr><td style="padding:6px 24px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
 ${dagen.map((d) => `<tr><td style="${td}">${esc(datumLang(d.datum))}</td><td style="${td};text-align:right;white-space:nowrap">${esc(tijd(d))}</td></tr>`).join("\n")}
@@ -87,6 +90,7 @@ ${w.opmerkingen ? `<tr><td style="padding:8px 24px 12px"><div style="font-size:1
     "Ingeplande dagen:",
     ...dagen.map((d) => `- ${datumLang(d.datum)}${tijd(d) ? ` (${tijd(d)})` : ""}`),
     ...(w.opmerkingen ? ["", "Opmerkingen:", w.opmerkingen] : []),
+    ...(inv.pdfUrl ? ["", `Werkplan (pdf): ${inv.pdfUrl}`] : []),
     "",
     `Vragen over dit werk? Neem contact op met ${w.projectleider || "je projectleider"}${inv.bedrijf?.telefoon ? ` of bel ${inv.bedrijf.telefoon}` : ""}.`,
   ].join("\n");

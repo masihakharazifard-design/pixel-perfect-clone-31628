@@ -10,6 +10,7 @@ import { laadWeer, weerOp } from "@/components/weer-advies";
 import UrenView from "@/components/uren-view";
 import FeedbackBalk from "@/components/feedback-balk";
 import { werkbonVoorWerk } from "@/components/werkplan-dialoog";
+import { werkplanMetAanpassingen } from "@/components/werkplan-venster";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
 // Eigen omgeving voor schilders (rol "medewerker"): alleen de eigen planning met werkbonnen,
@@ -125,11 +126,11 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     planning.filter((a) => a.date >= vandaag && a.date <= t).sort((a, b) => a.date.localeCompare(b.date))
       .forEach((a) => { if (!eerste.has(a.projectId!)) eerste.set(a.projectId!, a.date); });
     const datum = (x: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(str(x)) ? str(x).slice(0, 10) : "");
-    const lijst = [...eerste.keys()].map((pid) => werkbonVoorWerk(pid, planning, (id) => (id === mij.id ? str(mij.naam) : ""), () => {
+    const lijst = [...eerste.keys()].map((pid) => werkplanMetAanpassingen(werkbonVoorWerk(pid, planning, (id) => (id === mij.id ? str(mij.naam) : ""), () => {
       const p = werken.get(pid);
       return { werk: str(p?.projectnaam), werknummer: str(p?.werknummer), opdrachtgever: str(p?.opdrachtgever), adres: adresVan(p),
         projectleider: p ? plNaam(str(p.projectleider)) : "", opmerking: str(p?.opmerkingen), startdatum: datum(p?.startdatum), opleverdatum: datum(p?.afloopdatum), omschrijving: str(p?.projectnaam) };
-    }, str(mij.naam)));
+    }, str(mij.naam)), werken.get(pid)?.werkplan as Record<string, unknown> | undefined));
     if (!lijst.length) { toast("Je bent de komende twee weken nog nergens ingepland."); return; }
     downloadBlob(maakWerkplanPdf(lijst, await logoDataUrl(maasmondLogo)), werkplanBestandsnaam(str(mij.naam), vandaag, t));
   };
