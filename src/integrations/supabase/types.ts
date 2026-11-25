@@ -383,30 +383,33 @@ export type Database = {
           created_by: string | null
           datum: string
           employee_id: string
-          foto_pad: string
+          foto_pad: string | null
           id: string
           opmerking: string
           project_id: string
+          soort: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           datum: string
           employee_id: string
-          foto_pad: string
+          foto_pad?: string | null
           id?: string
           opmerking?: string
           project_id: string
+          soort?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
           datum?: string
           employee_id?: string
-          foto_pad?: string
+          foto_pad?: string | null
           id?: string
           opmerking?: string
           project_id?: string
+          soort?: string
         }
         Relationships: []
       }
@@ -451,6 +454,7 @@ export type Database = {
       heeft_recht: { Args: { _recht: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_member: { Args: never; Returns: boolean }
+      is_projectleider_van: { Args: { _pid: string }; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       lees_geschiedenis: {
         Args: { _limit?: number; _record_id?: string; _voor?: string }
@@ -465,6 +469,7 @@ export type Database = {
           wie: string
         }[]
       }
+      mag_gereed_foto_zien: { Args: { _pad: string }; Returns: boolean }
       mag_werk_zien: { Args: { _pid: string }; Returns: boolean }
       mijn_medewerker_id: { Args: never; Returns: string }
       patch_app_settings: {

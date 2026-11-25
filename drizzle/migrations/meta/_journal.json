@@ -57,6 +57,20 @@
       "when": 1795614602729,
       "tag": "0007_rollen_en_rechten",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795614641530,
+      "tag": "0008_dagfoto_en_gereed",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795614644945,
+      "tag": "0009_gereed_alleen_projectleider",
+      "breakpoints": true
     }
   ]
 }
