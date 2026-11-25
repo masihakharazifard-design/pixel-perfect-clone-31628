@@ -206,3 +206,13 @@ export async function geefFeedback(tekst: string, pagina: string): Promise<Feedb
 export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
   return (await impl()).zetFeedbackStatus(id, status);
 }
+
+// ===== Gebruikersbeheer (alleen beheerder; demo: voorbeeldgebruikers) =====
+export type { AdminUser, AppRoleName } from "./planning-store";
+import type { AdminUser, AppRoleName } from "./planning-store";
+export async function adminListUsers(): Promise<AdminUser[]> {
+  return (await impl()).adminListUsers();
+}
+export async function adminSetUserRole(userId: string, role: AppRoleName): Promise<void> {
+  return (await impl()).adminSetUserRole(userId, role);
+}

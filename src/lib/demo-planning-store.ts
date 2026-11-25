@@ -485,3 +485,24 @@ export async function geefFeedback(tekst: string, pagina: string): Promise<Feedb
 export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
   localStorage.setItem(FEEDBACK_KEY, JSON.stringify(leesFeedback().map((f) => (f.id === id ? { ...f, status } : f))));
 }
+
+// ===== Gebruikersbeheer (demo: lokale voorbeeldgebruikers) =====
+type DemoRol = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
+type DemoGebruiker = { user_id: string; email: string; created_at: string; roles: DemoRol[] };
+const GEBRUIKERS_KEY = "maasmond-demo-gebruikers";
+const DEMO_GEBRUIKERS: DemoGebruiker[] = [
+  { user_id: "demo-1", email: "beheer@voorbeeld.nl", created_at: "2026-01-05T09:00:00Z", roles: ["beheerder"] },
+  { user_id: "demo-2", email: "planning@voorbeeld.nl", created_at: "2026-02-10T09:00:00Z", roles: ["planner"] },
+  { user_id: "demo-3", email: "projectleider@voorbeeld.nl", created_at: "2026-03-01T09:00:00Z", roles: ["projectleider"] },
+  { user_id: "demo-4", email: "schilder@voorbeeld.nl", created_at: "2026-04-15T09:00:00Z", roles: ["medewerker"] },
+  { user_id: "demo-5", email: "nieuw@voorbeeld.nl", created_at: "2026-11-20T09:00:00Z", roles: [] },
+];
+function leesGebruikers(): DemoGebruiker[] {
+  try { const g = JSON.parse(localStorage.getItem(GEBRUIKERS_KEY) || "null"); return Array.isArray(g) ? g : DEMO_GEBRUIKERS; } catch { return DEMO_GEBRUIKERS; }
+}
+export async function adminListUsers(): Promise<DemoGebruiker[]> {
+  return leesGebruikers();
+}
+export async function adminSetUserRole(userId: string, role: DemoRol): Promise<void> {
+  localStorage.setItem(GEBRUIKERS_KEY, JSON.stringify(leesGebruikers().map((u) => (u.user_id === userId ? { ...u, roles: [role] } : u))));
+}

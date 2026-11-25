@@ -6,8 +6,19 @@ import { feestdagenTussen, feestdagOp } from "@/lib/feestdagen";
 import { toDateStr, shiftDate, weekdayIdx, isWeekendStr, addWorkdays, workdayDiff, shiftPlanRows, schuifVolgendeOp } from "@/lib/werkdagen";
 import { createProjectIndex } from "@/lib/project-index";
 
-export const GebruikersbeheerView = lazy(() => import("@/components/gebruikersbeheer-view"));
-export const TakenTab=lazy(()=>import("@/components/taken-tab").then(m=>({default:m.TakenTab})));
+// Na een nieuwe publicatie bestaan de oude programmabestanden niet meer; een pagina die nog open stond
+// kan ze dan niet laden. In dat geval één keer de pagina herladen zodat de nieuwe versie wordt opgehaald.
+function laadOfHerlaad<T>(laad:()=>Promise<T>):()=>Promise<T>{
+  return ()=>laad().catch((e)=>{
+    try{
+      const k="maasmond-herladen",vorig=Number(sessionStorage.getItem(k)||0);
+      if(Date.now()-vorig>30000){sessionStorage.setItem(k,String(Date.now()));window.location.reload();return new Promise<T>(()=>{});}
+    }catch{/* geen sessie-opslag */}
+    throw e;
+  });
+}
+export const GebruikersbeheerView = lazy(laadOfHerlaad(() => import("@/components/gebruikersbeheer-view")));
+export const TakenTab=lazy(laadOfHerlaad(()=>import("@/components/taken-tab").then(m=>({default:m.TakenTab}))));
 
 // ===== TYPES =====
 export type Nav = "dashboard"|"projecten"|"agenda"|"personeelsplanning"|"uren"|"medewerkers"|"notities"|"facturatie"|"instellingen"|"geschiedenis"|"gebruikers";

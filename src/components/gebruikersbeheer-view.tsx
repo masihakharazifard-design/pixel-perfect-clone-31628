@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ROLE_LABELS, type AppRole } from "@/components/auth-context";
-import { adminListUsers, adminSetUserRole, type AdminUser } from "@/lib/planning-store";
+import { adminListUsers, adminSetUserRole, type AdminUser } from "@/lib/store";
 
 const ROLES: AppRole[] = ["beheerder", "planner", "projectleider", "financieel", "medewerker"];
 
