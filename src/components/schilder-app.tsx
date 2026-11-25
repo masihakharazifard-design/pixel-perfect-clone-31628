@@ -8,6 +8,7 @@ import { datumLang } from "@/lib/werkbon";
 import { downloadBlob, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
 import { laadWeer, weerOp } from "@/components/weer-advies";
 import UrenView from "@/components/uren-view";
+import FeedbackBalk from "@/components/feedback-balk";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
 // Eigen omgeving voor schilders (rol "medewerker"): alleen de eigen planning met werkbonnen,
@@ -141,6 +142,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
           className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === t ? "bg-[#1E3A7B] text-white" : "text-[#5F6673] hover:bg-[#F2F4F7]"}`}>{t === "planning" ? "Mijn planning" : "Uren"}</button>)}
       </div>
     </header>
+    <div className="max-w-2xl mx-auto"><FeedbackBalk pagina={tab === "planning" ? "Mijn planning" : "Uren"} kantoor={false} /></div>
 
     <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
       {laden && <p className="py-10 flex items-center justify-center gap-2 text-sm text-[#5F6673]"><Loader2 className="w-4 h-4 animate-spin" />Planning laden…</p>}

@@ -18,6 +18,8 @@ import {
   type UrenRegel,
   type UrenStatus,
   type GereedMelding,
+  type FeedbackItem,
+  type FeedbackStatus,
   type ProjectDocument,
   type ProjectMeta,
   type SettingsPathPatch,
@@ -465,4 +467,21 @@ export async function intrekGereed(m: GereedMelding): Promise<void> {
 }
 export async function uploadWerkplanPdf(_employeeId: string, _bestandsnaam: string, _pdf: Blob): Promise<string> {
   return "";
+}
+
+// ===== Feedback (demo: lokale opslag) =====
+const FEEDBACK_KEY = "maasmond-demo-feedback";
+function leesFeedback(): FeedbackItem[] {
+  try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || "[]") as FeedbackItem[]; } catch { return []; }
+}
+export async function loadFeedback(): Promise<FeedbackItem[]> {
+  return leesFeedback().sort((a, b) => b.tijd.localeCompare(a.tijd));
+}
+export async function geefFeedback(tekst: string, pagina: string): Promise<FeedbackItem> {
+  const f: FeedbackItem = { id: `fb-${Date.now()}`, tekst, pagina, auteur: "demo", eigen: true, status: "nieuw", tijd: new Date().toISOString() };
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify([f, ...leesFeedback()].slice(0, 300)));
+  return f;
+}
+export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(leesFeedback().map((f) => (f.id === id ? { ...f, status } : f))));
 }

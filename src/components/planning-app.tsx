@@ -14,6 +14,7 @@ import UrenView from "@/components/uren-view";
 import SchilderApp from "@/components/schilder-app";
 import GereedOverzicht from "@/components/gereed-overzicht";
 import WerkplanDialoog from "@/components/werkplan-dialoog";
+import FeedbackBalk from "@/components/feedback-balk";
 import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
 import { stuurWerkbon } from "@/lib/werkbon.functions";
 
@@ -5379,6 +5380,7 @@ function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void})
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden mm-werkvlak md:rounded-[28px]">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
+        <FeedbackBalk pagina={[...NAV_ITEMS,...PLANNER_NAV_ITEMS,...ADMIN_NAV_ITEMS].find(n=>n[0]===nav)?.[2]||"deze pagina"} kantoor={mijnRollen.some(r=>r!=="medewerker")}/>
         {dbError&&<div className="bg-[#FDE4E0] text-[#A42A1E] text-sm px-4 py-2 border-b border-[#F6C7BF]">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>
           {nav==="dashboard"&&<Dashboard projects={viewProjects} employees={employees} availability={avail} onNav={setNav} onOpenProject={openDetailProject} onShowActive={showActiveWerken}/>}

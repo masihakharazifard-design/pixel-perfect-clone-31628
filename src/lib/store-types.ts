@@ -83,3 +83,15 @@ export interface GereedMelding {
   opmerking: string;
   tijd: string; // ISO-tijdstip van melden
 }
+
+export type FeedbackStatus = "nieuw" | "in behandeling" | "opgelost";
+/** Feedback van een gebruiker over een pagina van de app. */
+export interface FeedbackItem {
+  id: string;
+  tekst: string;
+  pagina: string;
+  auteur: string;
+  eigen: boolean;
+  status: FeedbackStatus;
+  tijd: string; // ISO
+}

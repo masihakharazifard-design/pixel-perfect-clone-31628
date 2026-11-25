@@ -13,13 +13,15 @@ import type {
   UrenStatus,
   UrenSoort,
   GereedMelding,
+  FeedbackItem,
+  FeedbackStatus,
   WithId,
 } from "./store-types";
 
 export { EMPTY_META } from "./store-types";
 export type { GeschiedenisRegel } from "./geschiedenis";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "./geschiedenis";
-export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, UrenStatus, UrenSoort, GereedMelding };
+export type { PersonalNote, ProjectDocument, ProjectMeta, SettingsPathPatch, SyncTable, UrenRegel, UrenStatus, UrenSoort, GereedMelding, FeedbackItem, FeedbackStatus };
 export { berekenUren } from "./store-types";
 
 type Impl = typeof import("./planning-store");
@@ -192,4 +194,15 @@ export async function intrekGereed(m: GereedMelding): Promise<void> {
 }
 export async function uploadWerkplanPdf(employeeId: string, bestandsnaam: string, pdf: Blob): Promise<string> {
   return (await impl()).uploadWerkplanPdf(employeeId, bestandsnaam, pdf);
+}
+
+// ===== Feedback =====
+export async function loadFeedback(): Promise<FeedbackItem[]> {
+  return (await impl()).loadFeedback();
+}
+export async function geefFeedback(tekst: string, pagina: string): Promise<FeedbackItem> {
+  return (await impl()).geefFeedback(tekst, pagina);
+}
+export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
+  return (await impl()).zetFeedbackStatus(id, status);
 }

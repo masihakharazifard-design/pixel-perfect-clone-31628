@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { Taak } from "@/lib/taken";
 import type { GeschiedenisOpties, GeschiedenisRegel } from "@/lib/geschiedenis";
-import { EMPTY_META, type PersonalNote, type UrenRegel, type UrenStatus, type GereedMelding, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
+import { EMPTY_META, type PersonalNote, type UrenRegel, type UrenStatus, type GereedMelding, type FeedbackItem, type FeedbackStatus, type ProjectDocument, type ProjectMeta, type SettingsPathPatch, type SyncTable, type WithId } from "@/lib/store-types";
 
 type Row = { id: string; data: unknown };
 
@@ -464,4 +464,39 @@ export async function uploadWerkplanPdf(employeeId: string, bestandsnaam: string
   const { data, error } = await supabase.storage.from(DOC_BUCKET).createSignedUrl(pad, 60 * 60 * 24 * 30);
   if (error) throw error;
   return data.signedUrl;
+}
+
+// ===== Feedback =====
+type FeedbackRow = { id: string; tekst: string; pagina: string; auteur_id: string | null; auteur_naam: string; status: string; created_at: string };
+const feedbackTabel = () => (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> }).from("feedback");
+async function mijnId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+const naarFeedback = (r: FeedbackRow, uid: string | null): FeedbackItem => ({
+  id: r.id, tekst: r.tekst, pagina: r.pagina, auteur: r.auteur_naam || "", eigen: !!uid && r.auteur_id === uid,
+  status: (r.status as FeedbackStatus) || "nieuw", tijd: r.created_at,
+});
+
+export async function loadFeedback(): Promise<FeedbackItem[]> {
+  const uid = await mijnId();
+  const { data, error } = await feedbackTabel().select("id, tekst, pagina, auteur_id, auteur_naam, status, created_at")
+    .order("created_at", { ascending: false }).limit(300);
+  if (error) throw error;
+  return ((data ?? []) as unknown as FeedbackRow[]).map((r) => naarFeedback(r, uid));
+}
+
+export async function geefFeedback(tekst: string, pagina: string): Promise<FeedbackItem> {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u.user?.id ?? null;
+  const naam = String(u.user?.user_metadata?.full_name || u.user?.email?.split("@")[0] || "");
+  const { data, error } = await feedbackTabel().insert({ tekst, pagina, auteur_naam: naam } as never)
+    .select("id, tekst, pagina, auteur_id, auteur_naam, status, created_at").single();
+  if (error) throw error;
+  return naarFeedback(data as unknown as FeedbackRow, uid);
+}
+
+export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
+  const { error } = await feedbackTabel().update({ status } as never).eq("id", id);
+  if (error) throw error;
 }
