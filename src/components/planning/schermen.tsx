@@ -46,13 +46,13 @@ export const NAV_ITEMS:[Nav,React.ElementType,string][]=[
   ["uren",Clock,"Uren"],["medewerkers",UserCircle,"Medewerkers"],["notities",MessageSquare,"Notities"],
   ["facturatie",Receipt,"Facturatie"],["instellingen",Settings,"Instellingen"],
 ];
-// Geschiedenis: alleen voor wie mag plannen (beheerder en planner)
+// Geschiedenis: alleen voor wie mag plannen; Facturatie alleen met dat recht; Gebruikersbeheer alleen beheerder
 export const PLANNER_NAV_ITEMS:[Nav,React.ElementType,string][]=[["geschiedenis",History,"Geschiedenis"]];
 export const ADMIN_NAV_ITEMS:[Nav,React.ElementType,string][]=[["gebruikers",UserCog,"Gebruikersbeheer"]];
-export const magGeschiedenis=(roles:string[])=>roles.includes("beheerder")||roles.includes("planner");
+export const magGeschiedenis=(r:{plannen:boolean})=>r.plannen;
 export function SidebarContent({active,onNav}:{active:Nav;onNav:(n:Nav)=>void}){
-  const {roles}=useAuth();
-  const items=[...NAV_ITEMS,...(magGeschiedenis(roles)?PLANNER_NAV_ITEMS:[]),...(roles.includes("beheerder")?ADMIN_NAV_ITEMS:[])];
+  const {roles,rechten}=useAuth();
+  const items=[...NAV_ITEMS.filter(n=>n[0]!=="facturatie"||rechten.facturatie),...(magGeschiedenis(rechten)?PLANNER_NAV_ITEMS:[]),...(roles.includes("beheerder")?ADMIN_NAV_ITEMS:[])];
   return <>
     <div className="px-5 pt-6 pb-5">
       <div className="flex items-center gap-3">

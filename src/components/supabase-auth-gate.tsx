@@ -16,6 +16,8 @@ import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { LoginAchtergrond } from "@/components/login-achtergrond";
 import { Ctx, ROLE_LABELS, type AppRole } from "@/components/auth-context";
 import { isAllowedLoginEmail } from "@/lib/login-access";
+import { ROLLEN, rechtenVoor, type RechtenPerRol } from "@/lib/rechten";
+import { loadRolRechten } from "@/lib/store";
 
 // Terugkomst van Microsoft (via de Lovable-aanmeldservice): de inloggegevens staan in het adres
 // (#access_token=…&refresh_token=… of ?access_token=…). Vastleggen bij het laden van de pagina.
@@ -273,6 +275,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
   const [ready, setReady] = useState(false);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [rolesReady, setRolesReady] = useState(false);
+  const [rechtenTabel, setRechtenTabel] = useState<RechtenPerRol>({});
 
   useEffect(() => {
     try {
@@ -336,8 +339,11 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
       return [];
     };
 
-    void bepaalRollen().then((gevonden) => {
+    void bepaalRollen().then(async (gevonden) => {
+      // Rechten per rol (bestaat de tabel nog niet, dan gelden de standaardrechten)
+      const tabel = gevonden.length ? await loadRolRechten().catch(() => ({})) : {};
       if (cancelled) return;
+      setRechtenTabel(tabel);
       setRoles(gevonden);
       setRolesReady(true);
     });
@@ -377,9 +383,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
     );
   }
 
-  const primary = (["beheerder", "planner", "projectleider", "financieel", "medewerker"] as AppRole[]).find((r) =>
-    roles.includes(r),
-  );
+  const primary = ROLLEN.find((r) => roles.includes(r));
 
   return (
     <Ctx.Provider
@@ -387,6 +391,7 @@ export default function SupabaseAuthGate({ children }: { children: ReactNode }) 
         user,
         roles,
         roleLabel: primary ? ROLE_LABELS[primary] : "Medewerker",
+        rechten: rechtenVoor(roles, rechtenTabel),
         signOut,
       }}
     >

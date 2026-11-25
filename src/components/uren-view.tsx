@@ -59,8 +59,9 @@ export default function UrenView({ employees, availability, werkNaam, zoekWerken
   /** Schildersomgeving: alleen de eigen uren, geen Accorderen */
   eigen?: boolean;
 }) {
-  const { roles, user } = useAuth();
-  const kantoor = !eigen && roles.some((r) => r !== "medewerker");
+  const { rechten, user } = useAuth();
+  const kantoor = !eigen && rechten.kantoor;
+  const magAccorderen = kantoor && rechten.urenAccorderen;
   const [tab, setTab] = useState<"uren" | "accorderen">("uren");
   const [week, setWeek] = useState(() => maandagVan(vandaag()));
   const mensen = useMemo(() => [...employees].sort((a, b) => a.naam.localeCompare(b.naam, "nl")), [employees]);
@@ -203,11 +204,11 @@ export default function UrenView({ employees, availability, werkNaam, zoekWerken
       {kantoor && <button onClick={exporteer} className="px-3 py-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F] hover:bg-[#F4F6F9] flex items-center gap-1.5"><Download className="w-4 h-4" />Exporteren</button>}
     </div>}
     {kantoor && <div className="flex gap-5 border-b border-[rgba(15,23,42,0.08)]">
-      {(["uren", "accorderen"] as const).map((t) => <button key={t} onClick={() => setTab(t)}
+      {(magAccorderen ? (["uren", "accorderen"] as const) : (["uren"] as const)).map((t) => <button key={t} onClick={() => setTab(t)}
         className={`pb-2 text-sm font-medium border-b-2 -mb-px ${tab === t ? "border-[#E0402F] text-[#23272F]" : "border-transparent text-[#5F6673] hover:text-[#23272F]"}`}>{t === "uren" ? "Weekstaat" : "Accorderen"}</button>)}
     </div>}
 
-    {tab === "accorderen" && kantoor ? <Accorderen employees={employees} werkNaam={werkNaam} beoordelaar={(user?.email || "").split("@")[0] || "kantoor"} /> : <>
+    {tab === "accorderen" && magAccorderen ? <Accorderen employees={employees} werkNaam={werkNaam} beoordelaar={(user?.email || "").split("@")[0] || "kantoor"} /> : <>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center bg-white border border-[rgba(15,23,42,0.12)] rounded-[10px]">

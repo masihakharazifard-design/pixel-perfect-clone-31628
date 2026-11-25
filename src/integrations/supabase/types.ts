@@ -482,6 +482,11 @@ export type Database = {
         | "projectleider"
         | "financieel"
         | "medewerker"
+        | "vestigingsmanager"
+        | "hoofddirectie"
+        | "werkvoorbereider"
+        | "stoffeerder"
+        | "onderaannemer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -615,6 +620,11 @@ export const Constants = {
         "projectleider",
         "financieel",
         "medewerker",
+        "vestigingsmanager",
+        "hoofddirectie",
+        "werkvoorbereider",
+        "stoffeerder",
+        "onderaannemer",
       ],
     },
   },

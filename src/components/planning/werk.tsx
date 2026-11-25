@@ -310,8 +310,8 @@ export function ProjectDetail({project,employees,allProjects=[],availability=[],
   const assigned=getProjectAssignedEmployees(werkIdsVan(project),availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const {roles}=useAuth();
-  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities",...(magGeschiedenis(roles)?["geschiedenis" as ProjTab]:[])];
+  const {rechten}=useAuth();
+  const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities",...(magGeschiedenis(rechten)?["geschiedenis" as ProjTab]:[])];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities",geschiedenis:"Geschiedenis"};
   const afds=getAllAfds(project);
   const primaryDc=dc[afds[0]];

@@ -127,7 +127,7 @@ export type AdminUser = {
   created_at: string;
   roles: AppRoleName[];
 };
-export type AppRoleName = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
+export type AppRoleName = import("./rechten").AppRole;
 
 export async function adminListUsers(): Promise<AdminUser[]> {
   const { data, error } = await supabase.rpc("admin_list_users");
@@ -137,6 +137,21 @@ export async function adminListUsers(): Promise<AdminUser[]> {
 
 export async function adminSetUserRole(userId: string, role: AppRoleName): Promise<void> {
   const { error } = await supabase.rpc("admin_set_user_role", { _user_id: userId, _role: role });
+  if (error) throw error;
+}
+
+// ===== Rechten per rol (tabel rol_rechten; alleen de beheerder mag wijzigen) =====
+type LosseTabel = { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+export async function loadRolRechten(): Promise<import("./rechten").RechtenPerRol> {
+  const { data, error } = await (supabase as unknown as LosseTabel).from("rol_rechten").select("rol, rechten");
+  if (error) throw error;
+  const uit: import("./rechten").RechtenPerRol = {};
+  for (const r of (data ?? []) as { rol: AppRoleName; rechten: import("./rechten").Rechten }[]) uit[r.rol] = r.rechten;
+  return uit;
+}
+export async function slaRolRechtenOp(rol: AppRoleName, rechten: import("./rechten").Rechten): Promise<void> {
+  const { error } = await (supabase as unknown as LosseTabel).from("rol_rechten")
+    .upsert({ rol, rechten, updated_at: new Date().toISOString() }, { onConflict: "rol" });
   if (error) throw error;
 }
 

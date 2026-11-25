@@ -4,6 +4,7 @@ import { LogIn } from "lucide-react";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { LoginAchtergrond } from "@/components/login-achtergrond";
 import { Ctx, ROLE_LABELS } from "@/components/auth-context";
+import { STANDAARD_RECHTEN } from "@/lib/rechten";
 
 // DEMO MODE: geen Supabase, geen OTP, geen e-mail. Alles wat wordt ingevuld wordt geaccepteerd.
 const SESSION_KEY = "maasmond-demo-session";
@@ -134,7 +135,7 @@ export default function DemoAuthGate({ children }: { children: ReactNode }) {
   } as unknown as User;
 
   return (
-    <Ctx.Provider value={{ user: demoUser, roles: ["beheerder"], roleLabel: ROLE_LABELS.beheerder, signOut }}>
+    <Ctx.Provider value={{ user: demoUser, roles: ["beheerder"], roleLabel: ROLE_LABELS.beheerder, rechten: STANDAARD_RECHTEN.beheerder, signOut }}>
       {children}
     </Ctx.Provider>
   );

@@ -27,12 +27,12 @@ import { AbsenceDraft, PersoneelsplanningView } from "@/components/planning/pers
 import { NotitiesView, MedewerkersView, InstellingenView, diffSettings } from "@/components/planning/beheer";
 
 // ===== APP =====
-// Schilders (alleen rol "medewerker") krijgen hun eigen omgeving; kantoor ziet het planbord.
+// Wie geen recht "Kantoorscherm" heeft (schilder, stoffeerder, onderaannemer) krijgt de eigen omgeving; kantoor ziet het planbord.
 // Kantoor kan via Medewerkers bekijken hoe een schilder de app ziet.
 export default function PlanningApp(){
-  const {roles}=useAuth();
+  const {roles,rechten}=useAuth();
   const [alsSchilder,setAlsSchilder]=useState<string|null>(null);
-  if(roles.length>0&&roles.every(r=>r==="medewerker"))return <SchilderApp/>;
+  if(roles.length>0&&!rechten.kantoor)return <SchilderApp/>;
   if(alsSchilder)return <SchilderApp employeeId={alsSchilder} onTerug={()=>setAlsSchilder(null)}/>;
   return <PlanningBord onAlsSchilder={setAlsSchilder}/>;
 }
@@ -47,10 +47,10 @@ function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void})
     }).catch(()=>{});
     return()=>{actief=false;};},[]);
   // Alleen beheerders en planners mogen werken opruimen (zelfde regel als de database: can_plan)
-  const {roles:mijnRollen}=useAuth();
+  const {rechten:mijnRechten}=useAuth();
   // Laatste planningswijziging, om met één klik terug te draaien (zonder pop-up)
   const [ongedaan,setOngedaan]=useState<{label:string;herstel:()=>Promise<void>}|null>(null);
-  const magPlannen=mijnRollen.includes("beheerder")||mijnRollen.includes("planner");
+  const magPlannen=mijnRechten.plannen;
   // Eenmalig startfilter voor Werken (bijv. "In uitvoering" vanuit het Dashboard); vervalt bij weggaan.
   const [werkenPreset,setWerkenPreset]=useState<string[]>([]);
   useEffect(()=>{if(nav!=="projecten")setWerkenPreset([]);},[nav]);
@@ -655,7 +655,7 @@ function PlanningBord({onAlsSchilder}:{onAlsSchilder:(employeeId:string)=>void})
       <Sidebar active={nav} onNav={setNav} mobileOpen={mobileMenuOpen} onMobileClose={()=>setMobileMenuOpen(false)}/>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden mm-werkvlak md:rounded-[28px]">
         <MobileTopBar onOpenMenu={()=>setMobileMenuOpen(true)} nav={nav}/>
-        <FeedbackBalk pagina={[...NAV_ITEMS,...PLANNER_NAV_ITEMS,...ADMIN_NAV_ITEMS].find(n=>n[0]===nav)?.[2]||"deze pagina"} kantoor={mijnRollen.some(r=>r!=="medewerker")}
+        <FeedbackBalk pagina={[...NAV_ITEMS,...PLANNER_NAV_ITEMS,...ADMIN_NAV_ITEMS].find(n=>n[0]===nav)?.[2]||"deze pagina"} kantoor={mijnRechten.kantoor}
           extra={ongedaan&&<button onClick={()=>void ongedaan.herstel()} title={`Ongedaan maken: ${ongedaan.label}`} className="px-2.5 py-1.5 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#1E3A7B] font-medium hover:bg-[#EEF1F5] flex items-center gap-1 shrink-0"><Undo2 className="w-4 h-4"/><span className="hidden md:inline">Ongedaan maken</span></button>}/>
         {dbError&&<div className="bg-[#FDE4E0] text-[#A42A1E] text-sm px-4 py-2 border-b border-[#F6C7BF]">Opslaan mislukt: {dbError}</div>}
         <div className={`flex-1 min-h-0 ${nav==="agenda"?"overflow-hidden flex flex-col":"overflow-auto"}`}>

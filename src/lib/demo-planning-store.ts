@@ -487,7 +487,7 @@ export async function zetFeedbackStatus(id: string, status: FeedbackStatus): Pro
 }
 
 // ===== Gebruikersbeheer (demo: lokale voorbeeldgebruikers) =====
-type DemoRol = "beheerder" | "planner" | "projectleider" | "financieel" | "medewerker";
+type DemoRol = import("./rechten").AppRole;
 type DemoGebruiker = { user_id: string; email: string; created_at: string; roles: DemoRol[] };
 const GEBRUIKERS_KEY = "maasmond-demo-gebruikers";
 const DEMO_GEBRUIKERS: DemoGebruiker[] = [
@@ -505,4 +505,13 @@ export async function adminListUsers(): Promise<DemoGebruiker[]> {
 }
 export async function adminSetUserRole(userId: string, role: DemoRol): Promise<void> {
   localStorage.setItem(GEBRUIKERS_KEY, JSON.stringify(leesGebruikers().map((u) => (u.user_id === userId ? { ...u, roles: [role] } : u))));
+}
+
+// ===== Rechten per rol (demo: lokale opslag) =====
+const RECHTEN_KEY = "maasmond-demo-rechten";
+export async function loadRolRechten(): Promise<import("./rechten").RechtenPerRol> {
+  try { return JSON.parse(localStorage.getItem(RECHTEN_KEY) || "{}"); } catch { return {}; }
+}
+export async function slaRolRechtenOp(rol: DemoRol, rechten: import("./rechten").Rechten): Promise<void> {
+  localStorage.setItem(RECHTEN_KEY, JSON.stringify({ ...(await loadRolRechten()), [rol]: rechten }));
 }

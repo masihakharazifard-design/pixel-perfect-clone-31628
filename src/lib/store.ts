@@ -216,3 +216,9 @@ export async function adminListUsers(): Promise<AdminUser[]> {
 export async function adminSetUserRole(userId: string, role: AppRoleName): Promise<void> {
   return (await impl()).adminSetUserRole(userId, role);
 }
+export async function loadRolRechten(): Promise<import("./rechten").RechtenPerRol> {
+  return (await impl()).loadRolRechten();
+}
+export async function slaRolRechtenOp(rol: AppRoleName, rechten: import("./rechten").Rechten): Promise<void> {
+  return (await impl()).slaRolRechtenOp(rol, rechten);
+}
