@@ -1191,7 +1191,7 @@ export function PersoneelsplanningView({employees,availability,settings,onSaveSe
       statusLabel:`${PLAN_STATUS_LABEL[st]}${rest>0?` · nog ${rest}`:""}`,
       countLabel:`${n}/${nodig}`,
     };
-  },[ingeplandPerWerk,projectColors,badgeColors]);
+  },[ingeplandPerWerk,projectColors,badgeColors,dc]);
 
   // Teams (unieke combinaties) in deze periode, voor de legenda
   const teams:{key:string;kleur:string;label:string}[]=[];
