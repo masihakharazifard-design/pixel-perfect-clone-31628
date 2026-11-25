@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { Camera, Flag, Loader2 } from "lucide-react";
 import { gereedFotoUrl, loadGereed, type GereedMelding } from "@/lib/store";
+import { useAuth } from "@/components/auth-gate";
 
 // Dashboard: dagfoto's en gereedmeldingen (hele werk klaar) van de afgelopen twee weken.
+// De database geeft alleen meldingen van werken waar je projectleider van bent (de beheerder ziet alles).
 const pad = (n: number) => String(n).padStart(2, "0");
 const ds = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export default function GereedOverzicht({ werkNaam, naamVan }: { werkNaam: (id: string) => string; naamVan: (id: string) => string }) {
   const [lijst, setLijst] = useState<(GereedMelding & { url?: string })[] | null>(null);
+  const { roles } = useAuth();
   useEffect(() => {
     let weg = false;
     const tot = ds(new Date()), d = new Date(); d.setDate(d.getDate() - 14);
@@ -25,6 +28,7 @@ export default function GereedOverzicht({ werkNaam, naamVan }: { werkNaam: (id: 
   return <div className="bg-white rounded-lg border border-[rgba(15,23,42,0.06)] overflow-hidden">
     <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[rgba(15,23,42,0.06)]">
       <h3 className="text-base leading-[22px] font-semibold text-[#23272F]">Dagfoto's en gereedmeldingen{lijst ? <span className="ml-1.5 text-xs font-medium text-[#5F6673]">({lijst.length})</span> : null}</h3>
+      <p className="text-xs text-[#5F6673] mt-0.5">{roles.includes("beheerder") ? "Van alle werken (je bent beheerder)." : "Van de werken waar jij projectleider bent."}</p>
     </div>
     {!lijst ? <p className="px-5 py-6 flex items-center gap-2 text-sm text-[#5F6673]"><Loader2 className="w-4 h-4 animate-spin" />Laden…</p>
       : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
