@@ -5,10 +5,11 @@ import { useAuth } from "@/components/auth-gate";
 import { gereedFotoUrl, loadAll, loadGereed, meldGereed, type GereedMelding } from "@/lib/store";
 import { verkleinFoto } from "@/lib/foto";
 import { datumLang } from "@/lib/werkbon";
-import { downloadBlob, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
+import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
 import { laadWeer, weerOp } from "@/components/weer-advies";
 import UrenView from "@/components/uren-view";
 import FeedbackBalk from "@/components/feedback-balk";
+import { werkbonVoorWerk } from "@/components/werkplan-dialoog";
 import maasmondLogo from "@/assets/maasmond-logo.jpg";
 
 // Eigen omgeving voor schilders (rol "medewerker"): alleen de eigen planning met werkbonnen,
@@ -116,14 +117,21 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
     try { window.open(await gereedFotoUrl(g.fotoPad), "_blank", "noopener"); } catch { toast.error("Foto kon niet worden geopend."); }
   };
 
-  const werkplanPdf = () => {
+  // Werkbon schilder (pdf) voor elk werk van de komende twee weken
+  const werkplanPdf = async () => {
     if (!mij) return;
     const t = plus(vandaag, 13);
-    const regels = planning.filter((a) => a.date >= vandaag && a.date <= t).map((a) => {
-      const p = werken.get(a.projectId!);
-      return { datum: a.date, start: a.startTime, eind: a.endTime, werk: werkLabel(a.projectId), adres: adresVan(p), projectleider: p ? plNaam(str(p.projectleider)) : "", opmerking: p ? str(p.opmerkingen) : "" };
-    });
-    downloadBlob(maakWerkplanPdf({ medewerker: str(mij.naam), van: vandaag, tot: t, regels, bedrijf: str(instellingen.bedrijfsnaam) || "Maasmond" }), werkplanBestandsnaam(str(mij.naam), vandaag, t));
+    const eerste = new Map<string, string>();
+    planning.filter((a) => a.date >= vandaag && a.date <= t).sort((a, b) => a.date.localeCompare(b.date))
+      .forEach((a) => { if (!eerste.has(a.projectId!)) eerste.set(a.projectId!, a.date); });
+    const datum = (x: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(str(x)) ? str(x).slice(0, 10) : "");
+    const lijst = [...eerste.keys()].map((pid) => werkbonVoorWerk(pid, planning, (id) => (id === mij.id ? str(mij.naam) : ""), () => {
+      const p = werken.get(pid);
+      return { werk: str(p?.projectnaam), werknummer: str(p?.werknummer), opdrachtgever: str(p?.opdrachtgever), adres: adresVan(p),
+        projectleider: p ? plNaam(str(p.projectleider)) : "", opmerking: str(p?.opmerkingen), startdatum: datum(p?.startdatum), opleverdatum: datum(p?.afloopdatum), omschrijving: str(p?.projectnaam) };
+    }, str(mij.naam)));
+    if (!lijst.length) { toast("Je bent de komende twee weken nog nergens ingepland."); return; }
+    downloadBlob(maakWerkplanPdf(lijst, await logoDataUrl(maasmondLogo)), werkplanBestandsnaam(str(mij.naam), vandaag, t));
   };
 
   return <div className="min-h-screen bg-[#EEF1F5]" style={{ fontFamily: "var(--font-ui)" }}>
@@ -150,7 +158,7 @@ export default function SchilderApp({ employeeId, onTerug }: { employeeId?: stri
 
       {!laden && !fout && tab === "planning" && <>
         <div className="flex justify-end">
-          <button onClick={werkplanPdf} className="px-3 py-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F] flex items-center gap-1.5"><Download className="w-4 h-4" />Werkplan (pdf)</button>
+          <button onClick={() => void werkplanPdf()} className="px-3 py-2 text-sm rounded-[10px] border border-[rgba(15,23,42,0.12)] bg-white text-[#23272F] flex items-center gap-1.5"><Download className="w-4 h-4" />Werkbon (pdf)</button>
         </div>
         {dagen.length === 0 && <p className="bg-white rounded-lg p-6 text-center text-sm text-[#5F6673]">Je bent de komende weken nog nergens ingepland.</p>}
         {dagen.map(([datum, regels]) => <section key={datum} className="space-y-2">

@@ -1,26 +1,53 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Loader2, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { useAuth } from "@/components/auth-gate";
 import { uploadWerkplanPdf } from "@/lib/store";
-import { downloadBlob, maakWerkplanPdf, werkplanBestandsnaam, type WerkplanRegel } from "@/lib/werkplan-pdf";
+import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam, type WerkplanWerk } from "@/lib/werkplan-pdf";
+import maasmondLogo from "@/assets/maasmond-logo.jpg";
 import { stuurWerkplan } from "@/lib/werkbon.functions";
 
 // Werkplan per medewerker voor een periode: als pdf downloaden of (met pdf-link) naar de medewerker mailen.
 
 export interface WpMedewerker { id: string; naam: string; email?: string; afdeling?: string }
 export interface WpPlanRegel { employeeId: string; date: string; startTime: string; endTime: string; status: string; projectId?: string }
-export interface WpWerkInfo { werk: string; adres?: string; projectleider?: string; opmerking?: string }
+export interface WpWerkInfo { werk: string; werknummer?: string; opdrachtgever?: string; adres?: string; projectleider?: string; opmerking?: string; startdatum?: string; opleverdatum?: string; omschrijving?: string }
 
 const invoer = "px-3 py-2 text-sm border border-[rgba(15,23,42,0.15)] rounded-[10px] bg-white text-[#23272F] outline-none focus:border-[#1E3A7B]";
 
-export function werkplanRegels(availability: WpPlanRegel[], employeeId: string, van: string, tot: string, info: (pid: string) => WpWerkInfo): WerkplanRegel[] {
-  return availability
-    .filter((a) => a.employeeId === employeeId && a.status === "Ingepland" && a.projectId && a.date >= van && a.date <= tot)
-    .map((a) => ({ datum: a.date, start: a.startTime, eind: a.endTime, ...info(a.projectId!) }));
+const vandaagDs = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const dagKort = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
+
+/** Gegevens van één werk voor de werkbon-pdf, met de planning (wie wanneer) uit de ingeplande regels. */
+export function werkbonVoorWerk(pid: string, availability: WpPlanRegel[], naamVan: (id: string) => string, info: (pid: string) => WpWerkInfo, behandeldDoor?: string): WerkplanWerk {
+  const i = info(pid);
+  const perDag = new Map<string, Set<string>>();
+  availability.filter((a) => a.projectId === pid && a.status === "Ingepland").forEach((a) => {
+    perDag.set(a.date, (perDag.get(a.date) || new Set()).add(naamVan(a.employeeId)));
+  });
+  const dagen = [...perDag.keys()].sort();
+  const mensen = [...new Set(dagen.flatMap((d) => [...perDag.get(d)!]))].filter(Boolean);
+  return {
+    werknummer: i.werknummer, opdrachtgever: i.opdrachtgever, werkadres: i.adres, projectleider: i.projectleider,
+    uitvoeringDoor: mensen.join(", "), startdatum: i.startdatum || dagen[0], opleverdatum: i.opleverdatum || dagen[dagen.length - 1],
+    omschrijving: i.omschrijving, bijzonderheden: i.opmerking,
+    planning: dagen.slice(0, 7).map((d) => `${dagKort(d)}: ${[...perDag.get(d)!].join(", ")}`).concat(dagen.length > 7 ? [`… en nog ${dagen.length - 7} dagen`] : []),
+    invuldatum: vandaagDs(), behandeldDoor,
+  };
 }
 
-export default function WerkplanDialoog({ employees, availability, info, van: van0, tot: tot0, bedrijf, onSluit }: {
+/** De werken waarop een medewerker in de periode staat, als werkbonnen (één per werk). */
+export function werkbonWerken(availability: WpPlanRegel[], employeeId: string, van: string, tot: string, info: (pid: string) => WpWerkInfo, naamVan: (id: string) => string = () => "", behandeldDoor?: string): WerkplanWerk[] {
+  const pids: string[] = [];
+  availability
+    .filter((a) => a.employeeId === employeeId && a.status === "Ingepland" && a.projectId && a.date >= van && a.date <= tot)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach((a) => { if (!pids.includes(a.projectId!)) pids.push(a.projectId!); });
+  return pids.map((pid) => werkbonVoorWerk(pid, availability, naamVan, info, behandeldDoor));
+}
+
+export default function WerkplanDialoog({ employees, availability, info, van: van0, tot: tot0, onSluit }: {
   employees: WpMedewerker[]; availability: WpPlanRegel[]; info: (pid: string) => WpWerkInfo;
   van: string; tot: string; bedrijf?: string; onSluit: () => void;
 }) {
@@ -32,10 +59,14 @@ export default function WerkplanDialoog({ employees, availability, info, van: va
   }, [employees, availability, van, tot]);
   const [gekozen, setGekozen] = useState<Set<string>>(() => new Set());
   const [bezig, setBezig] = useState<"" | "pdf" | "mail">("");
+  const [logo, setLogo] = useState<string>();
+  useEffect(() => { void logoDataUrl(maasmondLogo).then(setLogo); }, []);
   const lijst = metPlanning.filter((e) => gekozen.has(e.id));
   const wissel = (id: string) => setGekozen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-  const pdfVan = (e: WpMedewerker) => maakWerkplanPdf({ medewerker: e.naam, van, tot, bedrijf, regels: werkplanRegels(availability, e.id, van, tot, info) });
+  const { user } = useAuth();
+  const naamVan = (id: string) => employees.find((x) => x.id === id)?.naam || "";
+  const pdfVan = (e: WpMedewerker) => maakWerkplanPdf(werkbonWerken(availability, e.id, van, tot, info, naamVan, String(user?.user_metadata?.full_name || user?.email?.split("@")[0] || "")), logo);
 
   const downloaden = () => {
     setBezig("pdf");

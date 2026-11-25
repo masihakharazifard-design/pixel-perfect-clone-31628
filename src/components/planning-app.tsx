@@ -13,7 +13,8 @@ import { WeerAdvies, ADVIES, laadWeer, weerOp, weerDagen, type WeerPlanItem } fr
 import UrenView from "@/components/uren-view";
 import SchilderApp from "@/components/schilder-app";
 import GereedOverzicht from "@/components/gereed-overzicht";
-import WerkplanDialoog from "@/components/werkplan-dialoog";
+import WerkplanDialoog, { werkbonVoorWerk } from "@/components/werkplan-dialoog";
+import { downloadBlob, logoDataUrl, maakWerkplanPdf, werkplanBestandsnaam } from "@/lib/werkplan-pdf";
 import FeedbackBalk from "@/components/feedback-balk";
 import { maakWerkbon, type WerkbonDag } from "@/lib/werkbon";
 import { stuurWerkbon } from "@/lib/werkbon.functions";
@@ -1541,7 +1542,7 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
   const assigned=getProjectAssignedEmployees(werkIdsVan(project),availability,employees);
   // Uurprijs en geschatte uren worden bewust niet meer getoond (data blijft in de database)
   const dur=validDate(project.startdatum)&&validDate(project.afloopdatum)?Math.ceil((new Date(project.afloopdatum).getTime()-new Date(project.startdatum).getTime())/86400000):0;
-  const {roles}=useAuth();
+  const {roles,user}=useAuth();
   const tabs:ProjTab[]=["overzicht","opmerkingen","taken","planning","medewerkers","documenten","facturatie","notities",...(magGeschiedenis(roles)?["geschiedenis" as ProjTab]:[])];
   const tabLabels:Record<ProjTab,string>={overzicht:"Overzicht",opmerkingen:"Opmerkingen",taken:"Taken",planning:"Planning",medewerkers:"Medewerkers",documenten:"Documenten",facturatie:"Facturatie",notities:"Notities",geschiedenis:"Geschiedenis"};
   const afds=getAllAfds(project);
@@ -1588,7 +1589,14 @@ function ProjectDetail({project,employees,allProjects=[],availability=[],teamCol
         <p className="text-[#23272F] leading-relaxed whitespace-pre-wrap">{project.opmerkingen||"Geen opmerkingen."}</p>
       </div>}
       {tab==="planning"&&<div className="space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Btn size="sm" variant="secondary" onClick={()=>void (async()=>{
+            const logo=await logoDataUrl(maasmondLogo);
+            const info=()=>({werk:project.projectnaam,werknummer:project.werknummer,opdrachtgever:project.opdrachtgever,adres:[project.straatObject||project.adres,project.plaatsObject||project.plaats].filter(Boolean).join(", "),projectleider:plName(project,employees),opmerking:project.opmerkingen||"",startdatum:validDate(project.startdatum)?datePart(project.startdatum):"",opleverdatum:validDate(project.afloopdatum)?datePart(project.afloopdatum):"",omschrijving:[project.projectnaam,getAllAfds(project).join(", ")].filter(Boolean).join(" – ")});
+            downloadBlob(maakWerkplanPdf([werkbonVoorWerk(project.id,availability,id=>employees.find(e=>e.id===id)?.naam||"",info,String(user?.user_metadata?.full_name||user?.email?.split("@")[0]||""))],logo),werkplanBestandsnaam(project.werknummer||project.projectnaam||"werk"));
+          })()}>
+            <FileDown className="w-3.5 h-3.5"/>Werkbon schilder (pdf)
+          </Btn>
           <Btn size="sm" variant="secondary" disabled={pdfBezig} onClick={()=>void exportPlanningPdf()}>
             <FileDown className="w-3.5 h-3.5"/>{pdfBezig?"PDF wordt gegenereerd...":"Exporteer planning als PDF"}
           </Btn>
@@ -4047,7 +4055,7 @@ function PersoneelsplanningView({employees,availability,settings,onSaveSettings,
     </div>
     {werkplanOpen&&<WerkplanDialoog employees={employees} availability={availability} bedrijf={settings.bedrijfsnaam}
       van={visibleDateStrings[0]||TODAY_STR} tot={visibleDateStrings[visibleDateStrings.length-1]||TODAY_STR} onSluit={()=>setWerkplanOpen(false)}
-      info={pid=>{const p=getIndexedProject(pid);return {werk:werkLabel(pid)||"Werk",adres:p?[p.straatObject||p.adres,p.plaatsObject||p.plaats].filter(Boolean).join(", "):"",projectleider:p?plName(p,employees):"",opmerking:p?.opmerkingen||""};}}/>}
+      info={pid=>{const p=getIndexedProject(pid);return {werk:werkLabel(pid)||"Werk",adres:p?[p.straatObject||p.adres,p.plaatsObject||p.plaats].filter(Boolean).join(", "):"",projectleider:p?plName(p,employees):"",opmerking:p?.opmerkingen||"",startdatum:p&&validDate(p.startdatum)?datePart(p.startdatum):"",werknummer:p?.werknummer||"",opdrachtgever:p?.opdrachtgever||"",opleverdatum:p&&validDate(p.afloopdatum)?datePart(p.afloopdatum):"",omschrijving:[p?.projectnaam,getAllAfds(p||({} as Project)).join(", ")].filter(Boolean).join(" – ")};}}/>}
     <div className="flex gap-2 items-center flex-wrap">
       <div className="flex items-center gap-1 border border-[rgba(15,23,42,0.12)] rounded-[10px] overflow-hidden">
         <button onClick={()=>navigate(-1)} className="p-1.5 hover:bg-[#F2F4F7] text-[#5F6673]"><ChevronLeft className="w-4 h-4"/></button>
