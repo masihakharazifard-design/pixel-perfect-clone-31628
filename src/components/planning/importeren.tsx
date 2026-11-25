@@ -22,7 +22,7 @@ export const PREVIEW_LIMIT=20;
 export const OPEN_LIMIT=100;
 export const PAGE_SIZE=50;
 
-export const createImportWorker=()=>new Worker(new URL("../workers/excel-import.worker.ts",import.meta.url),{type:"module"});
+export const createImportWorker=()=>new Worker(new URL("../../workers/excel-import.worker.ts",import.meta.url),{type:"module"});
 
 export function ExcelImportModal({projects,employees,onImport,onClose}:{
   projects:Project[];employees:Employee[];
